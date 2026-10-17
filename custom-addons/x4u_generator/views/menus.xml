@@ -1,0 +1,29 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <menuitem id="menu_x4u_generator_stock"
+              name="Generator Cards"
+              parent="stock.menu_stock_inventory_control"
+              action="action_x4u_generator"
+              groups="stock.group_stock_user"
+              sequence="50"/>
+
+    <menuitem id="menu_x4u_generator_sale"
+              name="Generator Cards"
+              parent="sale.product_menu_catalog"
+              action="action_x4u_generator"
+              groups="sales_team.group_sale_salesman"
+              sequence="50"/>
+
+    <menuitem id="menu_x4u_generator_quality"
+              name="Generator Cards"
+              parent="quality_control_oca.qc_inspection_menu_parent"
+              action="action_x4u_generator"
+              sequence="50"/>
+
+    <menuitem id="menu_x4u_generator_brand"
+              name="Generator Brands"
+              parent="stock.menu_product_in_config_stock"
+              action="action_x4u_generator_brand"
+              groups="stock.group_stock_manager"
+              sequence="50"/>
+</odoo>
