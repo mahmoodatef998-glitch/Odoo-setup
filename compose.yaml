@@ -1,0 +1,43 @@
+# 4U Power Generation — Odoo 18 Community — DEVELOPMENT ONLY
+# Images verified on Docker Hub 2026-10-17. Never use `latest`.
+name: odoo4u-dev
+
+services:
+  db:
+    image: postgres:16.15
+    environment:
+      POSTGRES_DB: postgres
+      POSTGRES_USER: odoo
+      POSTGRES_PASSWORD: ${DB_PASSWORD:?DB_PASSWORD is missing - copy .env.example to .env and set it}
+    volumes:
+      - db-data:/var/lib/postgresql/data
+    # No published ports: PostgreSQL is reachable only from the web container.
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U odoo -d postgres"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+    restart: "no"
+
+  web:
+    image: odoo:18.0-20261015
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      HOST: db
+      USER: odoo
+      PASSWORD: ${DB_PASSWORD}
+    ports:
+      - "127.0.0.1:${ODOO_PORT:-8069}:8069"   # localhost only - not reachable from LAN/internet
+    volumes:
+      - filestore:/var/lib/odoo
+      - ./config:/etc/odoo
+      - ./custom-addons:/mnt/extra-addons
+    restart: "no"
+
+volumes:
+  db-data:
+    name: odoo4u-dev-db-data
+  filestore:
+    name: odoo4u-dev-filestore

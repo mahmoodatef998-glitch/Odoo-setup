@@ -1,0 +1,7 @@
+.env
+config/odoo.conf
+backups/
+*.dump
+*.tgz
+__pycache__/
+*.pyc

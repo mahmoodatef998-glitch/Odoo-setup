@@ -1,0 +1,8 @@
+[options]
+; Copy to odoo.conf (git-ignored). Odoo writes the hashed master password
+; (admin_passwd) into odoo.conf when you set it from the Database Manager,
+; so the real file must never be committed.
+addons_path = /mnt/extra-addons
+data_dir = /var/lib/odoo
+proxy_mode = False
+list_db = True
