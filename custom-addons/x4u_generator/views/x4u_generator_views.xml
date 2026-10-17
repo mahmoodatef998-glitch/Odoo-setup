@@ -1,0 +1,207 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <record id="x4u_generator_view_form" model="ir.ui.view">
+        <field name="name">x4u.generator.form</field>
+        <field name="model">x4u.generator</field>
+        <field name="arch" type="xml">
+            <form string="Generator Card">
+                <header>
+                    <field name="state" widget="statusbar" statusbar_visible="in_stock,delivered,commissioned"/>
+                </header>
+                <sheet>
+                    <div class="oe_button_box" name="button_box">
+                        <button name="action_open_lot" type="object" class="oe_stat_button" icon="fa-barcode"
+                                string="Lot/Serial" groups="stock.group_stock_user"/>
+                        <button name="action_open_sale_order" type="object" class="oe_stat_button" icon="fa-dollar"
+                                string="Sales Order" invisible="not sale_order_id"/>
+                        <button name="action_open_delivery" type="object" class="oe_stat_button" icon="fa-truck"
+                                string="Delivery" invisible="not delivery_picking_id"/>
+                        <button name="action_open_inspections" type="object" class="oe_stat_button" icon="fa-check-square-o"
+                                groups="quality_control_oca.group_quality_control_user">
+                            <field name="qc_inspection_count" widget="statinfo" string="Inspections"/>
+                        </button>
+                    </div>
+                    <widget name="web_ribbon" title="Archived" bg_color="text-bg-danger" invisible="active"/>
+                    <field name="active" invisible="1"/>
+                    <div class="oe_title">
+                        <label for="lot_id" string="Serial No"/>
+                        <h1>
+                            <field name="lot_id" readonly="id" placeholder="Select a serial number"
+                                   options="{'no_create': True, 'no_open': True}"/>
+                        </h1>
+                    </div>
+                    <group name="main">
+                        <group>
+                            <field name="product_id"/>
+                            <field name="company_id" groups="base.group_multi_company"/>
+                        </group>
+                        <group>
+                            <field name="running_hours"/>
+                            <field name="warranty_state" widget="badge"
+                                   decoration-success="warranty_state == 'active'"
+                                   decoration-danger="warranty_state == 'expired'"/>
+                            <field name="qc_state" widget="badge"
+                                   decoration-success="qc_state == 'passed'"
+                                   decoration-warning="qc_state == 'pending'"
+                                   decoration-danger="qc_state == 'failed'"/>
+                        </group>
+                    </group>
+                    <notebook>
+                        <page string="Specs" name="specs">
+                            <group>
+                                <group string="Rating" name="rating">
+                                    <field name="kva_prime"/>
+                                    <field name="kva_standby"/>
+                                </group>
+                                <group string="Engine" name="engine">
+                                    <field name="engine_brand_id" options="{'no_create': True}"/>
+                                    <field name="engine_model"/>
+                                    <field name="engine_serial"/>
+                                </group>
+                                <group string="Alternator" name="alternator">
+                                    <field name="alternator_brand_id" options="{'no_create': True}"/>
+                                    <field name="alternator_model"/>
+                                    <field name="alternator_serial"/>
+                                </group>
+                            </group>
+                        </page>
+                        <page string="Sale &amp; Delivery" name="sale_delivery">
+                            <group>
+                                <group>
+                                    <field name="customer_id"/>
+                                    <field name="site_address_id"/>
+                                    <field name="sale_order_id"/>
+                                </group>
+                                <group>
+                                    <field name="delivery_picking_id"/>
+                                    <field name="delivery_date"/>
+                                    <field name="commissioning_date"/>
+                                </group>
+                            </group>
+                        </page>
+                        <page string="Running Hours" name="running_hours">
+                            <field name="hour_reading_ids">
+                                <list editable="top" default_order="date desc">
+                                    <field name="date"/>
+                                    <field name="hours"/>
+                                    <field name="source"/>
+                                    <field name="user_id" widget="many2one_avatar_user"/>
+                                    <field name="note"/>
+                                </list>
+                            </field>
+                        </page>
+                        <page string="Warranty" name="warranty">
+                            <group>
+                                <group string="Terms" name="warranty_terms">
+                                    <field name="warranty_months"/>
+                                    <field name="warranty_hours"/>
+                                    <field name="warranty_max_delivery_months"/>
+                                </group>
+                                <group string="Status" name="warranty_status">
+                                    <field name="warranty_start_date"/>
+                                    <field name="warranty_end_date"/>
+                                    <field name="last_reading_date"/>
+                                </group>
+                            </group>
+                        </page>
+                        <page string="Quality" name="quality" groups="quality_control_oca.group_quality_control_user">
+                            <field name="qc_inspection_ids" readonly="1">
+                                <list>
+                                    <field name="name"/>
+                                    <field name="date"/>
+                                    <field name="test"/>
+                                    <field name="state" widget="badge"
+                                           decoration-success="state == 'success'"
+                                           decoration-danger="state == 'failed'"/>
+                                </list>
+                            </field>
+                        </page>
+                        <page string="Notes" name="notes">
+                            <field name="note" placeholder="Internal notes..."/>
+                        </page>
+                    </notebook>
+                </sheet>
+                <chatter/>
+            </form>
+        </field>
+    </record>
+
+    <record id="x4u_generator_view_list" model="ir.ui.view">
+        <field name="name">x4u.generator.list</field>
+        <field name="model">x4u.generator</field>
+        <field name="arch" type="xml">
+            <list string="Generator Cards" decoration-muted="not active">
+                <field name="name"/>
+                <field name="product_id"/>
+                <field name="kva_prime"/>
+                <field name="engine_brand_id" optional="show"/>
+                <field name="alternator_brand_id" optional="show"/>
+                <field name="customer_id" optional="show"/>
+                <field name="state" widget="badge"
+                       decoration-info="state == 'in_stock'"
+                       decoration-warning="state == 'delivered'"
+                       decoration-success="state == 'commissioned'"/>
+                <field name="running_hours" optional="show"/>
+                <field name="warranty_end_date" optional="show"/>
+                <field name="warranty_state" widget="badge" optional="show"
+                       decoration-success="warranty_state == 'active'"
+                       decoration-danger="warranty_state == 'expired'"/>
+                <field name="qc_state" widget="badge" optional="show"
+                       decoration-success="qc_state == 'passed'"
+                       decoration-warning="qc_state == 'pending'"
+                       decoration-danger="qc_state == 'failed'"/>
+                <field name="company_id" groups="base.group_multi_company" optional="hide"/>
+                <field name="active" column_invisible="True"/>
+            </list>
+        </field>
+    </record>
+
+    <record id="x4u_generator_view_search" model="ir.ui.view">
+        <field name="name">x4u.generator.search</field>
+        <field name="model">x4u.generator</field>
+        <field name="arch" type="xml">
+            <search string="Generator Cards">
+                <field name="name" string="Serial No"/>
+                <field name="product_id"/>
+                <field name="customer_id"/>
+                <field name="sale_order_id"/>
+                <field name="engine_serial"/>
+                <field name="alternator_serial"/>
+                <field name="engine_brand_id"/>
+                <field name="alternator_brand_id"/>
+                <filter name="in_stock" string="In Stock" domain="[('state', '=', 'in_stock')]"/>
+                <filter name="delivered" string="Delivered" domain="[('state', '=', 'delivered')]"/>
+                <filter name="commissioned" string="Commissioned" domain="[('state', '=', 'commissioned')]"/>
+                <separator/>
+                <filter name="warranty_active" string="Warranty Active" domain="[('warranty_state', '=', 'active')]"/>
+                <filter name="warranty_expiring" string="Warranty Expiring (30 days)"
+                        domain="[('warranty_state', '=', 'active'), ('warranty_end_date', '&lt;=', (context_today() + relativedelta(days=30)).strftime('%Y-%m-%d'))]"/>
+                <filter name="warranty_expired" string="Warranty Expired" domain="[('warranty_state', '=', 'expired')]"/>
+                <separator/>
+                <filter name="qc_pending" string="QC Pending" domain="[('qc_state', 'in', ('none', 'pending'))]"/>
+                <filter name="qc_failed" string="QC Failed" domain="[('qc_state', '=', 'failed')]"/>
+                <separator/>
+                <filter name="inactive" string="Archived" domain="[('active', '=', False)]"/>
+                <group>
+                    <filter name="group_product" string="Product" context="{'group_by': 'product_id'}"/>
+                    <filter name="group_engine_brand" string="Engine Brand" context="{'group_by': 'engine_brand_id'}"/>
+                    <filter name="group_alternator_brand" string="Alternator Brand" context="{'group_by': 'alternator_brand_id'}"/>
+                    <filter name="group_customer" string="Customer" context="{'group_by': 'customer_id'}"/>
+                    <filter name="group_state" string="Status" context="{'group_by': 'state'}"/>
+                    <filter name="group_company" string="Company" context="{'group_by': 'company_id'}" groups="base.group_multi_company"/>
+                </group>
+            </search>
+        </field>
+    </record>
+
+    <record id="action_x4u_generator" model="ir.actions.act_window">
+        <field name="name">Generator Cards</field>
+        <field name="res_model">x4u.generator</field>
+        <field name="view_mode">list,form</field>
+        <field name="search_view_id" ref="x4u_generator_view_search"/>
+        <field name="help" type="html">
+            <p class="o_view_nocontent_smiling_face">No generator card yet</p>
+            <p>A card is created automatically for each serial number of a product marked <b>Is Generator</b>.</p>
+        </field>
+    </record>
+</odoo>

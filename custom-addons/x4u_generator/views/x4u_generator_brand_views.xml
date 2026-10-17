@@ -1,0 +1,34 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <record id="x4u_generator_brand_view_list" model="ir.ui.view">
+        <field name="name">x4u.generator.brand.list</field>
+        <field name="model">x4u.generator.brand</field>
+        <field name="arch" type="xml">
+            <list string="Generator Brands" editable="bottom">
+                <field name="name"/>
+                <field name="brand_type"/>
+            </list>
+        </field>
+    </record>
+
+    <record id="x4u_generator_brand_view_search" model="ir.ui.view">
+        <field name="name">x4u.generator.brand.search</field>
+        <field name="model">x4u.generator.brand</field>
+        <field name="arch" type="xml">
+            <search string="Generator Brands">
+                <field name="name"/>
+                <filter name="engine" string="Engine" domain="[('brand_type', 'in', ('engine', 'both'))]"/>
+                <filter name="alternator" string="Alternator" domain="[('brand_type', 'in', ('alternator', 'both'))]"/>
+                <separator/>
+                <filter name="inactive" string="Archived" domain="[('active', '=', False)]"/>
+            </search>
+        </field>
+    </record>
+
+    <record id="action_x4u_generator_brand" model="ir.actions.act_window">
+        <field name="name">Generator Brands</field>
+        <field name="res_model">x4u.generator.brand</field>
+        <field name="view_mode">list</field>
+        <field name="search_view_id" ref="x4u_generator_brand_view_search"/>
+    </record>
+</odoo>

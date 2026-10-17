@@ -1,0 +1,55 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Demo data only: synthetic product and serials, no real company data. -->
+<odoo>
+    <record id="brand_perkins" model="x4u.generator.brand">
+        <field name="name">Perkins</field>
+        <field name="brand_type">engine</field>
+    </record>
+    <record id="brand_cummins" model="x4u.generator.brand">
+        <field name="name">Cummins</field>
+        <field name="brand_type">engine</field>
+    </record>
+    <record id="brand_volvo_penta" model="x4u.generator.brand">
+        <field name="name">Volvo Penta</field>
+        <field name="brand_type">engine</field>
+    </record>
+    <record id="brand_stamford" model="x4u.generator.brand">
+        <field name="name">Stamford</field>
+        <field name="brand_type">alternator</field>
+    </record>
+    <record id="brand_leroy_somer" model="x4u.generator.brand">
+        <field name="name">Leroy-Somer</field>
+        <field name="brand_type">alternator</field>
+    </record>
+    <record id="brand_mecc_alte" model="x4u.generator.brand">
+        <field name="name">Mecc Alte</field>
+        <field name="brand_type">alternator</field>
+    </record>
+
+    <record id="product_genset_500_demo" model="product.product">
+        <field name="name">4U Genset 500 kVA (Demo)</field>
+        <field name="type">consu</field>
+        <field name="is_storable" eval="True"/>
+        <field name="tracking">serial</field>
+        <field name="x4u_is_generator" eval="True"/>
+        <field name="x4u_kva_prime">500</field>
+        <field name="x4u_kva_standby">550</field>
+        <field name="x4u_engine_brand_id" ref="brand_perkins"/>
+        <field name="x4u_engine_model">DEMO-E500</field>
+        <field name="x4u_alternator_brand_id" ref="brand_stamford"/>
+        <field name="x4u_alternator_model">DEMO-A500</field>
+        <field name="x4u_warranty_months">12</field>
+        <field name="x4u_warranty_hours">1000</field>
+        <field name="x4u_warranty_max_delivery_months">18</field>
+    </record>
+
+    <!-- Creating the serials creates their Generator Cards (spec R2). -->
+    <record id="lot_genset_500_demo_1" model="stock.lot">
+        <field name="name">DEMO-GEN-0001</field>
+        <field name="product_id" ref="product_genset_500_demo"/>
+    </record>
+    <record id="lot_genset_500_demo_2" model="stock.lot">
+        <field name="name">DEMO-GEN-0002</field>
+        <field name="product_id" ref="product_genset_500_demo"/>
+    </record>
+</odoo>

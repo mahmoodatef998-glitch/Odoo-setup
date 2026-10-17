@@ -1,0 +1,11 @@
+id,name,model_id:id,group_id:id,perm_read,perm_write,perm_create,perm_unlink
+access_x4u_generator_stock_user,x4u.generator stock user,model_x4u_generator,stock.group_stock_user,1,1,1,0
+access_x4u_generator_stock_manager,x4u.generator stock manager,model_x4u_generator,stock.group_stock_manager,1,1,1,1
+access_x4u_generator_salesman,x4u.generator salesman,model_x4u_generator,sales_team.group_sale_salesman,1,0,0,0
+access_x4u_generator_qc_user,x4u.generator quality user,model_x4u_generator,quality_control_oca.group_quality_control_user,1,0,0,0
+access_x4u_generator_hour_reading_stock_user,x4u.generator.hour.reading stock user,model_x4u_generator_hour_reading,stock.group_stock_user,1,1,1,0
+access_x4u_generator_hour_reading_stock_manager,x4u.generator.hour.reading stock manager,model_x4u_generator_hour_reading,stock.group_stock_manager,1,1,1,1
+access_x4u_generator_hour_reading_salesman,x4u.generator.hour.reading salesman,model_x4u_generator_hour_reading,sales_team.group_sale_salesman,1,0,0,0
+access_x4u_generator_hour_reading_qc_user,x4u.generator.hour.reading quality user,model_x4u_generator_hour_reading,quality_control_oca.group_quality_control_user,1,0,0,0
+access_x4u_generator_brand_user,x4u.generator.brand user,model_x4u_generator_brand,base.group_user,1,0,0,0
+access_x4u_generator_brand_stock_manager,x4u.generator.brand stock manager,model_x4u_generator_brand,stock.group_stock_manager,1,1,1,1

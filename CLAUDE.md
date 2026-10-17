@@ -31,7 +31,7 @@ OCA: account_usability, account_financial_report (+date_range, report_xlsx), mis
 Never click "Upgrade" (Enterprise) apps: Accounting (accountant), MRP II, Quality, Knowledge.
 
 ## Module conventions
-- Odoo 18 manifest `version` = `18.0.x.y.z`, license `LGPL-3`, depends only on what is used.
+- Odoo 18 manifest `version` = `18.0.x.y.z`, license `LGPL-3` (`AGPL-3` if it depends on an AGPL module, e.g. OCA `quality_control_*`), depends only on what is used.
 - Security: every new model gets `ir.model.access.csv` rows + record rules where multi-company applies.
 - Views: Odoo 18 uses `<list>` (not `<tree>`), `invisible="..."` expressions (no `attrs`).
 - Add tests under `tests/` for business logic; run with `--test-enable -i <module>` on a throwaway DB.
