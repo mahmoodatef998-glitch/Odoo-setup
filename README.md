@@ -39,7 +39,7 @@ docker compose logs -f web
 
 ## Backup & restore test
 ```powershell
-.\scripts\backup.ps1 -Db odoo4u_dev
+.\scripts\backup.ps1 -Database odoo4u_dev
 .\scripts\restore-test.ps1 -BackupDir backups\<folder> -SourceDb odoo4u_dev
 ```
 A backup counts only after the restore test passes and the restored DB opens with attachments.

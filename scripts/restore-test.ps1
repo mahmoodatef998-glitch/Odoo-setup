@@ -30,7 +30,9 @@ Run @('docker','compose','exec','-T','db','rm','-f','/tmp/restore.dump')
 # 2) Filestore: extract to a temp dir, then move under the TARGET name
 Run @('docker','compose','cp',$fs,'web:/tmp/restore-fs.tgz')
 Run @('docker','compose','exec','-T','web','sh','-c',
-  "set -e; rm -rf /tmp/restore-fs; mkdir -p /tmp/restore-fs; tar -xzf /tmp/restore-fs.tgz -C /tmp/restore-fs; test ! -e /var/lib/odoo/filestore/$TargetDb; mv /tmp/restore-fs/$SourceDb /var/lib/odoo/filestore/$TargetDb; rm -rf /tmp/restore-fs /tmp/restore-fs.tgz")
+  "set -e; rm -rf /tmp/restore-fs; mkdir -p /tmp/restore-fs; tar -xzf /tmp/restore-fs.tgz -C /tmp/restore-fs; test ! -e /var/lib/odoo/filestore/$TargetDb; mv /tmp/restore-fs/$SourceDb /var/lib/odoo/filestore/$TargetDb; rm -rf /tmp/restore-fs")
+# docker cp leaves the archive owned by root, so remove it as root
+Run @('docker','compose','exec','-T','-u','root','web','rm','-f','/tmp/restore-fs.tgz')
 
 # 3) Basic verification
 Write-Host 'Row counts (source vs restored):'
