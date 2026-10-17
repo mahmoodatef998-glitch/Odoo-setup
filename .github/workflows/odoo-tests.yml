@@ -1,0 +1,70 @@
+# 4U Odoo: install every module in custom-addons on a fresh database and run
+# its tests, with the same Dockerfile and compose.yaml as the dev PC.
+# Action versions are pinned by commit (checked on github.com 2026-10-17).
+name: Odoo tests
+
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: odoo-tests-${{ github.ref }}
+  cancel-in-progress: true
+
+defaults:
+  run:
+    shell: bash
+
+jobs:
+  test:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    steps:
+      - name: Checkout (with OCA submodules)
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          submodules: recursive
+
+      - name: Prepare throwaway config
+        run: |
+          # Random per-run password for the CI-only database; not a real secret.
+          echo "DB_PASSWORD=$(openssl rand -hex 16)" > .env
+          cp config/odoo.conf.example config/odoo.conf
+
+      - name: Build image and start PostgreSQL
+        run: |
+          docker compose build web
+          docker compose up -d --wait db
+
+      - name: Install custom modules and run their tests
+        run: |
+          modules=$(find custom-addons -mindepth 2 -maxdepth 2 -name __manifest__.py \
+            -printf '%h\n' | xargs -n1 basename | sort | paste -sd, -)
+          tags=$(echo "$modules" | sed 's#^#/#; s#,#,/#g')
+          echo "Modules: $modules"
+          echo "Test tags: $tags"
+          docker compose run --rm -T web odoo -d ci_test -i "$modules" \
+            --test-enable --test-tags "$tags" --stop-after-init --log-level=test \
+            2>&1 | tee odoo-test.log
+
+      - name: Check the log
+        run: |
+          grep -E "odoo.tests.result" odoo-test.log
+          if grep -E " (ERROR|CRITICAL) " odoo-test.log; then
+            echo "::error::ERROR lines in the Odoo log"
+            exit 1
+          fi
+          # Also fails when no test ran at all (e.g. a wrong test tag).
+          grep -qE "0 failed, 0 error\(s\) of [1-9][0-9]* tests" odoo-test.log
+
+      - name: Upload the Odoo log
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: odoo-test-log
+          path: odoo-test.log
+          if-no-files-found: ignore
