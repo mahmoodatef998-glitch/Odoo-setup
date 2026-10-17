@@ -44,6 +44,13 @@ docker compose logs -f web
 ```
 A backup counts only after the restore test passes and the restored DB opens with attachments.
 
+## CI (GitHub Actions)
+`.github/workflows/odoo-tests.yml` installs every module in `custom-addons/` on a fresh
+database and runs its tests on each push and pull request, with the same `Dockerfile` and
+`compose.yaml`. A red run means a failed test or an ERROR in the Odoo log; the full log is
+attached to the run as `odoo-test-log`. Make the "Odoo tests" check required on `main`
+(Settings → Branches) so nothing is merged red.
+
 ## Danger zone
 `docker compose down -v` **deletes all data volumes**. Never run it without a tested backup.
 
