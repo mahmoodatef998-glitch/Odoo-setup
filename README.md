@@ -28,7 +28,7 @@ docker compose pull
 docker compose up -d
 docker compose ps                  # db = healthy, web = running
 ```
-Open http://127.0.0.1:8069 → create database `odoo4u_dev` with **demo data**, and set a **Master Password** (store it in your password manager).
+Open http://127.0.0.1:8069 (port can be changed with ODOO_PORT in .env) → create database `odoo4u_dev` with **demo data**, and set a **Master Password** (store it in your password manager).
 
 ## Daily
 ```powershell
