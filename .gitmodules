@@ -1,0 +1,24 @@
+[submodule "oca-addons/account-financial-tools"]
+	path = oca-addons/account-financial-tools
+	url = https://github.com/OCA/account-financial-tools.git
+	branch = 18.0
+[submodule "oca-addons/account-financial-reporting"]
+	path = oca-addons/account-financial-reporting
+	url = https://github.com/OCA/account-financial-reporting.git
+	branch = 18.0
+[submodule "oca-addons/mis-builder"]
+	path = oca-addons/mis-builder
+	url = https://github.com/OCA/mis-builder.git
+	branch = 18.0
+[submodule "oca-addons/reporting-engine"]
+	path = oca-addons/reporting-engine
+	url = https://github.com/OCA/reporting-engine.git
+	branch = 18.0
+[submodule "oca-addons/server-ux"]
+	path = oca-addons/server-ux
+	url = https://github.com/OCA/server-ux.git
+	branch = 18.0
+[submodule "oca-addons/manufacture"]
+	path = oca-addons/manufacture
+	url = https://github.com/OCA/manufacture.git
+	branch = 18.0

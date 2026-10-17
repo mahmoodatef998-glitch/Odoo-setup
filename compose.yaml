@@ -20,7 +20,8 @@ services:
     restart: "no"
 
   web:
-    image: odoo:18.0-20261015
+    build: .
+    image: odoo4u-web:18.0-20261015   # local image = official odoo:18.0-20261015 + requirements.txt
     depends_on:
       db:
         condition: service_healthy
@@ -34,6 +35,7 @@ services:
       - filestore:/var/lib/odoo
       - ./config:/etc/odoo
       - ./custom-addons:/mnt/extra-addons
+      - ./oca-addons:/mnt/oca-addons:ro
     restart: "no"
 
 volumes:

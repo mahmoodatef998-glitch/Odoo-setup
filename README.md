@@ -46,3 +46,14 @@ A backup counts only after the restore test passes and the restored DB opens wit
 
 ## Danger zone
 `docker compose down -v` **deletes all data volumes**. Never run it without a tested backup.
+
+## OCA modules (Odoo 18.0)
+Repos are git submodules under `oca-addons/`, pinned by commit (see `scripts/add-oca.ps1`).
+Extra Python deps live in `requirements.txt` and are baked into the local image via `Dockerfile`.
+```powershell
+.\scripts\add-oca.ps1                 # first time only
+git submodule update --init           # after cloning the repo elsewhere
+docker compose build
+docker compose up -d
+```
+Then in Odoo: Apps → Update Apps List → install the modules you need.

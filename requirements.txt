@@ -1,0 +1,2 @@
+# Extra Python packages for OCA modules (pinned)
+openupgradelib==3.13.7
