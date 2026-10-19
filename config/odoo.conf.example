@@ -2,7 +2,7 @@
 ; Copy to odoo.conf (git-ignored). Odoo writes the hashed master password
 ; (admin_passwd) into odoo.conf when you set it from the Database Manager,
 ; so the real file must never be committed.
-addons_path = /mnt/extra-addons,/mnt/oca-addons/account-financial-tools,/mnt/oca-addons/account-financial-reporting,/mnt/oca-addons/mis-builder,/mnt/oca-addons/reporting-engine,/mnt/oca-addons/server-ux,/mnt/oca-addons/manufacture
+addons_path = /mnt/extra-addons,/mnt/oca-addons/account-financial-tools,/mnt/oca-addons/account-financial-reporting,/mnt/oca-addons/mis-builder,/mnt/oca-addons/reporting-engine,/mnt/oca-addons/server-ux,/mnt/oca-addons/manufacture,/mnt/oca-addons/account-reconcile,/mnt/oca-addons/account-payment,/mnt/oca-addons/payroll,/mnt/oca-addons/hr-holidays,/mnt/oca-addons/hr,/mnt/oca-addons/calendar
 data_dir = /var/lib/odoo
 proxy_mode = False
 list_db = True

@@ -25,9 +25,12 @@ docker compose run --rm web odoo -d odoo4u_dev -u <module> --stop-after-init   #
 .\scripts\restore-test.ps1 -BackupDir backups\<folder> -SourceDb odoo4u_dev
 ```
 
-## Installed modules (odoo4u_dev, 2026-10-17)
-Sales, CRM, Invoicing, Purchase, Inventory, Manufacturing,
-OCA: account_usability, account_financial_report (+date_range, report_xlsx), mis_builder, quality_control_oca, quality_control_stock_oca, quality_control_mrp_oca.
+## Installed modules (odoo4u_dev, 2026-10-19)
+Sales, CRM, Invoicing, Purchase, Inventory, Manufacturing, Employees, Time Off, Contracts,
+OCA: account_usability, account_financial_report (+date_range, report_xlsx), mis_builder, quality_control_oca, quality_control_stock_oca, quality_control_mrp_oca,
+account_reconcile_oca, account_asset_management, account_fiscal_year, account_check_deposit, account_due_list,
+payroll (Beta), payroll_account, payroll_hr_public_holidays, hr_holidays_public, hr_employee_service, hr_employee_document.
+4U: x4u_generator. Gap analysis and decisions: `docs/phase1/business-blueprint.md`.
 Never click "Upgrade" (Enterprise) apps: Accounting (accountant), MRP II, Quality, Knowledge.
 
 ## Module conventions
