@@ -22,3 +22,27 @@
 	path = oca-addons/manufacture
 	url = https://github.com/OCA/manufacture.git
 	branch = 18.0
+[submodule "oca-addons/account-reconcile"]
+	path = oca-addons/account-reconcile
+	url = https://github.com/OCA/account-reconcile.git
+	branch = 18.0
+[submodule "oca-addons/account-payment"]
+	path = oca-addons/account-payment
+	url = https://github.com/OCA/account-payment.git
+	branch = 18.0
+[submodule "oca-addons/payroll"]
+	path = oca-addons/payroll
+	url = https://github.com/OCA/payroll.git
+	branch = 18.0
+[submodule "oca-addons/hr-holidays"]
+	path = oca-addons/hr-holidays
+	url = https://github.com/OCA/hr-holidays.git
+	branch = 18.0
+[submodule "oca-addons/hr"]
+	path = oca-addons/hr
+	url = https://github.com/OCA/hr.git
+	branch = 18.0
+[submodule "oca-addons/calendar"]
+	path = oca-addons/calendar
+	url = https://github.com/OCA/calendar.git
+	branch = 18.0
