@@ -1,0 +1,27 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <data noupdate="1">
+        <!-- Services offered with a generator (optional lines of the quotation template). -->
+        <record id="product_installation" model="product.product">
+            <field name="name">Installation</field>
+            <field name="type">service</field>
+            <field name="categ_id" ref="x4u_setup_base.categ_services"/>
+            <field name="purchase_ok" eval="False"/>
+            <field name="list_price">0.0</field>
+        </record>
+        <record id="product_transport" model="product.product">
+            <field name="name">Transport</field>
+            <field name="type">service</field>
+            <field name="categ_id" ref="x4u_setup_base.categ_services"/>
+            <field name="purchase_ok" eval="False"/>
+            <field name="list_price">0.0</field>
+        </record>
+        <record id="product_commissioning" model="product.product">
+            <field name="name">Commissioning</field>
+            <field name="type">service</field>
+            <field name="categ_id" ref="x4u_setup_base.categ_services"/>
+            <field name="purchase_ok" eval="False"/>
+            <field name="list_price">0.0</field>
+        </record>
+    </data>
+</odoo>

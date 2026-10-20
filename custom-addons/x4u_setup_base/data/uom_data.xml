@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <data noupdate="1">
+        <!-- Cables are bought by the roll and issued by the metre (blueprint C7). -->
+        <record id="uom_roll_91m" model="uom.uom">
+            <field name="name">Roll (91 m)</field>
+            <field name="category_id" ref="uom.uom_categ_length"/>
+            <field name="uom_type">bigger</field>
+            <field name="factor_inv">91</field>
+            <field name="rounding">0.001</field>
+        </record>
+    </data>
+</odoo>

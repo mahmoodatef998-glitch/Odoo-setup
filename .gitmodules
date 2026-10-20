@@ -46,3 +46,7 @@
 	path = oca-addons/calendar
 	url = https://github.com/OCA/calendar.git
 	branch = 18.0
+[submodule "oca-addons/purchase-workflow"]
+	path = oca-addons/purchase-workflow
+	url = https://github.com/OCA/purchase-workflow.git
+	branch = 18.0

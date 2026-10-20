@@ -1,6 +1,8 @@
 .env
 config/odoo.conf
 backups/
+# company data (product masters, imports) kept out of Git
+private/
 *.dump
 *.tgz
 __pycache__/

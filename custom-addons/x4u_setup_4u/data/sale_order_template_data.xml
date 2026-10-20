@@ -1,0 +1,33 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <data noupdate="1">
+        <!-- Default quotation for a generator (spec §9). The terms text is a
+             placeholder until 4U sends its own terms and conditions. -->
+        <record id="template_generator_supply" model="sale.order.template">
+            <field name="name">Generator Supply</field>
+            <field name="number_of_days">30</field>
+            <field name="note" type="html">
+                <p><strong>Technical specifications:</strong> as per the attached AQT datasheet of the selected model.</p>
+                <p><strong>Delivery:</strong> to be confirmed with the order.</p>
+                <p><strong>Warranty:</strong> 12 months or 1000 running hours, whichever occurs first, against manufacturing defects.</p>
+                <p><strong>Payment terms:</strong> as stated on this quotation.</p>
+                <p><strong>Validity:</strong> 30 days from the quotation date.</p>
+            </field>
+        </record>
+        <record id="template_option_installation" model="sale.order.template.option">
+            <field name="sale_order_template_id" ref="template_generator_supply"/>
+            <field name="product_id" ref="product_installation"/>
+            <field name="quantity">1</field>
+        </record>
+        <record id="template_option_transport" model="sale.order.template.option">
+            <field name="sale_order_template_id" ref="template_generator_supply"/>
+            <field name="product_id" ref="product_transport"/>
+            <field name="quantity">1</field>
+        </record>
+        <record id="template_option_commissioning" model="sale.order.template.option">
+            <field name="sale_order_template_id" ref="template_generator_supply"/>
+            <field name="product_id" ref="product_commissioning"/>
+            <field name="quantity">1</field>
+        </record>
+    </data>
+</odoo>

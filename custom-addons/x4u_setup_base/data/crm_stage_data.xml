@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <data noupdate="1">
+        <!-- Simple pipeline (blueprint C12): New > Quotation Sent > Negotiation > Won. -->
+        <record id="crm.stage_lead2" model="crm.stage">
+            <field name="name">Quotation Sent</field>
+        </record>
+        <record id="crm.stage_lead3" model="crm.stage">
+            <field name="name">Negotiation</field>
+        </record>
+    </data>
+</odoo>

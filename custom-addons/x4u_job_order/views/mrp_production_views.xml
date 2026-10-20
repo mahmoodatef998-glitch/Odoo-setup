@@ -1,0 +1,234 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <!-- Job Order form: status, links, parts and timeline on top of the MO form -->
+    <record id="mrp_production_form_view_x4u_job_order" model="ir.ui.view">
+        <field name="name">mrp.production.form.x4u.job.order</field>
+        <field name="model">mrp.production</field>
+        <field name="inherit_id" ref="mrp.mrp_production_form_view"/>
+        <field name="arch" type="xml">
+            <xpath expr="//div[@name='button_box']" position="inside">
+                <button name="action_x4u_open_sale" type="object" class="oe_stat_button" icon="fa-dollar"
+                        string="Sales Order" invisible="not x4u_sale_order_id"/>
+                <button name="action_x4u_open_requests" type="object" class="oe_stat_button" icon="fa-list-alt"
+                        invisible="x4u_request_count == 0">
+                    <field name="x4u_request_count" widget="statinfo" string="Material Requests"/>
+                </button>
+                <button name="action_x4u_open_generator" type="object" class="oe_stat_button" icon="fa-bolt"
+                        string="Generator Card" invisible="not x4u_generator_id"/>
+            </xpath>
+            <xpath expr="//div[hasclass('oe_title')]" position="inside">
+                <field name="x4u_is_job_order" invisible="1"/>
+                <field name="x4u_sale_order_id" invisible="1"/>
+                <field name="x4u_generator_id" invisible="1"/>
+                <field name="x4u_job_state" widget="badge" invisible="not x4u_is_job_order"
+                       decoration-info="x4u_job_state in ('waiting_parts', 'parts_ready')"
+                       decoration-warning="x4u_job_state in ('material_delivered', 'assembled')"
+                       decoration-success="x4u_job_state == 'finished'"/>
+                <field name="x4u_delay_stage" widget="badge" decoration-danger="1"
+                       invisible="not x4u_delay_stage"/>
+            </xpath>
+            <xpath expr="//notebook" position="inside">
+                <page string="Parts" name="x4u_parts" invisible="not x4u_is_job_order">
+                    <field name="move_raw_ids" readonly="1" context="{'active_test': False}">
+                        <list create="0" delete="0">
+                            <field name="x4u_role"/>
+                            <field name="product_id"/>
+                            <field name="product_uom_qty" string="Qty"/>
+                            <field name="x4u_part_status" widget="badge"
+                                   decoration-success="x4u_part_status in ('received', 'delivered', 'from_stock')"
+                                   decoration-warning="x4u_part_status in ('rfq', 'ordered')"
+                                   decoration-info="x4u_part_status == 'requested'"/>
+                            <field name="x4u_purchase_id"/>
+                            <field name="x4u_vendor_id"/>
+                            <field name="x4u_expected_date"/>
+                        </list>
+                    </field>
+                </page>
+                <page string="Timeline" name="x4u_timeline" invisible="not x4u_is_job_order">
+                    <field name="x4u_event_ids" readonly="1">
+                        <list create="0" delete="0" default_order="date, id">
+                            <field name="date"/>
+                            <field name="event_type"/>
+                            <field name="user_id" widget="many2one_avatar_user"/>
+                            <field name="document"/>
+                            <field name="detail"/>
+                        </list>
+                    </field>
+                    <group string="Days per stage" name="x4u_stage_days">
+                        <group>
+                            <field name="x4u_days_purchasing"/>
+                            <field name="x4u_days_approval"/>
+                            <field name="x4u_days_supplier"/>
+                            <field name="x4u_days_warehouse"/>
+                        </group>
+                        <group>
+                            <field name="x4u_days_assembly"/>
+                            <field name="x4u_days_qc"/>
+                            <field name="x4u_days_dispatch"/>
+                            <field name="x4u_days_total"/>
+                            <field name="x4u_delay_days" invisible="not x4u_delay_stage"/>
+                        </group>
+                    </group>
+                </page>
+            </xpath>
+        </field>
+    </record>
+
+    <record id="x4u_job_order_view_list" model="ir.ui.view">
+        <field name="name">mrp.production.list.x4u.job.order</field>
+        <field name="model">mrp.production</field>
+        <field name="priority">100</field>
+        <field name="arch" type="xml">
+            <list string="Job Orders" decoration-danger="x4u_delay_stage" create="0">
+                <field name="name" string="Job Order"/>
+                <field name="x4u_sale_order_id"/>
+                <field name="x4u_customer_id"/>
+                <field name="product_id" string="Model"/>
+                <field name="x4u_job_state" widget="badge"
+                       decoration-info="x4u_job_state in ('waiting_parts', 'parts_ready')"
+                       decoration-warning="x4u_job_state in ('material_delivered', 'assembled')"
+                       decoration-success="x4u_job_state == 'finished'"/>
+                <field name="x4u_engine_status"/>
+                <field name="x4u_alternator_status"/>
+                <field name="x4u_body_status"/>
+                <field name="date_deadline" optional="show"/>
+                <field name="x4u_delay_stage" optional="show"/>
+                <field name="x4u_delay_days" optional="hide"/>
+                <field name="x4u_days_total" optional="hide"/>
+            </list>
+        </field>
+    </record>
+
+    <record id="x4u_job_order_view_kanban" model="ir.ui.view">
+        <field name="name">mrp.production.kanban.x4u.job.order</field>
+        <field name="model">mrp.production</field>
+        <field name="priority">100</field>
+        <field name="arch" type="xml">
+            <kanban default_group_by="x4u_job_state" records_draggable="0" group_create="0"
+                    group_delete="0" group_edit="0" create="0">
+                <field name="x4u_delay_stage"/>
+                <templates>
+                    <t t-name="card">
+                        <field name="name" class="fw-bold"/>
+                        <field name="product_id"/>
+                        <field name="x4u_customer_id"/>
+                        <div class="small">
+                            <div>Engine: <field name="x4u_engine_status"/></div>
+                            <div>Alternator: <field name="x4u_alternator_status"/></div>
+                            <div>Body: <field name="x4u_body_status"/></div>
+                        </div>
+                        <div class="text-danger" invisible="not x4u_delay_stage">
+                            Delay at <field name="x4u_delay_stage"/> (<field name="x4u_delay_days"/> d)
+                        </div>
+                    </t>
+                </templates>
+            </kanban>
+        </field>
+    </record>
+
+    <record id="x4u_job_order_view_search" model="ir.ui.view">
+        <field name="name">mrp.production.search.x4u.job.order</field>
+        <field name="model">mrp.production</field>
+        <field name="priority">100</field>
+        <field name="arch" type="xml">
+            <search string="Job Orders">
+                <field name="name" string="Job Order"/>
+                <field name="x4u_sale_order_id"/>
+                <field name="x4u_customer_id"/>
+                <field name="product_id" string="Model"/>
+                <filter name="waiting_parts" string="Waiting Parts" domain="[('x4u_job_state', '=', 'waiting_parts')]"/>
+                <filter name="parts_ready" string="Parts Ready" domain="[('x4u_job_state', '=', 'parts_ready')]"/>
+                <filter name="material_delivered" string="Material Delivered" domain="[('x4u_job_state', '=', 'material_delivered')]"/>
+                <filter name="assembled" string="Assembled &amp; Tested" domain="[('x4u_job_state', '=', 'assembled')]"/>
+                <filter name="finished" string="Finished" domain="[('x4u_job_state', '=', 'finished')]"/>
+                <separator/>
+                <filter name="open" string="Open" domain="[('x4u_job_state', 'not in', ('finished', 'cancelled'))]"/>
+                <filter name="late" string="Late"
+                        domain="[('date_deadline', '&lt;', context_today().strftime('%Y-%m-%d')), ('x4u_job_state', 'not in', ('finished', 'cancelled'))]"/>
+                <filter name="delayed" string="Delayed" domain="[('x4u_delay_stage', '!=', False)]"/>
+                <group>
+                    <filter name="group_state" string="Status" context="{'group_by': 'x4u_job_state'}"/>
+                    <filter name="group_customer" string="Customer" context="{'group_by': 'x4u_customer_id'}"/>
+                    <filter name="group_model" string="Model" context="{'group_by': 'product_id'}"/>
+                    <filter name="group_delay" string="Delay At" context="{'group_by': 'x4u_delay_stage'}"/>
+                    <filter name="group_month" string="Month" context="{'group_by': 'date_start:month'}"/>
+                </group>
+            </search>
+        </field>
+    </record>
+
+    <record id="x4u_job_order_view_pivot" model="ir.ui.view">
+        <field name="name">mrp.production.pivot.x4u.job.order</field>
+        <field name="model">mrp.production</field>
+        <field name="arch" type="xml">
+            <pivot string="Job Order Analysis" sample="1">
+                <field name="date_start" interval="month" type="row"/>
+                <field name="x4u_days_purchasing" type="measure"/>
+                <field name="x4u_days_approval" type="measure"/>
+                <field name="x4u_days_supplier" type="measure"/>
+                <field name="x4u_days_warehouse" type="measure"/>
+                <field name="x4u_days_assembly" type="measure"/>
+                <field name="x4u_days_qc" type="measure"/>
+                <field name="x4u_days_dispatch" type="measure"/>
+                <field name="x4u_days_total" type="measure"/>
+            </pivot>
+        </field>
+    </record>
+
+    <record id="x4u_job_order_view_graph" model="ir.ui.view">
+        <field name="name">mrp.production.graph.x4u.job.order</field>
+        <field name="model">mrp.production</field>
+        <field name="arch" type="xml">
+            <graph string="Job Order Analysis" type="bar" sample="1">
+                <field name="date_start" interval="month"/>
+                <field name="x4u_days_total" type="measure"/>
+            </graph>
+        </field>
+    </record>
+
+    <record id="action_x4u_job_order" model="ir.actions.act_window">
+        <field name="name">Job Orders</field>
+        <field name="res_model">mrp.production</field>
+        <field name="view_mode">list,kanban,form</field>
+        <field name="domain">[('x4u_is_job_order', '=', True)]</field>
+        <field name="context">{'search_default_open': 1}</field>
+        <field name="search_view_id" ref="x4u_job_order_view_search"/>
+        <field name="view_ids" eval="[Command.clear(),
+            Command.create({'view_mode': 'list', 'view_id': ref('x4u_job_order_view_list')}),
+            Command.create({'view_mode': 'kanban', 'view_id': ref('x4u_job_order_view_kanban')})]"/>
+        <field name="help" type="html">
+            <p class="o_view_nocontent_smiling_face">No Job Order yet</p>
+            <p>Confirming a sales order for a generator opens its Job Order (4U-PO-001, 4U-PO-002 ...).</p>
+        </field>
+    </record>
+
+    <record id="action_x4u_job_order_analysis" model="ir.actions.act_window">
+        <field name="name">Job Order Analysis</field>
+        <field name="res_model">mrp.production</field>
+        <field name="view_mode">pivot,graph,list</field>
+        <field name="domain">[('x4u_is_job_order', '=', True)]</field>
+        <field name="search_view_id" ref="x4u_job_order_view_search"/>
+        <field name="view_ids" eval="[Command.clear(),
+            Command.create({'view_mode': 'pivot', 'view_id': ref('x4u_job_order_view_pivot')}),
+            Command.create({'view_mode': 'graph', 'view_id': ref('x4u_job_order_view_graph')}),
+            Command.create({'view_mode': 'list', 'view_id': ref('x4u_job_order_view_list')})]"/>
+    </record>
+
+    <record id="action_x4u_job_order_delays" model="ir.actions.act_window">
+        <field name="name">Job Order Delays</field>
+        <field name="res_model">mrp.production</field>
+        <field name="view_mode">list,form</field>
+        <field name="domain">[('x4u_is_job_order', '=', True), ('x4u_delay_stage', '!=', False)]</field>
+        <field name="context">{'search_default_group_delay': 1}</field>
+        <field name="search_view_id" ref="x4u_job_order_view_search"/>
+        <field name="view_ids" eval="[Command.clear(),
+            Command.create({'view_mode': 'list', 'view_id': ref('x4u_job_order_view_list')})]"/>
+    </record>
+
+    <menuitem id="menu_x4u_job_order" name="Job Orders" parent="mrp.menu_mrp_manufacturing"
+              action="action_x4u_job_order" sequence="1"/>
+    <menuitem id="menu_x4u_job_order_analysis" name="Job Order Analysis" parent="mrp.menu_mrp_reporting"
+              action="action_x4u_job_order_analysis" sequence="50"/>
+    <menuitem id="menu_x4u_job_order_delays" name="Job Order Delays" parent="mrp.menu_mrp_reporting"
+              action="action_x4u_job_order_delays" sequence="51"/>
+</odoo>

@@ -1,0 +1,34 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <data noupdate="1">
+        <record id="categ_generators" model="product.category">
+            <field name="name">Generators</field>
+            <field name="parent_id" ref="product.product_category_all"/>
+        </record>
+        <record id="categ_components" model="product.category">
+            <field name="name">Generator Components</field>
+            <field name="parent_id" ref="product.product_category_all"/>
+        </record>
+        <!-- The three parts of a 4U generator; x4u_job_order tells them apart by category. -->
+        <record id="categ_engines" model="product.category">
+            <field name="name">Engines</field>
+            <field name="parent_id" ref="categ_components"/>
+        </record>
+        <record id="categ_alternators" model="product.category">
+            <field name="name">Alternators</field>
+            <field name="parent_id" ref="categ_components"/>
+        </record>
+        <record id="categ_bodies" model="product.category">
+            <field name="name">Genset Bodies</field>
+            <field name="parent_id" ref="categ_components"/>
+        </record>
+        <record id="categ_spare_parts" model="product.category">
+            <field name="name">Spare Parts</field>
+            <field name="parent_id" ref="product.product_category_all"/>
+        </record>
+        <record id="categ_services" model="product.category">
+            <field name="name">Services</field>
+            <field name="parent_id" ref="product.product_category_all"/>
+        </record>
+    </data>
+</odoo>

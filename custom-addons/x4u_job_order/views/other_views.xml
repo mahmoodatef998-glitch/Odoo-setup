@@ -1,0 +1,50 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <!-- Generator card: enclosure of the variant sold -->
+    <record id="x4u_generator_view_form_x4u_job_order" model="ir.ui.view">
+        <field name="name">x4u.generator.form.x4u.job.order</field>
+        <field name="model">x4u.generator</field>
+        <field name="inherit_id" ref="x4u_generator.x4u_generator_view_form"/>
+        <field name="arch" type="xml">
+            <xpath expr="//group[@name='rating']" position="inside">
+                <field name="x4u_enclosure"/>
+            </xpath>
+        </field>
+    </record>
+
+    <!-- Settings › Manufacturing › 4U Job Orders -->
+    <record id="res_config_settings_view_form_x4u_job_order" model="ir.ui.view">
+        <field name="name">res.config.settings.form.x4u.job.order</field>
+        <field name="model">res.config.settings</field>
+        <field name="inherit_id" ref="mrp.res_config_settings_view_form"/>
+        <field name="arch" type="xml">
+            <xpath expr="//app[@name='mrp']" position="inside">
+                <block title="4U Job Orders" name="x4u_job_order_settings">
+                    <setting string="Who gets the activities" help="Purchasing: new material request. Warehouse: parts ready to deliver. Quality: generator assembled.">
+                        <div class="row">
+                            <label for="x4u_purchase_user_id" class="col-lg-4"/>
+                            <field name="x4u_purchase_user_id"/>
+                        </div>
+                        <div class="row">
+                            <label for="x4u_warehouse_user_id" class="col-lg-4"/>
+                            <field name="x4u_warehouse_user_id"/>
+                        </div>
+                        <div class="row">
+                            <label for="x4u_qc_user_id" class="col-lg-4"/>
+                            <field name="x4u_qc_user_id"/>
+                        </div>
+                    </setting>
+                    <setting string="Target days per stage" help="0 = no target. A Job Order shows 'Delay At' for the first stage that takes longer.">
+                        <div class="row"><label for="x4u_target_purchasing_days" string="Purchasing" class="col-lg-4"/><field name="x4u_target_purchasing_days"/></div>
+                        <div class="row"><label for="x4u_target_approval_days" string="Approval" class="col-lg-4"/><field name="x4u_target_approval_days"/></div>
+                        <div class="row"><label for="x4u_target_supplier_days" string="Supplier delivery" class="col-lg-4"/><field name="x4u_target_supplier_days"/></div>
+                        <div class="row"><label for="x4u_target_warehouse_days" string="Warehouse issue" class="col-lg-4"/><field name="x4u_target_warehouse_days"/></div>
+                        <div class="row"><label for="x4u_target_assembly_days" string="Assembly &amp; test" class="col-lg-4"/><field name="x4u_target_assembly_days"/></div>
+                        <div class="row"><label for="x4u_target_qc_days" string="QC" class="col-lg-4"/><field name="x4u_target_qc_days"/></div>
+                        <div class="row"><label for="x4u_target_dispatch_days" string="Dispatch" class="col-lg-4"/><field name="x4u_target_dispatch_days"/></div>
+                    </setting>
+                </block>
+            </xpath>
+        </field>
+    </record>
+</odoo>

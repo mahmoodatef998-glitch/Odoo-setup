@@ -1,0 +1,45 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <data noupdate="1">
+        <!-- Each AQT model is sold Open or Canopy, with an AQT, Leroy-Somer or
+             Stamford alternator. Variants are created only when sold. -->
+        <record id="attr_enclosure" model="product.attribute">
+            <field name="name">Enclosure</field>
+            <field name="create_variant">dynamic</field>
+            <field name="display_type">radio</field>
+            <field name="sequence">1</field>
+        </record>
+        <record id="attr_enclosure_open" model="product.attribute.value">
+            <field name="name">Open</field>
+            <field name="attribute_id" ref="attr_enclosure"/>
+            <field name="sequence">1</field>
+        </record>
+        <record id="attr_enclosure_canopy" model="product.attribute.value">
+            <field name="name">Canopy</field>
+            <field name="attribute_id" ref="attr_enclosure"/>
+            <field name="sequence">2</field>
+        </record>
+
+        <record id="attr_alternator" model="product.attribute">
+            <field name="name">Alternator</field>
+            <field name="create_variant">dynamic</field>
+            <field name="display_type">radio</field>
+            <field name="sequence">2</field>
+        </record>
+        <record id="attr_alternator_aqt" model="product.attribute.value">
+            <field name="name">AQT</field>
+            <field name="attribute_id" ref="attr_alternator"/>
+            <field name="sequence">1</field>
+        </record>
+        <record id="attr_alternator_leroy" model="product.attribute.value">
+            <field name="name">Leroy-Somer</field>
+            <field name="attribute_id" ref="attr_alternator"/>
+            <field name="sequence">2</field>
+        </record>
+        <record id="attr_alternator_stamford" model="product.attribute.value">
+            <field name="name">Stamford</field>
+            <field name="attribute_id" ref="attr_alternator"/>
+            <field name="sequence">3</field>
+        </record>
+    </data>
+</odoo>
