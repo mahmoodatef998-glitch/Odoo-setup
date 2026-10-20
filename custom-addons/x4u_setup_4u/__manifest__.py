@@ -2,7 +2,7 @@
     "name": "4U Setup - 4U Power Generation",
     "summary": "4U-only setup: numbering, 2-step manufacturing, routes, "
     "pricelists, sales team, quotation template, service products",
-    "version": "18.0.1.0.0",
+    "version": "18.0.1.0.1",
     "category": "Hidden",
     "license": "LGPL-3",
     "author": "4U Power Generation FZC",

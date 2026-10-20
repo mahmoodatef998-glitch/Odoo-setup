@@ -212,6 +212,10 @@
             Command.create({'view_mode': 'pivot', 'view_id': ref('x4u_job_order_view_pivot')}),
             Command.create({'view_mode': 'graph', 'view_id': ref('x4u_job_order_view_graph')}),
             Command.create({'view_mode': 'list', 'view_id': ref('x4u_job_order_view_list')})]"/>
+        <field name="help" type="html">
+            <p class="o_view_nocontent_smiling_face">No Job Order to analyze yet</p>
+            <p>Average days per stage appear here once Job Orders move through purchasing, assembly and delivery.</p>
+        </field>
     </record>
 
     <record id="action_x4u_job_order_delays" model="ir.actions.act_window">
@@ -223,6 +227,10 @@
         <field name="search_view_id" ref="x4u_job_order_view_search"/>
         <field name="view_ids" eval="[Command.clear(),
             Command.create({'view_mode': 'list', 'view_id': ref('x4u_job_order_view_list')})]"/>
+        <field name="help" type="html">
+            <p class="o_view_nocontent_smiling_face">No delayed Job Order</p>
+            <p>A Job Order shows here when a stage takes longer than its target days (Settings › Manufacturing › 4U Job Orders).</p>
+        </field>
     </record>
 
     <menuitem id="menu_x4u_job_order" name="Job Orders" parent="mrp.menu_mrp_manufacturing"

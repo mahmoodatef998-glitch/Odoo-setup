@@ -1,5 +1,30 @@
+PRICELISTS = {
+    "pricelist_standard": "Standard",
+    "pricelist_contractors": "Contractors",
+    "pricelist_distributors": "Distributors",
+    "pricelist_export": "Export",
+}
+
+
+def remove_default_pricelist(env):
+    """Keep only the 4 pricelists of the spec.
+
+    Enabling pricelists makes Odoo create a "Default" one and re-activate it on
+    every Settings save. Our pricelists belong to the company, so Standard takes
+    that role and Odoo's copy can go while no sales order uses it.
+    """
+    Pricelist = env["product.pricelist"].with_context(active_test=False)
+    ours = Pricelist.browse([env.ref("x4u_setup_4u." + xmlid).id for xmlid in PRICELISTS])
+    extra = Pricelist.search(
+        [("id", "not in", ours.ids), ("company_id", "in", ours.company_id.ids), ("item_ids", "=", False)]
+    )
+    extra -= env["sale.order"].with_context(active_test=False).search([("pricelist_id", "in", extra.ids)]).pricelist_id
+    extra.unlink()
+
+
 def post_init_hook(env):
     """4U numbering and generator flow (docs/specs/x4u_setup_sales.md §7)."""
+    remove_default_pricelist(env)
     company = env.company
     company.write(
         {

@@ -54,11 +54,36 @@ class TestSetup4U(TransactionCase):
             ["Installation", "Transport", "Commissioning"],
         )
         self.assertEqual(self.env.ref("sales_team.team_sales_department").name, "4U Sales")
-        currencies = {
-            xmlid: self.env.ref("x4u_setup_4u." + xmlid).currency_id.name
+        pricelists = {
+            xmlid: self.env.ref("x4u_setup_4u." + xmlid)
             for xmlid in ("pricelist_standard", "pricelist_contractors", "pricelist_distributors", "pricelist_export")
         }
         self.assertEqual(
-            currencies,
-            {"pricelist_standard": "AED", "pricelist_contractors": "AED", "pricelist_distributors": "AED", "pricelist_export": "USD"},
+            {xmlid: (pl.name, pl.currency_id.name) for xmlid, pl in pricelists.items()},
+            {
+                "pricelist_standard": ("Standard", "AED"),
+                "pricelist_contractors": ("Contractors", "AED"),
+                "pricelist_distributors": ("Distributors", "AED"),
+                "pricelist_export": ("Export", "USD"),
+            },
         )
+        self.assertEqual(pricelists["pricelist_standard"].display_name, "Standard (AED)")
+        self.assertEqual({pl.company_id for pl in pricelists.values()}, {company})
+
+    def test_single_default_pricelist(self):
+        """Standard is the default pricelist; saving Settings doesn't bring Odoo's back."""
+        Pricelist = self.env["product.pricelist"].with_context(active_test=False)
+        standard = self.env.ref("x4u_setup_4u.pricelist_standard")
+        before = Pricelist.search([])
+        self.env["res.company"]._activate_or_create_pricelists()
+        self.assertEqual(Pricelist.search([]), before)
+        partner = self.env["res.partner"].create({"name": "X4U Test Customer"})
+        self.assertEqual(partner.property_product_pricelist, standard)
+        ours = self.env["ir.model.data"].search(
+            [("module", "=", "x4u_setup_4u"), ("model", "=", "product.pricelist")]
+        ).mapped("res_id")
+        unused_extra = Pricelist.search(
+            [("id", "not in", ours), ("company_id", "=", self.env.company.id), ("item_ids", "=", False)]
+        )
+        unused_extra -= self.env["sale.order"].search([("pricelist_id", "in", unused_extra.ids)]).pricelist_id
+        self.assertFalse(unused_extra)

@@ -20,7 +20,7 @@
         <field name="arch" type="xml">
             <xpath expr="//app[@name='mrp']" position="inside">
                 <block title="4U Job Orders" name="x4u_job_order_settings">
-                    <setting string="Who gets the activities" help="Purchasing: new material request. Warehouse: parts ready to deliver. Quality: generator assembled.">
+                    <setting string="Who gets the activities" help="Purchasing Officer: new material request. Storekeeper: parts ready to deliver. Quality Inspector: generator assembled.">
                         <div class="row">
                             <label for="x4u_purchase_user_id" class="col-lg-4"/>
                             <field name="x4u_purchase_user_id"/>

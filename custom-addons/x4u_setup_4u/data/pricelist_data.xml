@@ -1,25 +1,30 @@
 <?xml version="1.0" encoding="utf-8"?>
 <odoo>
     <data noupdate="1">
-        <!-- Rules (discount % per pricelist) are set later with the sales manager. -->
+        <!-- Rules (discount % per pricelist) are set later with the sales manager.
+             Odoo shows the currency next to the name, so it isn't in the name. -->
         <record id="pricelist_standard" model="product.pricelist">
-            <field name="name">Standard (AED)</field>
+            <field name="name">Standard</field>
             <field name="currency_id" ref="base.AED"/>
+            <field name="company_id" ref="base.main_company"/>
             <field name="sequence">1</field>
         </record>
         <record id="pricelist_contractors" model="product.pricelist">
-            <field name="name">Contractors (AED)</field>
+            <field name="name">Contractors</field>
             <field name="currency_id" ref="base.AED"/>
+            <field name="company_id" ref="base.main_company"/>
             <field name="sequence">2</field>
         </record>
         <record id="pricelist_distributors" model="product.pricelist">
-            <field name="name">Distributors (AED)</field>
+            <field name="name">Distributors</field>
             <field name="currency_id" ref="base.AED"/>
+            <field name="company_id" ref="base.main_company"/>
             <field name="sequence">3</field>
         </record>
         <record id="pricelist_export" model="product.pricelist">
-            <field name="name">Export (USD)</field>
+            <field name="name">Export</field>
             <field name="currency_id" ref="base.USD"/>
+            <field name="company_id" ref="base.main_company"/>
             <field name="sequence">4</field>
         </record>
     </data>
