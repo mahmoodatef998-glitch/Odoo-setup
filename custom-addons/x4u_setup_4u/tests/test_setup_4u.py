@@ -54,21 +54,27 @@ class TestSetup4U(TransactionCase):
             ["Installation", "Transport", "Commissioning"],
         )
         self.assertEqual(self.env.ref("sales_team.team_sales_department").name, "4U Sales")
+        # Prices are entered by hand: one pricelist per currency (01-sales.md D2).
         pricelists = {
-            xmlid: self.env.ref("x4u_setup_4u." + xmlid)
-            for xmlid in ("pricelist_standard", "pricelist_contractors", "pricelist_distributors", "pricelist_export")
+            xmlid: self.env.ref("x4u_setup_4u." + xmlid) for xmlid in ("pricelist_standard", "pricelist_export")
         }
         self.assertEqual(
             {xmlid: (pl.name, pl.currency_id.name) for xmlid, pl in pricelists.items()},
-            {
-                "pricelist_standard": ("Standard", "AED"),
-                "pricelist_contractors": ("Contractors", "AED"),
-                "pricelist_distributors": ("Distributors", "AED"),
-                "pricelist_export": ("Export", "USD"),
-            },
+            {"pricelist_standard": ("Standard", "AED"), "pricelist_export": ("Export", "USD")},
         )
         self.assertEqual(pricelists["pricelist_standard"].display_name, "Standard (AED)")
         self.assertEqual({pl.company_id for pl in pricelists.values()}, {company})
+        self.assertFalse(self.env.ref("x4u_setup_4u.pricelist_contractors", raise_if_not_found=False))
+
+    def test_default_sales_tax_sharjah(self):
+        """5% Sharjah until the accountant decides (01-sales.md D12), on the company and our services."""
+        company = self.env.company
+        sharjah = self.env.ref("account.%s_uae_sale_tax_5_sharjah" % company.id, raise_if_not_found=False)
+        if not sharjah:
+            self.skipTest("Company without the UAE chart of accounts")
+        self.assertEqual(company.account_sale_tax_id, sharjah)
+        installation = self.env.ref("x4u_setup_4u.product_installation")
+        self.assertEqual(installation.taxes_id.filtered(lambda t: t.company_id == company), sharjah)
 
     def test_single_default_pricelist(self):
         """Standard is the default pricelist; saving Settings doesn't bring Odoo's back."""

@@ -18,6 +18,8 @@ $repos = [ordered]@{
     'calendar'                    = 'ebd2e06'
     # reviewed 2026-10-20: purchase_request for x4u_job_order (docs/specs/x4u_job_order.md §5)
     'purchase-workflow'           = '36a1601'
+    # reviewed 2026-10-21: base_user_role 18.0.1.2.0 (Production/Stable) for the 4U roles (docs/modules/01-sales.md §8)
+    'server-backend'              = '709a6f4'
 }
 foreach ($r in $repos.Keys) {
     $path = "oca-addons/$r"

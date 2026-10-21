@@ -18,6 +18,7 @@ scripts/backup.ps1      DB dump + filestore
 scripts/restore-test.ps1 restore into a NEW DB and verify
 scripts/create-db.ps1   new DB like production (English base + Arabic, 4U modules)
 scripts/reset-password.ps1 reset a forgotten Odoo password
+scripts/dev-users.ps1   dev only: one test user per 4U role (no password)
 backups/, private/      git-ignored
 ```
 

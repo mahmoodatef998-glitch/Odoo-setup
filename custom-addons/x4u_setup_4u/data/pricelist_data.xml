@@ -9,18 +9,7 @@
             <field name="company_id" ref="base.main_company"/>
             <field name="sequence">1</field>
         </record>
-        <record id="pricelist_contractors" model="product.pricelist">
-            <field name="name">Contractors</field>
-            <field name="currency_id" ref="base.AED"/>
-            <field name="company_id" ref="base.main_company"/>
-            <field name="sequence">2</field>
-        </record>
-        <record id="pricelist_distributors" model="product.pricelist">
-            <field name="name">Distributors</field>
-            <field name="currency_id" ref="base.AED"/>
-            <field name="company_id" ref="base.main_company"/>
-            <field name="sequence">3</field>
-        </record>
+        <!-- Prices are entered by hand (01-sales.md D2), so only one pricelist per currency. -->
         <record id="pricelist_export" model="product.pricelist">
             <field name="name">Export</field>
             <field name="currency_id" ref="base.USD"/>

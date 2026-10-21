@@ -23,6 +23,26 @@ class TestSetupBase(TransactionCase):
         self.assertEqual(self.env.company.po_double_validation, "two_step")
         self.assertEqual(self.env.company.po_double_validation_amount, 0.0)
 
+    def test_sales_settings_v2(self):
+        """Lock confirmed sales, credit limit, no automatic lead enrichment (01-sales.md D9, D10, S4)."""
+        self.assertIn(self.env.ref("sale.group_auto_done_setting"), self.env.ref("base.group_user").trans_implied_ids)
+        self.assertTrue(self.env.company.account_use_credit_limit)
+        cron = self.env.ref("crm_iap_enrich.ir_cron_lead_enrichment", raise_if_not_found=False)
+        if cron:
+            self.assertFalse(cron.active)
+
+    def test_unused_defaults_archived(self):
+        Term = self.env["account.payment.term"]
+        kept = Term.search([("company_id", "in", [self.env.company.id, False])]).mapped("name")
+        for name in ("Immediate Payment", "30 Days", "100% Advance", "60 Days", "LC at Sight"):
+            self.assertIn(name, kept)
+        for name in ("15 Days", "21 Days", "45 Days", "2/7 Net 30"):
+            self.assertNotIn(name, kept)
+        reasons = self.env["crm.lost.reason"].search([]).mapped("name")
+        self.assertIn("Price too high", reasons)
+        self.assertIn("No response from the customer", reasons)
+        self.assertNotIn("We don't have people/skills", reasons)
+
     def test_every_purchase_order_waits_for_approval(self):
         buyer = new_test_user(
             self.env, login="x4u_buyer", groups="base.group_user,purchase.group_purchase_user"

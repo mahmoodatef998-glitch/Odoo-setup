@@ -35,7 +35,8 @@ OCA: account_usability, account_financial_report (+date_range, report_xlsx), mis
 account_reconcile_oca, account_asset_management, account_fiscal_year, account_check_deposit, account_due_list,
 payroll (Beta), payroll_account, payroll_hr_public_holidays, hr_holidays_public, hr_employee_service, hr_employee_document.
 4U: x4u_generator. Gap analysis and decisions: `docs/phase1/business-blueprint.md`.
-`odoo4u_base` (rebuilt 2026-10-21): Sales, CRM, Purchase, Inventory, Manufacturing, Invoicing (`l10n_ae`), quality_control_mrp_oca, purchase_request, x4u_generator, x4u_setup_base, x4u_setup_4u, x4u_job_order. Module-by-module work: `docs/modules/`.
+`odoo4u_base` (rebuilt 2026-10-21): Sales, CRM, Purchase, Inventory, Manufacturing, Invoicing (`l10n_ae`), quality_control_mrp_oca, purchase_request, base_user_role, x4u_generator, x4u_setup_base, x4u_setup_4u, x4u_job_order, x4u_roles. Module-by-module work: `docs/modules/`.
+Users get exactly one 4U role (`x4u_roles`); dev test users per role: `.\scripts\dev-users.ps1 -Database odoo4u_base` (no passwords, the user sets them).
 Never click "Upgrade" (Enterprise) apps: Accounting (accountant), MRP II, Quality, Knowledge.
 
 ## Module conventions

@@ -50,3 +50,7 @@
 	path = oca-addons/purchase-workflow
 	url = https://github.com/OCA/purchase-workflow.git
 	branch = 18.0
+[submodule "oca-addons/server-backend"]
+	path = oca-addons/server-backend
+	url = https://github.com/OCA/server-backend.git
+	branch = 18.0

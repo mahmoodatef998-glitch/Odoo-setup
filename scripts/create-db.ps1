@@ -1,16 +1,18 @@
 # Create a NEW Odoo database the way production will be created:
 # English as the base language, Arabic as a second language, the 4U company, then our modules.
 # Usage (from project root):
-#   .\scripts\create-db.ps1 -Database odoo4u_base [-CompanyName "..."] [-Email info@example.com] [-MailCatcher]
+#   .\scripts\create-db.ps1 -Database odoo4u_base [-CompanyName "..."] [-Email info@example.com] [-MailCatcher] [-TestUsers]
 # -Email       company email; its domain becomes the "From" of outgoing emails (e.g. info@...).
 # -MailCatcher dev only: every email goes to the local Mailpit inbox (http://127.0.0.1:8025), never to real people.
+# -TestUsers   dev only: one test user per 4U role (scripts/dev_users.py), no password.
 # Never loads demo data. Refuses to touch a database that already exists.
 param(
     [Parameter(Mandatory = $true)][string]$Database,
     [string]$CompanyName = '4U Power Generation (DEV)',
     [string]$Email,
     [switch]$MailCatcher,
-    [string]$Modules = 'sale_management,crm,purchase,stock,mrp,quality_control_mrp_oca,x4u_generator,x4u_setup_base,x4u_setup_4u,x4u_job_order'
+    [switch]$TestUsers,
+    [string]$Modules = 'sale_management,crm,purchase,stock,mrp,quality_control_mrp_oca,x4u_generator,x4u_setup_base,x4u_setup_4u,x4u_job_order,x4u_roles'
 )
 $ErrorActionPreference = 'Stop'
 
@@ -77,6 +79,10 @@ env.cr.commit()
 print("Company:", company.name, company.country_id.code, company.currency_id.name)
 '@
 
+    # The UAE chart (taxes, journals) is loaded after the other modules of the same install
+    # step, so it gets its own step: our modules then find the taxes they set as defaults.
+    Write-Host '4/5 Accounting: UAE chart of accounts and taxes' -ForegroundColor Cyan
+    Odoo @('-i', 'account')
     Write-Host '4/5 Apps and 4U modules' -ForegroundColor Cyan
     Odoo @('-i', $Modules)
 
@@ -105,6 +111,10 @@ print("Journals:", env["account.journal"].search([]).mapped("code"))
 print("Operation types:", env["stock.picking.type"].search([]).mapped("name"))
 print("Emails from:", company.default_from_email or "-", "| mail servers:", env["ir.mail_server"].search([]).mapped("name"))
 '@
+    if ($TestUsers) {
+        Write-Host 'Test users (dev only)' -ForegroundColor Cyan
+        Shell (Get-Content -Raw (Join-Path $PSScriptRoot 'dev_users.py'))
+    }
 } finally {
     Remove-Item Env:X4U_COMPANY, Env:X4U_EMAIL, Env:X4U_MAIL_CATCHER -ErrorAction SilentlyContinue
 }

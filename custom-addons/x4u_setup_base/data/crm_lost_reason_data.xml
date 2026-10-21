@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <!-- Why an opportunity is lost (docs/modules/01-sales.md §4, D11). Odoo's own reasons are archived. -->
+    <data noupdate="1">
+        <record id="lost_reason_price" model="crm.lost.reason">
+            <field name="name">Price too high</field>
+        </record>
+        <record id="lost_reason_delivery_time" model="crm.lost.reason">
+            <field name="name">Delivery time too long</field>
+        </record>
+        <record id="lost_reason_competitor" model="crm.lost.reason">
+            <field name="name">Chose a competitor</field>
+        </record>
+        <record id="lost_reason_cancelled" model="crm.lost.reason">
+            <field name="name">Project cancelled or postponed</field>
+        </record>
+        <record id="lost_reason_no_response" model="crm.lost.reason">
+            <field name="name">No response from the customer</field>
+        </record>
+    </data>
+</odoo>

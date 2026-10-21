@@ -1,0 +1,83 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <!-- docs/modules/01-sales.md §8. A user with a role gets exactly the role's groups
+         (OCA base_user_role); changing the role removes the old rights. Kept in code
+         (noupdate off) so every database gets the same roles. -->
+    <record id="role_salesperson" model="res.users.role">
+        <field name="name">Salesperson</field>
+        <field name="sequence">10</field>
+        <field name="comment">Own customers and quotations only: sends and confirms them, discount up to 5%, sees the Job Order status.</field>
+        <field name="implied_ids" eval="[Command.set([ref('base.group_user'), ref('sales_team.group_sale_salesman')])]"/>
+    </record>
+    <record id="role_sales_manager" model="res.users.role">
+        <field name="name">Sales Manager</field>
+        <field name="sequence">20</field>
+        <field name="comment">All sales, unlocks confirmed orders, sales reports.</field>
+        <field name="implied_ids" eval="[Command.set([ref('base.group_user'), ref('sales_team.group_sale_manager')])]"/>
+    </record>
+    <record id="role_purchasing_officer" model="res.users.role">
+        <field name="name">Purchasing Officer</field>
+        <field name="sequence">30</field>
+        <field name="comment">Material requests and RFQs, chooses the vendor. Does not approve purchase orders.</field>
+        <field name="implied_ids" eval="[Command.set([
+            ref('base.group_user'),
+            ref('purchase.group_purchase_user'),
+            ref('purchase_request.group_purchase_request_manager'),
+        ])]"/>
+    </record>
+    <record id="role_general_manager" model="res.users.role">
+        <field name="name">General Manager</field>
+        <field name="sequence">40</field>
+        <field name="comment">Approves purchase orders and discounts above 5%, sees everything.</field>
+        <field name="implied_ids" eval="[Command.set([
+            ref('base.group_user'),
+            ref('sales_team.group_sale_manager'),
+            ref('purchase.group_purchase_manager'),
+            ref('purchase_request.group_purchase_request_manager'),
+            ref('stock.group_stock_manager'),
+            ref('mrp.group_mrp_manager'),
+            ref('quality_control_oca.group_quality_control_manager'),
+            ref('account.group_account_manager'),
+        ])]"/>
+    </record>
+    <record id="role_storekeeper" model="res.users.role">
+        <field name="name">Storekeeper</field>
+        <field name="sequence">50</field>
+        <field name="comment">Receipts, issuing parts to the factory, deliveries, stock counts.</field>
+        <field name="implied_ids" eval="[Command.set([ref('base.group_user'), ref('stock.group_stock_user')])]"/>
+    </record>
+    <record id="role_production" model="res.users.role">
+        <field name="name">Production</field>
+        <field name="sequence">60</field>
+        <field name="comment">Job Orders: assembly and test.</field>
+        <field name="implied_ids" eval="[Command.set([ref('base.group_user'), ref('mrp.group_mrp_user')])]"/>
+    </record>
+    <record id="role_quality_inspector" model="res.users.role">
+        <field name="name">Quality Inspector</field>
+        <field name="sequence">70</field>
+        <field name="comment">Inspects each generator before delivery.</field>
+        <field name="implied_ids" eval="[Command.set([ref('base.group_user'), ref('quality_control_oca.group_quality_control_user')])]"/>
+    </record>
+    <record id="role_accountant" model="res.users.role">
+        <field name="name">Accountant</field>
+        <field name="sequence">80</field>
+        <field name="comment">Invoices, payments and accounting.</field>
+        <field name="implied_ids" eval="[Command.set([ref('base.group_user'), ref('account.group_account_manager')])]"/>
+    </record>
+    <record id="role_administrator" model="res.users.role">
+        <field name="name">Administrator</field>
+        <field name="sequence">90</field>
+        <field name="comment">Settings and users, plus everything the General Manager sees.</field>
+        <field name="implied_ids" eval="[Command.set([
+            ref('base.group_user'),
+            ref('base.group_system'),
+            ref('sales_team.group_sale_manager'),
+            ref('purchase.group_purchase_manager'),
+            ref('purchase_request.group_purchase_request_manager'),
+            ref('stock.group_stock_manager'),
+            ref('mrp.group_mrp_manager'),
+            ref('quality_control_oca.group_quality_control_manager'),
+            ref('account.group_account_manager'),
+        ])]"/>
+    </record>
+</odoo>

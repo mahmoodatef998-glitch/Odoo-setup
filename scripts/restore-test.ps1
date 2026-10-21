@@ -8,7 +8,11 @@ param(
 $ErrorActionPreference = 'Stop'
 
 function Run([string[]]$cmd) {
-    & $cmd[0] $cmd[1..($cmd.Length - 1)]
+    # Docker logs to stderr; when this script's output is redirected, PowerShell 5.1
+    # turns those lines into errors, so only the exit code decides success.
+    $eap = $ErrorActionPreference
+    $ErrorActionPreference = 'Continue'
+    try { & $cmd[0] $cmd[1..($cmd.Length - 1)] } finally { $ErrorActionPreference = $eap }
     if ($LASTEXITCODE -ne 0) { throw "Failed: $($cmd -join ' ')" }
 }
 

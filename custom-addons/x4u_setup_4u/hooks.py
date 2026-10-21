@@ -1,17 +1,19 @@
+from odoo import Command
+
+# One pricelist per currency: prices are entered by hand (docs/modules/01-sales.md D2).
 PRICELISTS = {
     "pricelist_standard": "Standard",
-    "pricelist_contractors": "Contractors",
-    "pricelist_distributors": "Distributors",
     "pricelist_export": "Export",
 }
 
 
 def remove_default_pricelist(env):
-    """Keep only the 4 pricelists of the spec.
+    """Keep only our pricelists.
 
     Enabling pricelists makes Odoo create a "Default" one and re-activate it on
     every Settings save. Our pricelists belong to the company, so Standard takes
-    that role and Odoo's copy can go while no sales order uses it.
+    that role, and any other rule-less company pricelist (Odoo's Default, or the
+    Contractors / Distributors ones of 18.0.1.0.1) goes while no sales order uses it.
     """
     Pricelist = env["product.pricelist"].with_context(active_test=False)
     ours = Pricelist.browse([env.ref("x4u_setup_4u." + xmlid).id for xmlid in PRICELISTS])
@@ -22,9 +24,36 @@ def remove_default_pricelist(env):
     extra.unlink()
 
 
+SERVICES = ("product_installation", "product_transport", "product_commissioning")
+
+
+def use_sharjah_sales_tax(env):
+    """Default sales tax 5% Sharjah until the accountant decides (01-sales.md D12).
+
+    The UAE chart makes the first emirate's tax (Abu Dhabi) the default, and the
+    products created so far took it, so they move to Sharjah too. Our services
+    get it as well when they were created before the chart and have no tax.
+    """
+    company = env.company
+    sharjah = env.ref("account.%s_uae_sale_tax_5_sharjah" % company.id, raise_if_not_found=False)
+    if not sharjah:
+        return
+    old = company.account_sale_tax_id
+    if old != sharjah:
+        company.account_sale_tax_id = sharjah
+        if old:
+            products = env["product.template"].with_context(active_test=False).search([("taxes_id", "in", old.ids)])
+            products.write({"taxes_id": [Command.unlink(old.id), Command.link(sharjah.id)]})
+    for xmlid in SERVICES:
+        template = env.ref("x4u_setup_4u." + xmlid).product_tmpl_id
+        if not template.taxes_id.filtered(lambda tax: tax.company_id == company):
+            template.taxes_id = [Command.link(sharjah.id)]
+
+
 def post_init_hook(env):
     """4U numbering and generator flow (docs/specs/x4u_setup_sales.md §7)."""
     remove_default_pricelist(env)
+    use_sharjah_sales_tax(env)
     company = env.company
     company.write(
         {
