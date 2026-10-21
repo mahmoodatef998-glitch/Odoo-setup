@@ -12,7 +12,19 @@ param(
     [string]$Email,
     [switch]$MailCatcher,
     [switch]$TestUsers,
-    [string]$Modules = 'sale_management,crm,purchase,stock,mrp,quality_control_mrp_oca,x4u_generator,x4u_setup_base,x4u_setup_4u,x4u_job_order,x4u_roles'
+    [string]$Modules = (@(
+        # Odoo apps
+        'sale_management', 'crm', 'purchase', 'stock', 'mrp',
+        'hr', 'hr_holidays', 'hr_contract',
+        # OCA: quality, full accounting (Community), payroll (blueprint §6)
+        'quality_control_mrp_oca',
+        'account_usability', 'account_financial_report', 'mis_builder', 'account_reconcile_oca',
+        'account_asset_management', 'account_fiscal_year', 'account_check_deposit', 'account_due_list',
+        'payroll', 'payroll_account', 'payroll_hr_public_holidays', 'hr_holidays_public',
+        'hr_employee_service', 'hr_employee_document',
+        # 4U
+        'x4u_generator', 'x4u_setup_base', 'x4u_setup_4u', 'x4u_job_order', 'x4u_roles'
+    ) -join ',')
 )
 $ErrorActionPreference = 'Stop'
 

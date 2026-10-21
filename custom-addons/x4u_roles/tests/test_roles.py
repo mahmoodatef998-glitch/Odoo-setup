@@ -9,12 +9,24 @@ MANAGERS = {
     "mrp.group_mrp_manager",
     "quality_control_oca.group_quality_control_manager",
     "account.group_account_manager",
+    "account.group_account_user",
+    "hr.group_hr_manager",
+    "hr_holidays.group_hr_holidays_manager",
+    "payroll.group_payroll_manager",
 }
 # Role -> (groups it must give, groups it must not give)
 ROLES = {
     "role_salesperson": (
         {"sales_team.group_sale_salesman"},
-        {"sales_team.group_sale_manager", "purchase.group_purchase_user", "stock.group_stock_user", "base.group_system"},
+        {
+            "sales_team.group_sale_manager",
+            "purchase.group_purchase_user",
+            "stock.group_stock_user",
+            "base.group_system",
+            "account.group_account_user",
+            "hr.group_hr_user",
+            "payroll.group_payroll_user",
+        },
     ),
     "role_sales_manager": ({"sales_team.group_sale_manager"}, {"purchase.group_purchase_user"}),
     "role_purchasing_officer": (
@@ -28,7 +40,10 @@ ROLES = {
         {"quality_control_oca.group_quality_control_user"},
         {"quality_control_oca.group_quality_control_manager", "sales_team.group_sale_salesman"},
     ),
-    "role_accountant": ({"account.group_account_manager"}, {"purchase.group_purchase_user", "sales_team.group_sale_salesman"}),
+    "role_accountant": (
+        {"account.group_account_manager", "account.group_account_user", "payroll.group_payroll_manager", "hr.group_hr_user"},
+        {"purchase.group_purchase_user", "sales_team.group_sale_salesman", "hr.group_hr_manager"},
+    ),
     "role_administrator": (MANAGERS | {"base.group_system"}, set()),
 }
 

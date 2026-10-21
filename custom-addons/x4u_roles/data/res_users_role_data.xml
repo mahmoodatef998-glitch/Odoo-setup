@@ -38,6 +38,10 @@
             ref('mrp.group_mrp_manager'),
             ref('quality_control_oca.group_quality_control_manager'),
             ref('account.group_account_manager'),
+            ref('account.group_account_user'),
+            ref('hr.group_hr_manager'),
+            ref('hr_holidays.group_hr_holidays_manager'),
+            ref('payroll.group_payroll_manager'),
         ])]"/>
     </record>
     <record id="role_storekeeper" model="res.users.role">
@@ -61,8 +65,14 @@
     <record id="role_accountant" model="res.users.role">
         <field name="name">Accountant</field>
         <field name="sequence">80</field>
-        <field name="comment">Invoices, payments and accounting.</field>
-        <field name="implied_ids" eval="[Command.set([ref('base.group_user'), ref('account.group_account_manager')])]"/>
+        <field name="comment">Invoices, payments, full accounting and payroll (with the employee data payroll needs).</field>
+        <field name="implied_ids" eval="[Command.set([
+            ref('base.group_user'),
+            ref('account.group_account_manager'),
+            ref('account.group_account_user'),
+            ref('payroll.group_payroll_manager'),
+            ref('hr.group_hr_user'),
+        ])]"/>
     </record>
     <record id="role_administrator" model="res.users.role">
         <field name="name">Administrator</field>
@@ -78,6 +88,10 @@
             ref('mrp.group_mrp_manager'),
             ref('quality_control_oca.group_quality_control_manager'),
             ref('account.group_account_manager'),
+            ref('account.group_account_user'),
+            ref('hr.group_hr_manager'),
+            ref('hr_holidays.group_hr_holidays_manager'),
+            ref('payroll.group_payroll_manager'),
         ])]"/>
     </record>
 </odoo>
