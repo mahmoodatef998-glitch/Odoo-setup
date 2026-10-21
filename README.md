@@ -1,6 +1,6 @@
 # 4U Power Generation — Odoo 18 Community (DEV)
 
-Development environment only. Demo/test data only — no real company data, not exposed to the network.
+Development environment only — test and training data, not exposed to the network. Company files (letterhead, datasheets, imports) stay in git-ignored `private/`, never in Git.
 
 | Component | Version (verified 2026-10-17) |
 |---|---|
@@ -10,13 +10,15 @@ Development environment only. Demo/test data only — no real company data, not 
 
 ## Layout
 ```
-compose.yaml            containers (db + web)
+compose.yaml            containers (db + web + mailpit)
 .env.example            copy to .env  (git-ignored, holds DB_PASSWORD)
 config/odoo.conf.example copy to config/odoo.conf (git-ignored)
 custom-addons/          4U modules — never edit Odoo core
 scripts/backup.ps1      DB dump + filestore
 scripts/restore-test.ps1 restore into a NEW DB and verify
-backups/                git-ignored
+scripts/create-db.ps1   new DB like production (English base + Arabic, 4U modules)
+scripts/reset-password.ps1 reset a forgotten Odoo password
+backups/, private/      git-ignored
 ```
 
 ## First run (PowerShell, in this folder)
@@ -28,7 +30,13 @@ docker compose pull
 docker compose up -d
 docker compose ps                  # db = healthy, web = running
 ```
-Open http://127.0.0.1:8069 (port can be changed with ODOO_PORT in .env) → create database `odoo4u_dev` with **demo data**, and set a **Master Password** (store it in your password manager).
+Then create the working database (English base + Arabic, no demo data, 4U modules):
+```powershell
+.\scripts\create-db.ps1 -Database odoo4u_base -Email info@4upowers.com -MailCatcher
+```
+Open http://127.0.0.1:8069/web/login?db=odoo4u_base (port can be changed with ODOO_PORT in .env), log in as admin / admin and change the password.
+Emails go to the local Mailpit inbox, http://127.0.0.1:8025 , never to real people.
+`odoo4u_dev` (Odoo demo data) is only a playground.
 
 ## Daily
 ```powershell
@@ -39,8 +47,8 @@ docker compose logs -f web
 
 ## Backup & restore test
 ```powershell
-.\scripts\backup.ps1 -Database odoo4u_dev
-.\scripts\restore-test.ps1 -BackupDir backups\<folder> -SourceDb odoo4u_dev
+.\scripts\backup.ps1 -Database odoo4u_base
+.\scripts\restore-test.ps1 -BackupDir backups\<folder> -SourceDb odoo4u_base
 ```
 A backup counts only after the restore test passes and the restored DB opens with attachments.
 
