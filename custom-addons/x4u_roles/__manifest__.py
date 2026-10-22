@@ -4,7 +4,7 @@
     "name": "4U Roles",
     "summary": "One role per job (Salesperson, Storekeeper, General Manager...): "
     "the admin gives each user one role and gets the right permissions",
-    "version": "18.0.1.0.1",
+    "version": "18.0.1.0.2",
     "category": "Hidden",
     # AGPL-3 because it depends on quality_control_oca (AGPL-3).
     "license": "AGPL-3",
@@ -15,6 +15,8 @@
         "purchase_request",
         "mrp",
         "quality_control_oca",
+        # Purchasing and Quality read the Job Orders they are told about.
+        "x4u_job_order",
         # Accounting, Time Off and payroll are part of the General Manager / Accountant roles.
         "hr_holidays",
         "payroll",

@@ -98,7 +98,7 @@ class MrpProduction(models.Model):
                 if move:
                     text = labels.get(move.x4u_part_status) or ""
                     if move.x4u_purchase_id:
-                        text = "%s · %s" % (move.x4u_purchase_id.name, text)
+                        text = "%s · %s" % (move.x4u_purchase_id.sudo().name, text)
                         if move.x4u_part_status in ("rfq", "ordered") and move.x4u_expected_date:
                             text += " · %s" % move.x4u_expected_date.strftime("%d/%m")
                 production["x4u_%s_status" % role] = text

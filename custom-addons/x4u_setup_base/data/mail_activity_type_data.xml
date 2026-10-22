@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <!-- To-do for whoever approves purchase orders (guide R2): every PO waits for
+         the General Manager, who gets a to-do instead of having to look for them. -->
+    <data noupdate="1">
+        <record id="mail_activity_type_po_approval" model="mail.activity.type">
+            <field name="name">Approve Purchase Order</field>
+            <field name="summary">Approve purchase order</field>
+            <field name="res_model">purchase.order</field>
+            <field name="icon">fa-check-square-o</field>
+            <field name="delay_count">0</field>
+            <field name="sequence">5</field>
+        </record>
+    </data>
+</odoo>

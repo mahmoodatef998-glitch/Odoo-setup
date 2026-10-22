@@ -4,7 +4,7 @@
     "name": "4U Job Orders",
     "summary": "Generator Job Orders: status, parts tracking, material "
     "requests, timeline of every step and where the delay is",
-    "version": "18.0.1.0.0",
+    "version": "18.0.1.1.0",
     "category": "Manufacturing/Manufacturing",
     # AGPL-3 because it depends on x4u_generator (AGPL-3).
     "license": "AGPL-3",
@@ -17,8 +17,9 @@
         "purchase_request",
     ],
     "data": [
-        "security/ir.model.access.csv",
+        # The group first: the access rules below use it.
         "security/x4u_job_order_security.xml",
+        "security/ir.model.access.csv",
         "data/ir_cron.xml",
         "views/mrp_production_views.xml",
         "views/other_views.xml",

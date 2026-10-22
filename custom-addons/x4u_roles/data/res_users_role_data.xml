@@ -18,11 +18,13 @@
     <record id="role_purchasing_officer" model="res.users.role">
         <field name="name">Purchasing Officer</field>
         <field name="sequence">30</field>
-        <field name="comment">Material requests and RFQs, chooses the vendor. Does not approve purchase orders.</field>
+        <field name="comment">Material requests and RFQs, chooses and adds vendors, reads the Job Orders. Does not approve purchase orders.</field>
         <field name="implied_ids" eval="[Command.set([
             ref('base.group_user'),
+            ref('base.group_partner_manager'),
             ref('purchase.group_purchase_user'),
             ref('purchase_request.group_purchase_request_manager'),
+            ref('x4u_job_order.group_x4u_job_order_viewer'),
         ])]"/>
     </record>
     <record id="role_general_manager" model="res.users.role">
@@ -59,15 +61,20 @@
     <record id="role_quality_inspector" model="res.users.role">
         <field name="name">Quality Inspector</field>
         <field name="sequence">70</field>
-        <field name="comment">Inspects each generator before delivery.</field>
-        <field name="implied_ids" eval="[Command.set([ref('base.group_user'), ref('quality_control_oca.group_quality_control_user')])]"/>
+        <field name="comment">Inspects each generator before delivery, reads the Job Orders.</field>
+        <field name="implied_ids" eval="[Command.set([
+            ref('base.group_user'),
+            ref('quality_control_oca.group_quality_control_user'),
+            ref('x4u_job_order.group_x4u_job_order_viewer'),
+        ])]"/>
     </record>
     <record id="role_accountant" model="res.users.role">
         <field name="name">Accountant</field>
         <field name="sequence">80</field>
-        <field name="comment">Invoices, payments, full accounting and payroll (with the employee data payroll needs).</field>
+        <field name="comment">Invoices, payments, full accounting and payroll (with the employee data payroll needs), adds customers and vendors.</field>
         <field name="implied_ids" eval="[Command.set([
             ref('base.group_user'),
+            ref('base.group_partner_manager'),
             ref('account.group_account_manager'),
             ref('account.group_account_user'),
             ref('payroll.group_payroll_manager'),

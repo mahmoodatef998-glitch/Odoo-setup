@@ -1,1 +1,1 @@
-from . import account_move, res_company
+from . import account_move, purchase_order, res_company

@@ -239,4 +239,9 @@
               action="action_x4u_job_order_analysis" sequence="50"/>
     <menuitem id="menu_x4u_job_order_delays" name="Job Order Delays" parent="mrp.menu_mrp_reporting"
               action="action_x4u_job_order_delays" sequence="51"/>
+    <!-- Read-only Job Orders where Purchasing and Quality work (guide R1) -->
+    <menuitem id="menu_x4u_job_order_purchase" name="Job Orders" parent="purchase.menu_procurement_management"
+              action="action_x4u_job_order" sequence="12" groups="group_x4u_job_order_viewer"/>
+    <menuitem id="menu_x4u_job_order_quality" name="Job Orders" parent="quality_control_oca.qc_inspection_menu_parent"
+              action="action_x4u_job_order" sequence="40" groups="group_x4u_job_order_viewer"/>
 </odoo>

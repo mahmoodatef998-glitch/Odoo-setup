@@ -67,8 +67,9 @@ class StockMove(models.Model):
             source = picks or move
             receipts = source.move_orig_ids.filtered(lambda m: m.state != "cancel")
             # Once the PO is confirmed, Odoo moves the link from the PO line to its receipt.
+            # sudo first: people who only read the Job Order (Quality) can't read purchases.
             po_lines = (
-                receipts.purchase_line_id | PurchaseLine.search([("move_dest_ids", "in", source.ids)])
+                PurchaseLine.search([("move_dest_ids", "in", source.ids)]) | receipts.sudo().purchase_line_id
             ).filtered(lambda line: line.state != "cancel")
             status = False
             if all(m.state == "done" for m in source) and source:

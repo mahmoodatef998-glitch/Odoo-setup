@@ -1,8 +1,8 @@
 from datetime import timedelta
 
 from odoo import fields
-from odoo.exceptions import UserError
-from odoo.tests import tagged
+from odoo.exceptions import AccessError, UserError
+from odoo.tests import Form, new_test_user, tagged
 
 from .common import X4uJobOrderCommon
 
@@ -128,3 +128,42 @@ class TestJobOrder(X4uJobOrderCommon):
         job = production.with_user(self.salesman)
         job.read(["name", "x4u_job_state", "x4u_engine_status", "x4u_delay_stage"])
         job.x4u_event_ids.read(["event_type", "date", "user_id"])
+
+    # T11: Purchasing and Quality open the Job Order they are told about, read only (guide R1)
+    def test_purchasing_and_quality_read_job_order(self):
+        viewer = "x4u_job_order.group_x4u_job_order_viewer"
+        buyer = new_test_user(
+            self.env,
+            login="x4u_jo_viewer_buyer",
+            groups="base.group_user,purchase.group_purchase_user,purchase_request.group_purchase_request_manager," + viewer,
+        )
+        inspector = new_test_user(
+            self.env, login="x4u_jo_viewer_qc", groups="base.group_user,quality_control_oca.group_quality_control_user," + viewer
+        )
+        params = self.env["ir.config_parameter"].sudo()
+        params.set_param("x4u_job_order.purchase_user_id", buyer.id)
+        params.set_param("x4u_job_order.qc_user_id", inspector.id)
+        _order, production = self._sell()
+        orders = self._order_parts(production)
+        orders.with_user(self.manager).button_confirm()
+        for picking in orders.picking_ids:
+            self._validate(picking)
+        self._deliver_material(production)
+        self._produce(production)
+        self._inspect(production, "success")
+        list_views = [
+            (self.env.ref("x4u_job_order.x4u_job_order_view_list").id, "list"),
+            (self.env.ref("x4u_job_order.x4u_job_order_view_kanban").id, "kanban"),
+        ]
+        for user, menu in ((buyer, "menu_x4u_job_order_purchase"), (inspector, "menu_x4u_job_order_quality")):
+            job = production.with_user(user)
+            self.assertTrue(job.activity_ids.filtered(lambda a, u=user: a.user_id == u))
+            # The list, the kanban and the form load like in the browser, with no access error.
+            fields_ = job.get_views(list_views)["models"]["mrp.production"]["fields"]
+            spec = {name: {"fields": {"display_name": {}}} if job._fields[name].type == "many2one" else {} for name in fields_}
+            self.assertEqual(job.web_search_read([("id", "=", production.id)], spec)["length"], 1)
+            Form(job)
+            job.x4u_event_ids.read(["event_type", "document", "user_id"])
+            self.assertIn(self.env.ref("x4u_job_order." + menu).id, self.env["ir.ui.menu"].with_user(user)._visible_menu_ids())
+            with self.assertRaises(AccessError):
+                job.write({"origin": "changed"})

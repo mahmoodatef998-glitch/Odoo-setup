@@ -60,6 +60,46 @@ class TestSetupBase(TransactionCase):
         order.with_user(buyer).button_confirm()
         self.assertEqual(order.state, "to approve")
 
+    def test_approver_gets_a_todo(self):
+        """Each order to approve is a to-do for the approvers, closed when approved or cancelled (guide R2)."""
+        buyer = new_test_user(self.env, login="x4u_buyer_todo", groups="base.group_user,purchase.group_purchase_user")
+        approver = new_test_user(self.env, login="x4u_approver", groups="base.group_user,purchase.group_purchase_manager")
+        other_approver = new_test_user(self.env, login="x4u_approver_2", groups="base.group_user,purchase.group_purchase_manager")
+        approval = self.env.ref("x4u_setup_base.mail_activity_type_po_approval")
+        vendor = self.env["res.partner"].create({"name": "X4U Test Vendor"})
+        product = self.env["product.product"].create({"name": "X4U Test Part"})
+        first, second = self.env["purchase.order"].create(
+            [
+                {
+                    "partner_id": vendor.id,
+                    "order_line": [Command.create({"product_id": product.id, "product_qty": 1, "price_unit": 100.0})],
+                }
+                for _i in range(2)
+            ]
+        )
+
+        def todo(order):
+            return order.activity_ids.filtered(lambda a: a.activity_type_id == approval)
+
+        (first | second).with_user(buyer).button_confirm()
+        for order in (first, second):
+            self.assertTrue((approver | other_approver) <= todo(order).user_id)
+            self.assertNotIn(buyer, todo(order).user_id)
+            self.assertIn(order.name, todo(order)[:1].summary)
+        # Asking again doesn't add a second to-do.
+        first._x4u_ask_approval()
+        self.assertEqual(len(todo(first).filtered(lambda a: a.user_id == approver)), 1)
+
+        first.with_user(approver).button_approve()
+        self.assertEqual(first.state, "purchase")
+        self.assertFalse(todo(first))
+        self.assertTrue(
+            first.message_ids.filtered(lambda m: m.author_id == approver.partner_id and m.mail_activity_type_id == approval)
+        )
+
+        second.with_user(buyer).button_cancel()
+        self.assertFalse(todo(second))
+
     def test_categories_units_attributes(self):
         ref = self.env.ref
         components = ref("x4u_setup_base.categ_components")

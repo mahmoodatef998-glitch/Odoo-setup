@@ -129,6 +129,7 @@ Job Order 4U-PO-001 اتأكد
 - الحقول على الـ MO بصلاحيات الـ Manufacturing. وطلبات المواد بصلاحيات `purchase_request` (Request User / Manager).
 - `x4u.job.order.event`: قراءة بس، ومحدش يعدّل أو يمسح الأحداث.
 - المبيعات: تشوف الـ Job Orders read-only.
+- المشتريات والجودة: group **Job Orders: Read Only** (`group_x4u_job_order_viewer`)، بيفتحوا الأمر من التنبيه، وليهم لينك Job Orders في Purchase وفي Quality Control. اتضاف 2026-10-22 (دليل الأدوار، R1).
 
 ## 11. Tests
 | # | الاختبار |

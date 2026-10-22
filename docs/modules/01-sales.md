@@ -150,10 +150,10 @@ Opportunity (CRM) ← Quotation (قالب Generator Supply، الموديل من
 |---|---|
 | Salesperson | عملاؤه وعروضه بس، يبعت ويأكد، خصم لحد 5%، يشوف حالة الـ Job Order |
 | Sales Manager | كل المبيعات، يفتح الـ SO المقفول، التقارير |
-| Purchasing Officer | طلبات المواد، الـ RFQs، يختار المورد. مايعتمدش الـ PO |
-| General Manager | يعتمد الـ PO والخصم فوق 5%، ويشوف كل حاجة |
+| Purchasing Officer | طلبات المواد، الـ RFQs، يختار المورد ويضيف موردين جداد، ويقرا الـ Job Orders. مايعتمدش الـ PO |
+| General Manager | يعتمد الـ PO (بيوصله to-do لكل PO مستنيه) والخصم فوق 5%، ويشوف كل حاجة |
 | Storekeeper | الاستلام، صرف القطع للمصنع، التسليم، الجرد |
 | Production | الـ Job Orders: التجميع والاختبار |
-| Quality Inspector | فحص المولد قبل التسليم |
-| Accountant | الفواتير والمدفوعات والحسابات |
+| Quality Inspector | فحص المولد قبل التسليم، ويقرا الـ Job Orders |
+| Accountant | الفواتير والمدفوعات والحسابات، ويضيف عملاء وموردين |
 | Administrator | الإعدادات والمستخدمين (إنت) |

@@ -1,2 +1,11 @@
 id,name,model_id:id,group_id:id,perm_read,perm_write,perm_create,perm_unlink
 access_x4u_job_order_event_user,x4u.job.order.event user,model_x4u_job_order_event,base.group_user,1,0,0,0
+access_mrp_production_x4u_viewer,mrp.production x4u viewer,mrp.model_mrp_production,group_x4u_job_order_viewer,1,0,0,0
+access_mrp_workorder_x4u_viewer,mrp.workorder x4u viewer,mrp.model_mrp_workorder,group_x4u_job_order_viewer,1,0,0,0
+access_mrp_workcenter_productivity_x4u_viewer,mrp.workcenter.productivity x4u viewer,mrp.model_mrp_workcenter_productivity,group_x4u_job_order_viewer,1,0,0,0
+access_mrp_routing_workcenter_x4u_viewer,mrp.routing.workcenter x4u viewer,mrp.model_mrp_routing_workcenter,group_x4u_job_order_viewer,1,0,0,0
+access_mrp_bom_x4u_viewer,mrp.bom x4u viewer,mrp.model_mrp_bom,group_x4u_job_order_viewer,1,0,0,0
+access_mrp_unbuild_x4u_viewer,mrp.unbuild x4u viewer,mrp.model_mrp_unbuild,group_x4u_job_order_viewer,1,0,0,0
+access_stock_scrap_x4u_viewer,stock.scrap x4u viewer,stock.model_stock_scrap,group_x4u_job_order_viewer,1,0,0,0
+access_stock_move_x4u_viewer,stock.move x4u viewer,stock.model_stock_move,group_x4u_job_order_viewer,1,0,0,0
+access_stock_picking_x4u_viewer,stock.picking x4u viewer,stock.model_stock_picking,group_x4u_job_order_viewer,1,0,0,0
