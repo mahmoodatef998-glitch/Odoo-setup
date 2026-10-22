@@ -1,6 +1,6 @@
 import re
 
-from odoo import Command
+from odoo import Command, fields
 from odoo.tests import TransactionCase, tagged
 
 
@@ -65,6 +65,34 @@ class TestSetup4U(TransactionCase):
         self.assertEqual(pricelists["pricelist_standard"].display_name, "Standard (AED)")
         self.assertEqual({pl.company_id for pl in pricelists.values()}, {company})
         self.assertFalse(self.env.ref("x4u_setup_4u.pricelist_contractors", raise_if_not_found=False))
+
+    def test_invoice_numbers_carry_the_company(self):
+        """4U-INV-<year>-0001 for invoices, 4U-CN-<year>-0001 for credit notes (06-accounting.md)."""
+        self.assertEqual(self.env.company.x4u_document_prefix, "4U")
+        # A journal with no invoice yet, so the first number of the year is built here
+        # (on a database with demo data the default journal already has numbers).
+        journal = self.env["account.journal"].create({"name": "X4U Test Sales", "type": "sale", "code": "X4UT"})
+        partner = self.env["res.partner"].create({"name": "X4U Test Customer"})
+        product = self.env.ref("x4u_setup_4u.product_installation")
+
+        def post(move_type):
+            move = self.env["account.move"].create(
+                {
+                    "move_type": move_type,
+                    "journal_id": journal.id,
+                    "partner_id": partner.id,
+                    "invoice_date": fields.Date.today(),
+                    "invoice_line_ids": [Command.create({"product_id": product.id, "quantity": 1, "price_unit": 100.0})],
+                }
+            )
+            move.action_post()
+            return move
+
+        year = fields.Date.today().year
+        first, second = post("out_invoice"), post("out_invoice")
+        self.assertEqual(first.name, "4U-INV-%d-0001" % year)
+        self.assertEqual(second.name, "4U-INV-%d-0002" % year)
+        self.assertEqual(post("out_refund").name, "4U-CN-%d-0001" % year)
 
     def test_default_sales_tax_sharjah(self):
         """5% Sharjah until the accountant decides (01-sales.md D12), on the company and our services."""

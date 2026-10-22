@@ -50,6 +50,9 @@ def use_sharjah_sales_tax(env):
             template.taxes_id = [Command.link(sharjah.id)]
 
 
+DOCUMENT_PREFIX = "4U"  # invoices 4U-INV-2026-0001 (docs/modules/06-accounting.md)
+
+
 def post_init_hook(env):
     """4U numbering and generator flow (docs/specs/x4u_setup_sales.md §7)."""
     remove_default_pricelist(env)
@@ -59,6 +62,7 @@ def post_init_hook(env):
         {
             "quotation_validity_days": 30,
             "sale_order_template_id": env.ref("x4u_setup_4u.template_generator_supply").id,
+            "x4u_document_prefix": DOCUMENT_PREFIX,
         }
     )
     # Sales order 4U-SO-001; generator Job Order 4U-PO-001 (purchase orders keep P00001).

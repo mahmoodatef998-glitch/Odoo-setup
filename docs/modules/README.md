@@ -23,7 +23,7 @@
 | 3 | Inventory: الاستلام، الصرف، الجرد، الكابلات | — | ⏳ |
 | 4 | Manufacturing: الـ Job Order والـ BOMs | — | ⏳ الدورة متبنية (`x4u_job_order`) |
 | 5 | Quality: الفحص قبل التسليم | — | ⏳ |
-| 6 | Invoicing & Accounting | — | ⏳ مستني شجرة الحسابات والمحاسب |
+| 6 | Invoicing & Accounting | [06-accounting.md](06-accounting.md) | 🔄 الشجرة: Excel المراجعة جاهز (2026-10-22) |
 | 7 | HR & Payroll | — | ⏳ |
 
 المستندات المطبوعة (M5) بتتعمل جوه كل موديول، مش لوحدها في الآخر.
