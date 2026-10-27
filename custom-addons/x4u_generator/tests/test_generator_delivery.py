@@ -1,5 +1,4 @@
 from odoo import fields
-from odoo.exceptions import UserError
 from odoo.tests import tagged
 
 from .common import X4uGeneratorCommon
@@ -43,31 +42,12 @@ class TestGeneratorDelivery(X4uGeneratorCommon):
         self.assertFalse(card.commissioning_date)
         self.assertEqual(card.warranty_state, "not_started")
 
-    # T10 - Q3: no delivery to a customer without a passed QC
-    def test_delivery_blocked_without_passed_qc(self):
+    # T10 - no quality gate before delivery (Q3 cancelled 2026-10-27, x4u_job_order v0.4 V7)
+    def test_delivery_not_blocked_by_qc(self):
         lot = self._create_lot("X4U-T10-0001")
         _order, picking = self._sell(lot)
-        with self.assertRaises(UserError):
-            self._validate(picking, self.stock_user)
-        self._create_inspection(lot, "failed")
-        with self.assertRaises(UserError):
-            self._validate(picking, self.stock_user)
-        self._create_inspection(lot, "success")
         self._validate(picking, self.stock_user)
         self.assertEqual(lot.x4u_generator_id.state, "delivered")
-
-    def test_manager_can_deliver_without_passed_qc(self):
-        lot = self._create_lot("X4U-T10-0002")
-        _order, picking = self._sell(lot)
-        self._validate(picking, self.stock_manager)
-        card = lot.x4u_generator_id
-        self.assertEqual(card.state, "delivered")
-        self.assertTrue(
-            any(
-                "without a passed quality inspection" in str(message.body)
-                for message in card.message_ids
-            )
-        )
 
     def test_regular_product_delivery_not_blocked(self):
         lot = self._create_lot("X4U-T10-PART", self.part_product)

@@ -4,7 +4,7 @@
     "name": "4U Generator Card",
     "summary": "Generator card per serial: kVA, engine/alternator, "
     "running hours, warranty, sales and quality links",
-    "version": "18.0.1.0.0",
+    "version": "18.0.1.0.1",
     "category": "Inventory/Inventory",
     # AGPL-3 because it depends on quality_control_stock_oca (AGPL-3), see spec Q1.
     "license": "AGPL-3",

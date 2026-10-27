@@ -6,6 +6,36 @@
         <field name="model">mrp.production</field>
         <field name="inherit_id" ref="mrp.mrp_production_form_view"/>
         <field name="arch" type="xml">
+            <!-- A Job Order has two buttons only (spec v0.4 V3 / V4): Storekeeper, then Operation Manager -->
+            <xpath expr="(//header/button[@name='button_mark_done'])[1]" position="before">
+                <button name="action_x4u_deliver_materials" type="object" string="Deliver Materials" class="oe_highlight"
+                        groups="stock.group_stock_user"
+                        invisible="not x4u_is_job_order or x4u_job_state not in ('waiting_parts', 'parts_ready')"/>
+                <button name="action_x4u_finish" type="object" string="Finish Job Order" class="oe_highlight"
+                        groups="mrp.group_mrp_user"
+                        invisible="not x4u_is_job_order or x4u_job_state != 'material_delivered'"/>
+            </xpath>
+            <xpath expr="(//header/button[@name='button_mark_done'])[1]" position="attributes">
+                <attribute name="invisible" add="x4u_is_job_order" separator=" or "/>
+            </xpath>
+            <xpath expr="(//header/button[@name='button_mark_done'])[2]" position="attributes">
+                <attribute name="invisible" add="x4u_is_job_order" separator=" or "/>
+            </xpath>
+            <xpath expr="(//header/button[@name='button_mark_done'])[3]" position="attributes">
+                <attribute name="invisible" add="x4u_is_job_order" separator=" or "/>
+            </xpath>
+            <xpath expr="(//header/button[@name='button_mark_done'])[4]" position="attributes">
+                <attribute name="invisible" add="x4u_is_job_order" separator=" or "/>
+            </xpath>
+            <xpath expr="//header/button[@name='action_start']" position="attributes">
+                <attribute name="invisible" add="x4u_is_job_order" separator=" or "/>
+            </xpath>
+            <xpath expr="//header/button[@name='action_assign']" position="attributes">
+                <attribute name="invisible" add="x4u_is_job_order" separator=" or "/>
+            </xpath>
+            <xpath expr="//header/button[@name='do_unreserve']" position="attributes">
+                <attribute name="invisible" add="x4u_is_job_order" separator=" or "/>
+            </xpath>
             <xpath expr="//div[@name='button_box']" position="inside">
                 <button name="action_x4u_open_sale" type="object" class="oe_stat_button" icon="fa-dollar"
                         string="Sales Order" invisible="not x4u_sale_order_id"/>
@@ -22,10 +52,18 @@
                 <field name="x4u_generator_id" invisible="1"/>
                 <field name="x4u_job_state" widget="badge" invisible="not x4u_is_job_order"
                        decoration-info="x4u_job_state in ('waiting_parts', 'parts_ready')"
-                       decoration-warning="x4u_job_state in ('material_delivered', 'assembled')"
-                       decoration-success="x4u_job_state == 'finished'"/>
+                       decoration-warning="x4u_job_state == 'material_delivered'"
+                       decoration-success="x4u_job_state in ('finished', 'delivered')"/>
+                <field name="x4u_material_flag" widget="badge" invisible="not x4u_material_flag"
+                       decoration-danger="x4u_material_flag == 'missing'"
+                       decoration-success="x4u_material_flag == 'ready'"/>
                 <field name="x4u_delay_stage" widget="badge" decoration-danger="1"
                        invisible="not x4u_delay_stage"/>
+            </xpath>
+            <!-- What the warehouse holds of each component, seen while the quantities are entered -->
+            <xpath expr="//field[@name='move_raw_ids']/list/field[@name='product_uom_qty'][@widget='mrp_should_consume']" position="after">
+                <field name="x4u_stock_on_hand" optional="show"/>
+                <field name="x4u_stock_free" optional="show"/>
             </xpath>
             <xpath expr="//notebook" position="inside">
                 <page string="Parts" name="x4u_parts" invisible="not x4u_is_job_order">
@@ -34,6 +72,8 @@
                             <field name="x4u_role"/>
                             <field name="product_id"/>
                             <field name="product_uom_qty" string="Qty"/>
+                            <field name="x4u_stock_on_hand"/>
+                            <field name="x4u_stock_free"/>
                             <field name="x4u_part_status" widget="badge"
                                    decoration-success="x4u_part_status in ('received', 'delivered', 'from_stock')"
                                    decoration-warning="x4u_part_status in ('rfq', 'ordered')"
@@ -63,7 +103,6 @@
                         </group>
                         <group>
                             <field name="x4u_days_assembly"/>
-                            <field name="x4u_days_qc"/>
                             <field name="x4u_days_dispatch"/>
                             <field name="x4u_days_total"/>
                             <field name="x4u_delay_days" invisible="not x4u_delay_stage"/>
@@ -86,8 +125,11 @@
                 <field name="product_id" string="Model"/>
                 <field name="x4u_job_state" widget="badge"
                        decoration-info="x4u_job_state in ('waiting_parts', 'parts_ready')"
-                       decoration-warning="x4u_job_state in ('material_delivered', 'assembled')"
-                       decoration-success="x4u_job_state == 'finished'"/>
+                       decoration-warning="x4u_job_state == 'material_delivered'"
+                       decoration-success="x4u_job_state in ('finished', 'delivered')"/>
+                <field name="x4u_material_flag" widget="badge"
+                       decoration-danger="x4u_material_flag == 'missing'"
+                       decoration-success="x4u_material_flag == 'ready'"/>
                 <field name="x4u_engine_status"/>
                 <field name="x4u_alternator_status"/>
                 <field name="x4u_body_status"/>
@@ -107,9 +149,14 @@
             <kanban default_group_by="x4u_job_state" records_draggable="0" group_create="0"
                     group_delete="0" group_edit="0" create="0">
                 <field name="x4u_delay_stage"/>
+                <field name="x4u_material_flag"/>
                 <templates>
                     <t t-name="card">
-                        <field name="name" class="fw-bold"/>
+                        <div>
+                            <i class="fa fa-flag text-danger me-1" title="Missing Parts" invisible="x4u_material_flag != 'missing'"/>
+                            <i class="fa fa-flag text-success me-1" title="Materials Ready" invisible="x4u_material_flag != 'ready'"/>
+                            <field name="name" class="fw-bold"/>
+                        </div>
                         <field name="product_id"/>
                         <field name="x4u_customer_id"/>
                         <div class="small">
@@ -139,12 +186,15 @@
                 <filter name="waiting_parts" string="Waiting Parts" domain="[('x4u_job_state', '=', 'waiting_parts')]"/>
                 <filter name="parts_ready" string="Parts Ready" domain="[('x4u_job_state', '=', 'parts_ready')]"/>
                 <filter name="material_delivered" string="Material Delivered" domain="[('x4u_job_state', '=', 'material_delivered')]"/>
-                <filter name="assembled" string="Assembled &amp; Tested" domain="[('x4u_job_state', '=', 'assembled')]"/>
                 <filter name="finished" string="Finished" domain="[('x4u_job_state', '=', 'finished')]"/>
+                <filter name="delivered" string="Delivered" domain="[('x4u_job_state', '=', 'delivered')]"/>
                 <separator/>
-                <filter name="open" string="Open" domain="[('x4u_job_state', 'not in', ('finished', 'cancelled'))]"/>
+                <filter name="missing_parts" string="Missing Parts" domain="[('x4u_material_flag', '=', 'missing')]"/>
+                <filter name="materials_ready" string="Materials Ready" domain="[('x4u_material_flag', '=', 'ready')]"/>
+                <separator/>
+                <filter name="open" string="Open" domain="[('x4u_job_state', 'not in', ('delivered', 'cancelled'))]"/>
                 <filter name="late" string="Late"
-                        domain="[('date_deadline', '&lt;', context_today().strftime('%Y-%m-%d')), ('x4u_job_state', 'not in', ('finished', 'cancelled'))]"/>
+                        domain="[('date_deadline', '&lt;', context_today().strftime('%Y-%m-%d')), ('x4u_job_state', 'not in', ('delivered', 'cancelled'))]"/>
                 <filter name="delayed" string="Delayed" domain="[('x4u_delay_stage', '!=', False)]"/>
                 <group>
                     <filter name="group_state" string="Status" context="{'group_by': 'x4u_job_state'}"/>
@@ -168,7 +218,6 @@
                 <field name="x4u_days_supplier" type="measure"/>
                 <field name="x4u_days_warehouse" type="measure"/>
                 <field name="x4u_days_assembly" type="measure"/>
-                <field name="x4u_days_qc" type="measure"/>
                 <field name="x4u_days_dispatch" type="measure"/>
                 <field name="x4u_days_total" type="measure"/>
             </pivot>
@@ -198,7 +247,7 @@
             Command.create({'view_mode': 'kanban', 'view_id': ref('x4u_job_order_view_kanban')})]"/>
         <field name="help" type="html">
             <p class="o_view_nocontent_smiling_face">No Job Order yet</p>
-            <p>Confirming a sales order for a generator opens its Job Order (4U-PO-001, 4U-PO-002 ...).</p>
+            <p>Confirming a sales order for a generator opens one Job Order per generator (MO001, MO002 ...).</p>
         </field>
     </record>
 
@@ -239,9 +288,11 @@
               action="action_x4u_job_order_analysis" sequence="50"/>
     <menuitem id="menu_x4u_job_order_delays" name="Job Order Delays" parent="mrp.menu_mrp_reporting"
               action="action_x4u_job_order_delays" sequence="51"/>
-    <!-- Read-only Job Orders where Purchasing and Quality work (guide R1) -->
+    <!-- Read-only Job Orders where Purchasing, Quality and the Storekeeper work (guide R1, spec v0.4) -->
     <menuitem id="menu_x4u_job_order_purchase" name="Job Orders" parent="purchase.menu_procurement_management"
               action="action_x4u_job_order" sequence="12" groups="group_x4u_job_order_viewer"/>
     <menuitem id="menu_x4u_job_order_quality" name="Job Orders" parent="quality_control_oca.qc_inspection_menu_parent"
               action="action_x4u_job_order" sequence="40" groups="group_x4u_job_order_viewer"/>
+    <menuitem id="menu_x4u_job_order_inventory" name="Job Orders" parent="stock.menu_stock_warehouse_mgmt"
+              action="action_x4u_job_order" sequence="5" groups="group_x4u_job_order_viewer"/>
 </odoo>

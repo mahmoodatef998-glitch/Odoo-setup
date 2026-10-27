@@ -11,20 +11,21 @@ EVENT_TYPES = [
     ("part_received", "Part received"),
     ("parts_ready", "Parts ready"),
     ("material_delivered", "Material delivered to factory"),
-    ("assembled", "Assembled & tested"),
+    ("finished", "Finished: generator in stock"),
+    # History only: no inspection step since v0.4 (2026-10-27).
     ("qc_passed", "QC passed"),
     ("qc_failed", "QC failed"),
     ("delivered", "Delivered to customer"),
 ]
 
-# Logged once per Job Order; the others repeat (one per PO, part or inspection).
+# Logged once per Job Order; the others repeat (one per PO or part).
 SINGLE_EVENTS = {
     "order_opened",
     "job_order_created",
     "material_request",
     "parts_ready",
     "material_delivered",
-    "assembled",
+    "finished",
     "delivered",
 }
 

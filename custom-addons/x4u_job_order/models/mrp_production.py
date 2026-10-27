@@ -1,4 +1,8 @@
-from odoo import _, api, fields, models
+from collections import defaultdict
+
+from odoo import Command, _, api, fields, models
+from odoo.exceptions import UserError
+from odoo.tools import float_compare
 
 from .x4u_job_order_event import SINGLE_EVENTS
 
@@ -6,20 +10,20 @@ JOB_STATES = [
     ("waiting_parts", "Waiting Parts"),
     ("parts_ready", "Parts Ready"),
     ("material_delivered", "Material Delivered"),
-    ("assembled", "Assembled & Tested"),
     ("finished", "Finished"),
+    ("delivered", "Delivered"),
     ("cancelled", "Cancelled"),
 ]
+CLOSED_STATES = ("delivered", "cancelled")
 
-# Stage: (key, label, start events (latest wins), end event) — spec §7.2.
+# Stage: (key, label, start events (latest wins), end event) — spec §7.2 and v0.4 (no QC).
 STAGES = [
     ("purchasing", "Purchasing", ("material_request",), "rfq_created"),
     ("approval", "Approval", ("rfq_created",), "po_approved"),
     ("supplier", "Supplier delivery", ("po_approved", "po_sent"), "parts_ready"),
     ("warehouse", "Warehouse issue", ("parts_ready",), "material_delivered"),
-    ("assembly", "Assembly & test", ("material_delivered",), "assembled"),
-    ("qc", "QC", ("assembled",), "qc_passed"),
-    ("dispatch", "Dispatch", ("qc_passed",), "delivered"),
+    ("assembly", "Production", ("material_delivered",), "finished"),
+    ("dispatch", "Dispatch", ("finished",), "delivered"),
 ]
 STAGE_KEYS = [stage[0] for stage in STAGES]
 PART_ROLES = ("engine", "alternator", "body")
@@ -56,8 +60,7 @@ class MrpProduction(models.Model):
     x4u_days_approval = fields.Float(compute="_compute_x4u_durations", store=True, aggregator="avg", string="Approval (days)")
     x4u_days_supplier = fields.Float(compute="_compute_x4u_durations", store=True, aggregator="avg", string="Supplier delivery (days)")
     x4u_days_warehouse = fields.Float(compute="_compute_x4u_durations", store=True, aggregator="avg", string="Warehouse issue (days)")
-    x4u_days_assembly = fields.Float(compute="_compute_x4u_durations", store=True, aggregator="avg", string="Assembly & test (days)")
-    x4u_days_qc = fields.Float(compute="_compute_x4u_durations", store=True, aggregator="avg", string="QC (days)")
+    x4u_days_assembly = fields.Float(compute="_compute_x4u_durations", store=True, aggregator="avg", string="Production (days)")
     x4u_days_dispatch = fields.Float(compute="_compute_x4u_durations", store=True, aggregator="avg", string="Dispatch (days)")
     x4u_days_total = fields.Float(compute="_compute_x4u_durations", store=True, aggregator="avg", string="Total (days)")
     x4u_delay_stage = fields.Selection(
@@ -68,10 +71,29 @@ class MrpProduction(models.Model):
         index=True,
     )
     x4u_delay_days = fields.Float(compute="_compute_x4u_durations", store=True, string="Delay (days)")
+    x4u_material_flag = fields.Selection(
+        [("missing", "Missing Parts"), ("ready", "Materials Ready")],
+        string="Materials",
+        compute="_compute_x4u_material_flag",
+        store=True,
+        index=True,
+        help="Red: a part is not reserved in stock yet. Green: every part is reserved or delivered.",
+    )
 
     @api.model
     def _read_group_x4u_job_state(self, values, domain):
         return [key for key, _label in JOB_STATES if key != "cancelled"]
+
+    @api.depends("x4u_job_state", "move_raw_ids.state", "move_raw_ids.move_orig_ids.state")
+    def _compute_x4u_material_flag(self):
+        """The flag on every Job Order (spec v0.4 V2), until the generator is made."""
+        for production in self:
+            flag = False
+            if production.x4u_job_state in ("waiting_parts", "parts_ready", "material_delivered"):
+                moves = production._x4u_component_moves()
+                ready = moves and all(move.state in ("assigned", "done") for move in moves)
+                flag = "ready" if ready else "missing"
+            production.x4u_material_flag = flag
 
     @api.depends("product_id.x4u_is_generator")
     def _compute_x4u_is_job_order(self):
@@ -123,7 +145,7 @@ class MrpProduction(models.Model):
                 return max(found) if found else None
 
             delay_stage, delay_days = False, 0.0
-            closed = production.x4u_job_state in ("finished", "cancelled")
+            closed = production.x4u_job_state in CLOSED_STATES
             for index, (key, _label, starts, end) in enumerate(STAGES):
                 start = last(starts)
                 finish = (first if end in SINGLE_EVENTS else last)((end,))
@@ -230,6 +252,19 @@ class MrpProduction(models.Model):
                 }
             )
 
+    def _prepare_stock_lot_values(self):
+        """Odoo names the serial of a backorder (MO005-002) after the last serial + 1,
+        which is the next Job Order's number (MO006). Keep the Job Order number."""
+        if self.x4u_is_job_order:
+            self.ensure_one()
+            return {"product_id": self.product_id.id, "name": self.name}
+        return super()._prepare_stock_lot_values()
+
+    def action_generate_serial(self):
+        res = super().action_generate_serial()
+        self.filtered("x4u_is_job_order")._x4u_fill_generator_card()
+        return res
+
     def _x4u_fill_generator_card(self):
         """Card gets the sale, the customer and the chosen variant (spec §6 S2)."""
         enclosure_attr = self.env.ref("x4u_setup_base.attr_enclosure", raise_if_not_found=False)
@@ -283,13 +318,116 @@ class MrpProduction(models.Model):
             production._x4u_check_parts_ready()
         return res
 
+    def pre_button_mark_done(self):
+        res = super().pre_button_mark_done()
+        # Odoo has set the quantities to consume by now; check before any backorder wizard.
+        self._x4u_check_parts_in_factory()
+        return res
+
+    def _x4u_check_parts_in_factory(self):
+        """A Job Order is produced only from parts that are in the factory: the
+        Storekeeper delivers them first with Pick Components. Added 2026-10-27, after a
+        test consumed parts that were never delivered and left WH/Pre-Production negative."""
+        jobs = self.filtered("x4u_is_job_order")
+        needed = defaultdict(float)
+        for move in jobs.move_raw_ids:
+            if move.state in ("done", "cancel") or not move.product_id.is_storable:
+                continue
+            qty = max(move.quantity, move.should_consume_qty)
+            needed[move.product_id, move.location_id] += move.product_uom._compute_quantity(qty, move.product_id.uom_id)
+        missing = []
+        for (product, location), qty in needed.items():
+            there = product.sudo().with_context(location=location.id).qty_available
+            if float_compare(qty, there, precision_rounding=product.uom_id.rounding) > 0:
+                missing.append(
+                    _(
+                        "- %(part)s: %(needed)s needed, %(there)s in %(location)s",
+                        part=product.display_name,
+                        needed="%g %s" % (qty, product.uom_id.name),
+                        there="%g" % there,
+                        location=location.display_name,
+                    )
+                )
+        if not missing:
+            return
+        message = _(
+            "%(jobs)s can't be produced yet: its parts are not in the factory.\n%(parts)s",
+            jobs=", ".join(jobs.mapped("name")),
+            parts="\n".join(missing),
+        )
+        if jobs._x4u_pick_components():
+            message += "\n" + _("The Storekeeper delivers them first with Deliver Materials on the Job Order.")
+        raise UserError(message)
+
+    def _x4u_pick_components(self):
+        """Pick Components transfers of these Job Orders that are not done yet. Searched,
+        not read from picking_ids: a partial delivery makes a backorder in the same call."""
+        if not self.procurement_group_id:
+            return self.env["stock.picking"]
+        return self.env["stock.picking"].search(
+            [
+                ("group_id", "in", self.procurement_group_id.ids),
+                ("picking_type_id", "in", self.picking_type_id.warehouse_id.pbm_type_id.ids),
+                ("state", "not in", ("done", "cancel")),
+            ]
+        )
+
     def button_mark_done(self):
         res = super().button_mark_done()
         for production in self.filtered(lambda p: p.x4u_is_job_order and p.state == "done"):
-            production._x4u_set_state("assembled")
-            production._x4u_log("assembled", document=production, date=production.date_finished)
-            production._x4u_notify("qc", _("Inspect generator %s before delivery", production.name))
+            production._x4u_set_state("finished")
+            production._x4u_log("finished", document=production, date=production.date_finished)
         return res
+
+    def _cal_price(self, consumed_moves):
+        """Generator value = what its parts cost + the overhead rate (spec v0.4 V5).
+
+        Odoo adds the extra unit cost to the parts consumed, for FIFO / AVCO products.
+        """
+        for production in self.filtered("x4u_is_job_order"):
+            finished = production.move_finished_ids.filtered(
+                lambda m, p=production: m.product_id == p.product_id and m.state not in ("done", "cancel") and m.quantity > 0
+            )
+            quantity = sum(move.product_uom._compute_quantity(move.quantity, move.product_id.uom_id) for move in finished)
+            if quantity:
+                parts = -sum(consumed_moves.sudo().stock_valuation_layer_ids.mapped("value"))
+                rate = float(self.env["ir.config_parameter"].sudo().get_param("x4u_job_order.overhead_percent") or 0.0)
+                production.extra_cost = parts * rate / 100 / quantity
+        return super()._cal_price(consumed_moves)
+
+    # ------------------------------------------------------------------
+    # The two buttons of a Job Order (spec v0.4 V3 / V4)
+    # ------------------------------------------------------------------
+    def action_x4u_deliver_materials(self):
+        """Storekeeper: what each part needs and has in stock, then deliver it."""
+        self.ensure_one()
+        moves = self._x4u_pick_components().move_ids.filtered(lambda m: m.state not in ("done", "cancel"))
+        if not moves:
+            raise UserError(_("%s has no material left to deliver.", self.name))
+        wizard = self.env["x4u.job.order.deliver"].create(
+            {
+                "production_id": self.id,
+                "line_ids": [
+                    Command.create({"move_id": move.id, "quantity": move._x4u_deliverable_qty()})
+                    for move in moves
+                ],
+            }
+        )
+        return {
+            "type": "ir.actions.act_window",
+            "name": _("Deliver Materials · %s", self.name),
+            "res_model": wizard._name,
+            "res_id": wizard.id,
+            "view_mode": "form",
+            "target": "new",
+        }
+
+    def action_x4u_finish(self):
+        """Operation Manager: the generator is made and goes to stock as a finished good."""
+        self.ensure_one()
+        if self.x4u_job_state != "material_delivered":
+            raise UserError(_("%s is finished after the Storekeeper delivers all its materials.", self.name))
+        return self.button_mark_done()
 
     def action_cancel(self):
         res = super().action_cancel()
@@ -299,7 +437,7 @@ class MrpProduction(models.Model):
     @api.model
     def _cron_x4u_update_delays(self):
         """Ongoing stages get longer every day: refresh "Delay At" daily."""
-        open_jobs = self.search([("x4u_is_job_order", "=", True), ("x4u_job_state", "not in", ("finished", "cancelled"))])
+        open_jobs = self.search([("x4u_is_job_order", "=", True), ("x4u_job_state", "not in", CLOSED_STATES)])
         self.env.add_to_compute(self._fields["x4u_delay_stage"], open_jobs)
         open_jobs.flush_recordset(["x4u_delay_stage", "x4u_delay_days"])
 

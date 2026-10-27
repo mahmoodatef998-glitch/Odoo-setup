@@ -1,5 +1,3 @@
-import re
-
 from odoo import Command, fields
 from odoo.tests import TransactionCase, tagged
 
@@ -16,7 +14,7 @@ class TestSetup4U(TransactionCase):
     def test_numbering(self):
         partner = self.env["res.partner"].create({"name": "X4U Test Customer"})
         order = self.env["sale.order"].create({"partner_id": partner.id})
-        self.assertRegex(order.name, r"^4U-SO-\d{3,}$")
+        self.assertRegex(order.name, r"^S\d{3,}$")
         product = self.env["product.product"].create({"name": "X4U Test Assembly", "is_storable": True})
         part = self.env["product.product"].create({"name": "X4U Test Component", "is_storable": True})
         self.env["mrp.bom"].create(
@@ -26,10 +24,9 @@ class TestSetup4U(TransactionCase):
             }
         )
         production = self.env["mrp.production"].create({"product_id": product.id})
-        self.assertRegex(production.name, r"^4U-PO-\d{3,}$")
-        # Purchase orders keep Odoo's own numbering, apart from the generator Job Order.
+        self.assertRegex(production.name, r"^MO\d{3,}$")
         purchase = self.env["purchase.order"].create({"partner_id": partner.id})
-        self.assertFalse(re.match(r"^4U-PO-", purchase.name))
+        self.assertRegex(purchase.name, r"^PO\d{3,}$")
 
     def test_generator_flow_routes(self):
         self.assertEqual(self.warehouse.manufacture_steps, "pbm")

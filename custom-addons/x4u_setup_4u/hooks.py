@@ -51,6 +51,21 @@ def use_sharjah_sales_tax(env):
 
 
 DOCUMENT_PREFIX = "4U"  # invoices 4U-INV-2026-0001 (docs/modules/06-accounting.md)
+NUMBERING = {"sale.order": "S", "purchase.order": "PO"}
+
+
+def set_numbering(env):
+    """Sales S001, purchases PO001, Job Orders MO001 (x4u_job_order spec v0.4 V1).
+
+    Only the prefix and the padding change, so a database in use keeps counting.
+    """
+    company = env.company
+    for code, prefix in NUMBERING.items():
+        env["ir.sequence"].search([("code", "=", code), ("company_id", "in", [company.id, False])]).write(
+            {"prefix": prefix, "padding": 3}
+        )
+    warehouse = env["stock.warehouse"].search([("company_id", "=", company.id)], limit=1)
+    warehouse.manu_type_id.sequence_id.write({"prefix": "MO", "padding": 3})
 
 
 def post_init_hook(env):
@@ -65,14 +80,10 @@ def post_init_hook(env):
             "x4u_document_prefix": DOCUMENT_PREFIX,
         }
     )
-    # Sales order 4U-SO-001; generator Job Order 4U-PO-001 (purchase orders keep P00001).
-    env["ir.sequence"].search(
-        [("code", "=", "sale.order"), ("company_id", "in", [company.id, False])]
-    ).write({"prefix": "4U-SO-", "padding": 3})
     warehouse = env["stock.warehouse"].search([("company_id", "=", company.id)], limit=1)
     # "Pick Components" is the Material Delivered step (blueprint J8).
     warehouse.manufacture_steps = "pbm"
-    warehouse.manu_type_id.sequence_id.write({"prefix": "4U-PO-", "padding": 3})
+    set_numbering(env)
     # Every sale opens a Job Order (pure MTO to the customer), while components
     # come from stock when there, else they are ordered for the Job Order (J3).
     env.ref("stock.route_warehouse0_mto").active = True

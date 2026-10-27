@@ -49,19 +49,24 @@
     <record id="role_storekeeper" model="res.users.role">
         <field name="name">Storekeeper</field>
         <field name="sequence">50</field>
-        <field name="comment">Receipts, issuing parts to the factory, deliveries, stock counts.</field>
-        <field name="implied_ids" eval="[Command.set([ref('base.group_user'), ref('stock.group_stock_user')])]"/>
+        <field name="comment">Receipts, Deliver Materials on the Job Order, deliveries, stock counts.</field>
+        <field name="implied_ids" eval="[Command.set([
+            ref('base.group_user'),
+            ref('stock.group_stock_user'),
+            ref('x4u_job_order.group_x4u_job_order_viewer'),
+        ])]"/>
     </record>
+    <!-- Was "Production" before x4u_job_order spec v0.4 (2026-10-27); same id, same users. -->
     <record id="role_production" model="res.users.role">
-        <field name="name">Production</field>
+        <field name="name">Operation Manager</field>
         <field name="sequence">60</field>
-        <field name="comment">Job Orders: assembly and test.</field>
+        <field name="comment">Finish Job Order: the generator enters stock as a finished good.</field>
         <field name="implied_ids" eval="[Command.set([ref('base.group_user'), ref('mrp.group_mrp_user')])]"/>
     </record>
     <record id="role_quality_inspector" model="res.users.role">
         <field name="name">Quality Inspector</field>
         <field name="sequence">70</field>
-        <field name="comment">Inspects each generator before delivery, reads the Job Orders.</field>
+        <field name="comment">Quality inspections when asked (no step in the generator cycle since 2026-10-27), reads the Job Orders.</field>
         <field name="implied_ids" eval="[Command.set([
             ref('base.group_user'),
             ref('quality_control_oca.group_quality_control_user'),

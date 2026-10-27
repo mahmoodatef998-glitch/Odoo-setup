@@ -39,7 +39,11 @@ ROLES = {
         {"purchase.group_purchase_manager", "sales_team.group_sale_salesman", "mrp.group_mrp_user"},
     ),
     "role_general_manager": (MANAGERS, {"base.group_system"}),
-    "role_storekeeper": ({"stock.group_stock_user"}, {"stock.group_stock_manager", "sales_team.group_sale_salesman"}),
+    "role_storekeeper": (
+        {"stock.group_stock_user", "x4u_job_order.group_x4u_job_order_viewer"},
+        {"stock.group_stock_manager", "sales_team.group_sale_salesman", "mrp.group_mrp_user"},
+    ),
+    # Operation Manager (spec v0.4): finishes the Job Orders.
     "role_production": ({"mrp.group_mrp_user"}, {"mrp.group_mrp_manager", "purchase.group_purchase_user"}),
     "role_quality_inspector": (
         {"quality_control_oca.group_quality_control_user", "x4u_job_order.group_x4u_job_order_viewer"},

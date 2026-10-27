@@ -95,6 +95,12 @@ class X4uJobOrderCommon(TransactionCase):
         cls.salesman = new_test_user(
             cls.env, login="x4u_jo_salesman", groups="base.group_user,sales_team.group_sale_salesman"
         )
+        cls.storekeeper = new_test_user(
+            cls.env,
+            login="x4u_jo_storekeeper",
+            groups="base.group_user,stock.group_stock_user,x4u_job_order.group_x4u_job_order_viewer",
+        )
+        cls.operation = new_test_user(cls.env, login="x4u_jo_operation", groups="base.group_user,mrp.group_mrp_user")
 
     def _sell(self):
         order = self.env["sale.order"].create(
@@ -135,18 +141,20 @@ class X4uJobOrderCommon(TransactionCase):
     def _deliver_material(self, production):
         self._validate(production.picking_ids.filtered(lambda p: p.picking_type_id == self.warehouse.pbm_type_id))
 
+    def _deliver_materials(self, production, quantities=None):
+        """Deliver Materials as the Storekeeper: by product, or what the screen proposes."""
+        action = production.with_user(self.storekeeper).action_x4u_deliver_materials()
+        wizard = self.env[action["res_model"]].with_user(self.storekeeper).browse(action["res_id"])
+        if quantities is not None:
+            for line in wizard.line_ids:
+                line.quantity = quantities.get(line.product_id, 0.0)
+        wizard.action_confirm()
+
     def _produce(self, production):
         with Form(production) as form:
             form.qty_producing = 1
         production.move_raw_ids.picked = True
         production.button_mark_done()
-
-    def _inspect(self, production, state):
-        inspection = self.env["qc.inspection"].create(
-            {"object_id": "stock.lot,%s" % production.lot_producing_id.id, "state": "draft"}
-        )
-        inspection.state = state
-        return inspection
 
     def _deliver(self, order):
         self._validate(order.picking_ids.filtered(lambda p: p.picking_type_code == "outgoing"))

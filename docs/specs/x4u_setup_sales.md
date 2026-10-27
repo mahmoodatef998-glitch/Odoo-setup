@@ -101,9 +101,9 @@ Quotation (موديل AQT + Open/Canopy + alternator) ← العميل يواف�
 | البند | القيمة | الحالة |
 |---|---|---|
 | Manufacturing steps | **2 steps**: "Pick Components" (= Material Delivered) ثم المنتج النهائي | ✅ J8 |
-| ترقيم الـ Job Order (PO المولد) | **`4U-PO-001`** (مستمر من غير سنة، وده sequence الـ Manufacturing operation type) | ✅ J11 |
-| ترقيم أوامر الشراء (PO المشتريات) | `P00001` (ترقيم Odoo، زي النموذج `P00947`)، منفصل عن PO المولد | ✅ |
-| ترقيم أوامر البيع | **`4U-SO-001`** | ✅ س 2 |
+| ترقيم الـ Job Order | **`MO001`** (مستمر من غير سنة، وده sequence الـ Manufacturing operation type). كان `4U-PO-001`، اتغير 2026-10-27 | ✅ x4u_job_order v0.4 V1 |
+| ترقيم أوامر الشراء | **`PO001`**. كان `P00001`، اتغير 2026-10-27 | ✅ v0.4 V1 |
+| ترقيم أوامر البيع | **`S001`**. كان `4U-SO-001`، اتغير 2026-10-27 | ✅ v0.4 V1 |
 | فحص الجودة | OCA `qc.trigger` على المولد قبل التسليم، والتسليم ممنوع لحد ما يبقى passed (موجود في `x4u_generator`) | ✅ س 28 |
 | أماكن المخزن | Stock، Pre-Production (القطع اللي اتصرفت للمصنع)، والمولد الجاهز يرجع Stock | ✅ |
 

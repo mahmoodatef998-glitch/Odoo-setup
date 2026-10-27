@@ -20,7 +20,7 @@
         <field name="arch" type="xml">
             <xpath expr="//app[@name='mrp']" position="inside">
                 <block title="4U Job Orders" name="x4u_job_order_settings">
-                    <setting string="Who gets the activities" help="Purchasing Officer: new material request. Storekeeper: parts ready to deliver. Quality Inspector: generator assembled.">
+                    <setting string="Who gets the activities" help="Purchasing Officer: new material request. Storekeeper: parts ready to deliver. Operation Manager: materials delivered, finish the Job Order.">
                         <div class="row">
                             <label for="x4u_purchase_user_id" class="col-lg-4"/>
                             <field name="x4u_purchase_user_id"/>
@@ -30,17 +30,19 @@
                             <field name="x4u_warehouse_user_id"/>
                         </div>
                         <div class="row">
-                            <label for="x4u_qc_user_id" class="col-lg-4"/>
-                            <field name="x4u_qc_user_id"/>
+                            <label for="x4u_operation_user_id" class="col-lg-4"/>
+                            <field name="x4u_operation_user_id"/>
                         </div>
+                    </setting>
+                    <setting string="Generator value" help="A finished generator enters stock at what its parts cost plus this percentage (0 = parts only).">
+                        <field name="x4u_overhead_percent"/>
                     </setting>
                     <setting string="Target days per stage" help="0 = no target. A Job Order shows 'Delay At' for the first stage that takes longer.">
                         <div class="row"><label for="x4u_target_purchasing_days" string="Purchasing" class="col-lg-4"/><field name="x4u_target_purchasing_days"/></div>
                         <div class="row"><label for="x4u_target_approval_days" string="Approval" class="col-lg-4"/><field name="x4u_target_approval_days"/></div>
                         <div class="row"><label for="x4u_target_supplier_days" string="Supplier delivery" class="col-lg-4"/><field name="x4u_target_supplier_days"/></div>
                         <div class="row"><label for="x4u_target_warehouse_days" string="Warehouse issue" class="col-lg-4"/><field name="x4u_target_warehouse_days"/></div>
-                        <div class="row"><label for="x4u_target_assembly_days" string="Assembly &amp; test" class="col-lg-4"/><field name="x4u_target_assembly_days"/></div>
-                        <div class="row"><label for="x4u_target_qc_days" string="QC" class="col-lg-4"/><field name="x4u_target_qc_days"/></div>
+                        <div class="row"><label for="x4u_target_assembly_days" string="Production" class="col-lg-4"/><field name="x4u_target_assembly_days"/></div>
                         <div class="row"><label for="x4u_target_dispatch_days" string="Dispatch" class="col-lg-4"/><field name="x4u_target_dispatch_days"/></div>
                     </setting>
                 </block>

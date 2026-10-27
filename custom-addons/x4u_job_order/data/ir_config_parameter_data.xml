@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo noupdate="1">
+    <!-- Generator value = its parts + 20% (spec v0.4 V5); Settings › Manufacturing › 4U Job Orders -->
+    <record id="param_overhead_percent" model="ir.config_parameter">
+        <field name="key">x4u_job_order.overhead_percent</field>
+        <field name="value">20</field>
+    </record>
+</odoo>

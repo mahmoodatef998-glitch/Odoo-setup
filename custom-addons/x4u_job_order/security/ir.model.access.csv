@@ -9,3 +9,9 @@ access_mrp_unbuild_x4u_viewer,mrp.unbuild x4u viewer,mrp.model_mrp_unbuild,group
 access_stock_scrap_x4u_viewer,stock.scrap x4u viewer,stock.model_stock_scrap,group_x4u_job_order_viewer,1,0,0,0
 access_stock_move_x4u_viewer,stock.move x4u viewer,stock.model_stock_move,group_x4u_job_order_viewer,1,0,0,0
 access_stock_picking_x4u_viewer,stock.picking x4u viewer,stock.model_stock_picking,group_x4u_job_order_viewer,1,0,0,0
+access_x4u_job_order_deliver_stock,x4u.job.order.deliver stock user,model_x4u_job_order_deliver,stock.group_stock_user,1,1,1,1
+access_x4u_job_order_deliver_line_stock,x4u.job.order.deliver.line stock user,model_x4u_job_order_deliver_line,stock.group_stock_user,1,1,1,1
+access_qc_trigger_x4u_mrp_user,qc.trigger mrp user (Finish Job Order),quality_control_oca.model_qc_trigger,mrp.group_mrp_user,1,0,0,0
+access_qc_trigger_category_line_x4u_mrp_user,qc.trigger.product_category_line mrp user (Finish Job Order),quality_control_oca.model_qc_trigger_product_category_line,mrp.group_mrp_user,1,0,0,0
+access_qc_trigger_template_line_x4u_mrp_user,qc.trigger.product_template_line mrp user (Finish Job Order),quality_control_oca.model_qc_trigger_product_template_line,mrp.group_mrp_user,1,0,0,0
+access_qc_trigger_product_line_x4u_mrp_user,qc.trigger.product_line mrp user (Finish Job Order),quality_control_oca.model_qc_trigger_product_line,mrp.group_mrp_user,1,0,0,0

@@ -11,7 +11,7 @@ TEST_USERS = [
     ("x4u.purchasing@example.com", "Test Purchasing Officer", "role_purchasing_officer"),
     ("x4u.gm@example.com", "Test General Manager", "role_general_manager"),
     ("x4u.store@example.com", "Test Storekeeper", "role_storekeeper"),
-    ("x4u.production@example.com", "Test Production", "role_production"),
+    ("x4u.production@example.com", "Test Operation Manager", "role_production"),
     ("x4u.quality@example.com", "Test Quality Inspector", "role_quality_inspector"),
     ("x4u.accountant@example.com", "Test Accountant", "role_accountant"),
 ]
@@ -19,7 +19,7 @@ TEST_USERS = [
 ACTIVITY_USERS = {
     "purchase": "x4u.purchasing@example.com",
     "warehouse": "x4u.store@example.com",
-    "qc": "x4u.quality@example.com",
+    "operation": "x4u.production@example.com",
 }
 
 Users = env["res.users"].with_context(active_test=False, no_reset_password=True)
@@ -27,6 +27,8 @@ for login, name, role in TEST_USERS:
     user = Users.search([("login", "=", login)], limit=1)
     if not user:
         user = Users.create({"name": name, "login": login, "email": login})
+    elif user.name != name:
+        user.name = name  # a role renamed (Production -> Operation Manager, 2026-10-27)
     if not user.role_line_ids:
         user.write({"role_line_ids": [(0, 0, {"role_id": env.ref("x4u_roles." + role).id})]})
 

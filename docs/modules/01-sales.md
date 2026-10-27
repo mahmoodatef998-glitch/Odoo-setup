@@ -7,8 +7,8 @@
 ## 1. الدورة
 ```
 Opportunity (CRM) ← Quotation (قالب Generator Supply، الموديل من الـ datasheet) ← إرسال للعميل
-  ← تعديلات على نفس الرقم ← موافقة العميل + LPO ← Confirm ← Sales Order 4U-SO-001
-  ← Job Order 4U-PO-001 أوتوماتيك: Engine + Alternator + Canopy/Body من الـ datasheet (موديول Manufacturing)
+  ← تعديلات على نفس الرقم ← موافقة العميل + LPO ← Confirm ← Sales Order S001
+  ← Job Order MO001 أوتوماتيك لكل مولد: Engine + Alternator + Canopy/Body من الـ datasheet (موديول Manufacturing)
   ← فاتورة دفعة مقدمة / فاتورة نهائية (موديول Invoicing) ← التسليم (موديول Inventory)
 ```
 
@@ -57,7 +57,7 @@ Opportunity (CRM) ← Quotation (قالب Generator Supply، الموديل من
 ### S6. تأكيد البيع (Sales Order)
 | البند | دلوقتي | الحالة |
 |---|---|---|
-| الترقيم 4U-SO-001 | ✅ | ✅ |
+| الترقيم S001 (كان 4U-SO-001، اتغير 2026-10-27) | ✅ | ✅ |
 | التأكيد بالـ LPO: رقمه وتاريخه والملف، ومينفعش Confirm من غيرهم | حقل Customer Reference بس | ❌ `x4u_sale` (D6) |
 | **سجل مراحل الـ SO مرقّم**: اتفتح، اتبعت، اتعدّل، الخصم اتوافق عليه، الـ LPO وصل، اتأكد، الـ Job Order اتفتح، الفواتير، التسليم | لسه (الـ Job Order عنده سجل زي ده) | ❌ `x4u_sale` (D6) |
 | الـ Job Order يتفتح ويحجز المكونات من المخزن، والناقص يتطلب (Engine + Alternator، والـ Canopy من AQT بمواصفاته) | ✅ `x4u_job_order`. ناقص الـ BOMs من الـ datasheets | ✅ / ❌ (D5) |
@@ -152,8 +152,8 @@ Opportunity (CRM) ← Quotation (قالب Generator Supply، الموديل من
 | Sales Manager | كل المبيعات، يفتح الـ SO المقفول، التقارير |
 | Purchasing Officer | طلبات المواد، الـ RFQs، يختار المورد ويضيف موردين جداد، ويقرا الـ Job Orders. مايعتمدش الـ PO |
 | General Manager | يعتمد الـ PO (بيوصله to-do لكل PO مستنيه) والخصم فوق 5%، ويشوف كل حاجة |
-| Storekeeper | الاستلام، صرف القطع للمصنع، التسليم، الجرد |
-| Production | الـ Job Orders: التجميع والاختبار |
-| Quality Inspector | فحص المولد قبل التسليم، ويقرا الـ Job Orders |
+| Storekeeper | الاستلام، **Deliver Materials** من جوه الـ Job Order، التسليم، الجرد، ويقرا الـ Job Orders |
+| Operation Manager (كان Production) | **Finish Job Order**: المولد يدخل المخزن Finished Goods |
+| Quality Inspector | مفيش خطوة ليه في دورة المولد من 2026-10-27، ويقرا الـ Job Orders |
 | Accountant | الفواتير والمدفوعات والحسابات، ويضيف عملاء وموردين |
 | Administrator | الإعدادات والمستخدمين (إنت) |

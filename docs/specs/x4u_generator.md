@@ -102,7 +102,7 @@
 | R6 | لما يتحط `commissioning_date`: الـ `state = commissioned`. مسموح بس لو المولد delivered، والتاريخ ماينفعش يبقى قبل `delivery_date`. |
 | R7 | قراءة الساعات لازم ≥ 0، وماينفعش تبقى أقل من القراءة اللي قبلها بالتاريخ (العداد مايرجعش لورا). `running_hours` = آخر قراءة. |
 | R8 | **Warranty:** start = `commissioning_date` ولو مش موجود يبقى `delivery_date` (راجع Q2). end = start + `warranty_months`. `expired` لو النهارده عدّى الـ end **أو** (`warranty_hours > 0` و `running_hours ≥ warranty_hours`)، أيهما أقرب. `not_started` لو مفيش start. غير كده `active`. فيه cron يومي يعيد الحساب. |
-| R9 | **QC:** `qc_state` من آخر inspection (مش canceled) على الـ lot: `success` يبقى passed، `failed` يبقى failed، غير كده pending. ولو مفيش inspections يبقى none. (المنع وقت التسليم: راجع Q3.) |
+| R9 | **QC:** `qc_state` من آخر inspection (مش canceled) على الـ lot: `success` يبقى passed، `failed` يبقى failed، غير كده pending. ولو مفيش inspections يبقى none. (للمعلومة بس: Q3 اتلغى، والتسليم مش مستنيه.) |
 | R10 | الحذف للـ Inventory Administrator بس. الطبيعي Archive. |
 
 ## 6. UI / Menus
@@ -143,7 +143,7 @@
 | T7 | R5: return، والكارت يرجع `in_stock`. |
 | T8 | R9: inspection success/failed على الـ lot، والـ `qc_state` يتغير. |
 | T9 | Multi-company: user في Company B مايشوفش كارت Company A. |
-| T10 | Q3: الـ Inventory User مايقدرش يسلّم مولد QC بتاعه مش passed، والـ Inventory Admin يقدر ويتسجل ده في الـ chatter. |
+| T10 | التسليم لعميل مش مستني QC (Q3 اتلغى 2026-10-27). |
 
 التشغيل يبقى على DB مؤقتة: `--test-enable -i x4u_generator --stop-after-init`.
 
@@ -155,7 +155,7 @@ Service/Maintenance visits، Warranty claims، PDF (Generator Card / Warranty Ce
 |---|---|---|
 | Q1 | **License:** موديولات `quality_control_*_oca` رخصتها **AGPL-3**. وقاعدة OCA إن الموديول اللي بيعتمد على AGPL يبقى AGPL. لكن CLAUDE.md بيقول LGPL-3. | `x4u_generator` يبقى **AGPL-3**. مفيش أي تأثير لأن الاستخدام داخلي. (البديل: نقسمه لـ core LGPL + bridge `x4u_generator_quality` AGPL.) |
 | Q2 | بداية الضمان: commissioning ولو مش موجود delivery؟ وهل فيه حد أقصى من تاريخ التسليم (زي «12 شهر من التشغيل أو 18 من التسليم»)؟ | commissioning ثم delivery، والحد الأقصى من التسليم يبقى field اختياري. |
-| Q3 | نمنع تسليم مولد لعميل لو الـ QC مش passed؟ | **نعم، Block** على outgoing لعميل، والـ Inventory Admin بس هو اللي يقدر يتخطاه. |
+| Q3 | نمنع تسليم مولد لعميل لو الـ QC مش passed؟ | ~~نعم، Block~~ **اتلغى 2026-10-27**: مفيش فحص جودة في دورة المولد ([x4u_job_order v0.4 V7](x4u_job_order.md))، والتسليم مش مستني QC. الكارت لسه بيبين حالة أي فحص اتعمل (R9). |
 | Q4 | KVA: Prime و Standby الاتنين ولا واحد بس؟ | الاتنين، والـ Prime required. |
 | Q5 | المواصفات على الكارت قابلة للتعديل ولا مقفولة على المنتج؟ | قابلة للتعديل (D2). |
 | Q6 | الـ default بتاع الضمان: 12 شهر / 1000 ساعة؟ | 12 شهر و 0 (يعني مفيش حد ساعات) لحد ما تحدد. |

@@ -4,7 +4,7 @@
     "name": "4U Roles",
     "summary": "One role per job (Salesperson, Storekeeper, General Manager...): "
     "the admin gives each user one role and gets the right permissions",
-    "version": "18.0.1.0.2",
+    "version": "18.0.1.0.3",
     "category": "Hidden",
     # AGPL-3 because it depends on quality_control_oca (AGPL-3).
     "license": "AGPL-3",
