@@ -121,6 +121,7 @@ class TestSetupBase(TransactionCase):
         for xmlid, days in (
             ("payment_term_advance_100", [0]),
             ("payment_term_50_50", [0, 0]),
+            ("payment_term_30_30_40", [0, 0, 0]),
             ("payment_term_60_days", [60]),
             ("payment_term_90_days", [90]),
             ("payment_term_lc_sight", [0]),

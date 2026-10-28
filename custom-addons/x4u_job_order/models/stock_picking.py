@@ -5,9 +5,42 @@ class StockPicking(models.Model):
     _inherit = "stock.picking"
 
     def _action_done(self):
+        unpaid = self._x4u_unpaid_generator_sales()
         res = super()._action_done()
         self._x4u_log_job_orders()
+        self._x4u_log_delivered_before_payment(unpaid)
         return res
+
+    # ------------------------------------------------------------------
+    # Delivered before the final invoice is paid: allowed, written on the order
+    # (x4u_sale spec §6 B10, user 2026-10-27)
+    # ------------------------------------------------------------------
+    def _x4u_unpaid_generator_sales(self):
+        """Orders paid before delivery, final invoice not paid, with a generator in these deliveries."""
+        orders = self.env["sale.order"]
+        for picking in self.sudo():
+            order = picking.sale_id
+            if (
+                order.x4u_pay_before_delivery
+                and picking.picking_type_code == "outgoing"
+                and picking.location_dest_id.usage == "customer"
+                and any(move.product_id.x4u_is_generator for move in picking.move_ids)
+                and not order.x4u_final_invoice_paid
+            ):
+                orders |= order
+        return orders
+
+    def _x4u_log_delivered_before_payment(self, orders):
+        for order in orders:
+            pickings = self.sudo().filtered(lambda p, o=order: p.sale_id == o and p.state == "done")
+            if pickings:
+                order.sudo().message_post(
+                    body=_(
+                        "Delivered before the final invoice was paid, by %(user)s: %(pickings)s",
+                        user=self.env.user.name,
+                        pickings=", ".join(pickings.mapped("name")),
+                    )
+                )
 
     def _x4u_log_job_orders(self):
         """Receipts, Pick Components and customer deliveries of Job Orders."""

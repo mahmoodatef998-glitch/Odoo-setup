@@ -40,6 +40,8 @@ team.member_ids |= by_login("x4u.salesperson@example.com") | by_login("x4u.sales
 params = env["ir.config_parameter"].sudo()
 for key, login in ACTIVITY_USERS.items():
     params.set_param("x4u_job_order.%s_user_id" % key, by_login(login).id)
+# Who gets the payment to-dos (Settings > Sales > Invoicing, x4u_sale spec §6).
+params.set_param("x4u_sale.accountant_user_id", by_login("x4u.accountant@example.com").id)
 env.cr.commit()
 for login, name, role in TEST_USERS:
     print("Test user:", name, "|", login, "|", by_login(login).role_ids.name)

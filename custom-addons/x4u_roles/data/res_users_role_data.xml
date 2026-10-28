@@ -76,7 +76,7 @@
     <record id="role_accountant" model="res.users.role">
         <field name="name">Accountant</field>
         <field name="sequence">80</field>
-        <field name="comment">Invoices, payments, full accounting and payroll (with the employee data payroll needs), adds customers and vendors.</field>
+        <field name="comment">Proformas, advance payments, invoices, full accounting and payroll (with the employee data payroll needs), adds customers and vendors.</field>
         <field name="implied_ids" eval="[Command.set([
             ref('base.group_user'),
             ref('base.group_partner_manager'),

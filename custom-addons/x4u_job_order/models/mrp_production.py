@@ -374,10 +374,27 @@ class MrpProduction(models.Model):
 
     def button_mark_done(self):
         res = super().button_mark_done()
-        for production in self.filtered(lambda p: p.x4u_is_job_order and p.state == "done"):
+        finished = self.filtered(lambda p: p.x4u_is_job_order and p.state == "done")
+        for production in finished:
             production._x4u_set_state("finished")
             production._x4u_log("finished", document=production, date=production.date_finished)
+        finished._x4u_ask_final_invoice()
         return res
+
+    def _x4u_ask_final_invoice(self):
+        """x4u_sale spec §6 B9: every generator of an order paid before delivery is ready,
+        so the Accountant issues the final invoice and collects the balance."""
+        orders = self.sudo().x4u_sale_order_id.filtered(
+            lambda o: o.x4u_pay_before_delivery and not o.x4u_final_invoice_paid
+        )
+        for order in orders:
+            jobs = self.sudo().search(
+                [("x4u_sale_order_id", "=", order.id), ("x4u_is_job_order", "=", True), ("x4u_job_state", "!=", "cancelled")]
+            )
+            if jobs and all(job.x4u_job_state in ("finished", "delivered") for job in jobs):
+                order._x4u_notify_accountant(
+                    _("Generator ready: issue the final invoice of %s and collect the balance before delivery", order.name)
+                )
 
     def _cal_price(self, consumed_moves):
         """Generator value = what its parts cost + the overhead rate (spec v0.4 V5).

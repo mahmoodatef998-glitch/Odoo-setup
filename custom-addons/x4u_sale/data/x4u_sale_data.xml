@@ -1,0 +1,43 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <data noupdate="1">
+        <!-- Spec §6 B1 / B10: the terms where the customer pays before the goods leave.
+             Credit terms (60 / 90 Days, LC at Sight) deliver first. -->
+        <record id="x4u_setup_base.payment_term_advance_100" model="account.payment.term">
+            <field name="x4u_pay_before_delivery" eval="True"/>
+        </record>
+        <record id="x4u_setup_base.payment_term_50_50" model="account.payment.term">
+            <field name="x4u_pay_before_delivery" eval="True"/>
+        </record>
+        <record id="x4u_setup_base.payment_term_30_30_40" model="account.payment.term">
+            <field name="x4u_pay_before_delivery" eval="True"/>
+        </record>
+
+        <record id="mail_template_proforma" model="mail.template">
+            <field name="name">Proforma: send by email</field>
+            <field name="model_id" ref="model_x4u_sale_proforma"/>
+            <field name="subject">{{ object.company_id.name }} Proforma {{ object.name }}</field>
+            <field name="email_from">{{ (object.user_id.email_formatted or user.email_formatted) }}</field>
+            <field name="partner_to">{{ object.order_id.partner_invoice_id.id }}</field>
+            <field name="report_template_ids" eval="[Command.link(ref('x4u_sale.action_report_proforma'))]"/>
+            <field name="lang">{{ object.partner_id.lang }}</field>
+            <field name="auto_delete" eval="True"/>
+            <field name="body_html" type="html">
+<div style="margin: 0px; padding: 0px;">
+    <p style="margin: 0px; padding: 0px; font-size: 13px;">
+        Dear <t t-out="object.order_id.partner_invoice_id.name or ''">Customer</t>,
+        <br/><br/>
+        Please find attached proforma <strong t-out="object.name or ''">S001-PF1</strong>
+        for <strong t-out="format_amount(object.amount_total, object.currency_id) or ''">AED 15,750.00</strong>,
+        an advance on sales order <t t-out="object.order_id.name or ''">S001</t>.
+        <t t-if="object.date_due">Please pay by <t t-out="format_date(object.date_due) or ''">05/05/2026</t>.</t>
+        <br/><br/>
+        This is not a tax invoice: the tax invoice follows before delivery.
+        <br/><br/>
+        Best regards,
+    </p>
+</div>
+            </field>
+        </record>
+    </data>
+</odoo>

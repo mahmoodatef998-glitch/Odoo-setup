@@ -129,7 +129,7 @@ Opportunity (CRM) ← Quotation (قالب Generator Supply، الموديل من
 |---|---|---|
 | D0 | `scripts/create-db.ps1` + إعادة بناء `odoo4u_base` بالإنجليزي كأساس (بعد أ1) | إعداد |
 | D2، D8–D12 | Lock، الضريبة، حد الائتمان، مدة التسليم، تنضيف شروط الدفع وأسباب الخسارة، قفل Lead Enrichment | إعداد كود في `x4u_setup_*` + tests |
-| D1، D3، D6، D9 | `x4u_sale`: حقول العميل، الـ LPO، سجل مراحل الـ SO، السعر مقفول على المندوب، موافقة الخصم فوق 5% | [spec v0.1](../specs/x4u_sale.md) مستني موافقتك |
+| D1، D3، D6، D9 | `x4u_sale`: حقول العميل، الـ LPO، سجل مراحل الـ SO، السعر مقفول على المندوب، موافقة الخصم فوق 5%، والدفعات (Proforma للمقدم وفاتورة ضريبية واحدة قبل التسليم) | [spec v0.4](../specs/x4u_sale.md): الدفعات (§6) اتنفّذت 2026-10-27، والباقي مستني موافقتك. سؤال الضريبة على المقدم مستني المحاسب |
 | D5 | بيانات الـ datasheet على المنتج + importer (منتجات، variants، BOMs، مدة التسليم) | [spec v0.1](../specs/x4u_generator_datasheet.md) مستني موافقتك |
 | D5، D7 | `x4u_reports`: الـ letterhead، عرض السعر زي الـ datasheet، Pro-forma، الفاتورة | [spec v0.1](../specs/x4u_reports.md) مستني موافقتك |
 | D7 | الإيميل: mail catcher على الـ dev (بعد أ6) | إعداد |

@@ -23,7 +23,7 @@ param(
         'payroll', 'payroll_account', 'payroll_hr_public_holidays', 'hr_holidays_public',
         'hr_employee_service', 'hr_employee_document',
         # 4U
-        'x4u_generator', 'x4u_setup_base', 'x4u_setup_4u', 'x4u_job_order', 'x4u_roles'
+        'x4u_generator', 'x4u_setup_base', 'x4u_setup_4u', 'x4u_sale', 'x4u_job_order', 'x4u_roles'
     ) -join ',')
 )
 $ErrorActionPreference = 'Stop'

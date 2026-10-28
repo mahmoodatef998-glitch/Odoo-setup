@@ -102,12 +102,13 @@ class X4uJobOrderCommon(TransactionCase):
         )
         cls.operation = new_test_user(cls.env, login="x4u_jo_operation", groups="base.group_user,mrp.group_mrp_user")
 
-    def _sell(self):
+    def _sell(self, **values):
         order = self.env["sale.order"].create(
             {
                 "partner_id": self.customer.id,
                 "warehouse_id": self.warehouse.id,
                 "order_line": [Command.create({"product_id": self.variant.id, "product_uom_qty": 1})],
+                **values,
             }
         )
         order.action_confirm()

@@ -296,3 +296,34 @@ class TestJobOrder(X4uJobOrderCommon):
         finished = production.move_finished_ids.filtered(lambda m: m.product_id == production.product_id)
         self.assertAlmostEqual(sum(finished.stock_valuation_layer_ids.mapped("value")), 1800.0 * 1.2)
         self.assertEqual(finished.stock_valuation_layer_ids.lot_id, production.lot_producing_id)
+
+    def _sell_paid_before_delivery(self):
+        """A 50/50 order whose generator is finished from parts in stock."""
+        for part in (self.engine, self.alt_stamford, self.body_canopy):
+            self.env["stock.quant"]._update_available_quantity(part, self.warehouse.lot_stock_id, 1)
+        self.template.list_price = 10000.0
+        order, production = self._sell(payment_term_id=self.env.ref("x4u_setup_base.payment_term_50_50").id)
+        self.assertTrue(order.x4u_pay_before_delivery)
+        self._deliver_materials(production)
+        production.with_user(self.operation).action_x4u_finish()
+        self.assertEqual(production.x4u_job_state, "finished")
+        delivery = order.picking_ids.filtered(lambda p: p.picking_type_code == "outgoing")
+        delivery.action_assign()
+        delivery.move_ids.picked = True
+        return order, delivery
+
+    # T18: generator ready -> to-do for the Accountant; the Storekeeper delivers even when the final
+    # invoice is not paid in full, and the order says so (x4u_sale spec §6 B9 / B10)
+    def test_delivery_before_payment_is_noted(self):
+        accountant = new_test_user(self.env, login="x4u_jo_accountant", groups="base.group_user,account.group_account_invoice")
+        self.env["ir.config_parameter"].sudo().set_param("x4u_sale.accountant_user_id", accountant.id)
+        order, delivery = self._sell_paid_before_delivery()
+        todo = order.activity_ids.filtered(lambda a: a.user_id == accountant)
+        self.assertEqual(len(todo), 1)
+        self.assertIn("final invoice of %s" % order.name, todo.summary)
+        self.assertFalse(order.x4u_final_invoice_paid)
+        delivery.with_user(self.storekeeper).button_validate()
+        self.assertEqual(delivery.state, "done")
+        self.assertTrue(
+            any("Delivered before the final invoice was paid" in (body or "") for body in order.message_ids.mapped("body"))
+        )

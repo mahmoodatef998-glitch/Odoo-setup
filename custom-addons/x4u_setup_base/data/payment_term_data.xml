@@ -13,6 +13,12 @@
             <field name="note">Payment terms: 50% advance, 50% before delivery.</field>
             <field name="line_ids" eval="[Command.clear(), Command.create({'value': 'percent', 'value_amount': 50.0, 'nb_days': 0}), Command.create({'value': 'percent', 'value_amount': 50.0, 'nb_days': 0})]"/>
         </record>
+        <!-- Two advances by proforma, then the final invoice (x4u_sale spec §6, 2026-10-27). -->
+        <record id="payment_term_30_30_40" model="account.payment.term">
+            <field name="name">30% Advance / 30% Progress / 40% Before Delivery</field>
+            <field name="note">Payment terms: 30% advance, 30% progress payment, 40% before delivery.</field>
+            <field name="line_ids" eval="[Command.clear(), Command.create({'value': 'percent', 'value_amount': 30.0, 'nb_days': 0}), Command.create({'value': 'percent', 'value_amount': 30.0, 'nb_days': 0}), Command.create({'value': 'percent', 'value_amount': 40.0, 'nb_days': 0})]"/>
+        </record>
         <record id="payment_term_60_days" model="account.payment.term">
             <field name="name">60 Days</field>
             <field name="note">Payment terms: 60 Days</field>
