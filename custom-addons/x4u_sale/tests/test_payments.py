@@ -21,6 +21,10 @@ class TestSalePayments(TransactionCase):
             }
         )
         cls.customer = cls.env["res.partner"].create({"name": "X4U Test Payments Customer"})
+        # The company currency: AED is only active where the UAE chart is (not on CI).
+        cls.pricelist = cls.env["product.pricelist"].create(
+            {"name": "X4U Test Payments", "currency_id": cls.env.company.currency_id.id}
+        )
         cls.term = cls.env.ref("x4u_setup_base.payment_term_30_30_40")
         cls.accountant = new_test_user(
             cls.env, login="x4u_pay_accountant", groups="base.group_user,account.group_account_invoice"
@@ -36,6 +40,7 @@ class TestSalePayments(TransactionCase):
             {
                 "partner_id": self.customer.id,
                 "user_id": self.salesperson.id,
+                "pricelist_id": self.pricelist.id,
                 "payment_term_id": (term or self.term).id,
                 "order_line": [
                     Command.create(
