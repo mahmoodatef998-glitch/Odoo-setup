@@ -1,8 +1,8 @@
 <?xml version="1.0" encoding="utf-8"?>
 <odoo>
     <data noupdate="1">
-        <!-- Spec §6 B1 / B10: the terms where the customer pays before the goods leave.
-             Credit terms (60 / 90 Days, LC at Sight) deliver first. -->
+        <!-- Spec §6 S10: the terms where the customer pays before the goods leave.
+             Credit terms (60 / 90 / 120 Days, LC at Sight) deliver first. -->
         <record id="x4u_setup_base.payment_term_advance_100" model="account.payment.term">
             <field name="x4u_pay_before_delivery" eval="True"/>
         </record>
@@ -13,11 +13,40 @@
             <field name="x4u_pay_before_delivery" eval="True"/>
         </record>
 
+        <!-- S3: the salesperson (or the buyer) writes the schedule on the order. The invoice
+             itself is due on its date: the payments before it are applied when it is confirmed. -->
+        <record id="payment_term_custom" model="account.payment.term">
+            <field name="name">Custom</field>
+            <field name="note">Payment terms: as per the payment schedule.</field>
+            <field name="sequence">90</field>
+            <field name="x4u_custom" eval="True"/>
+            <field name="line_ids" eval="[Command.clear(), Command.create({'value': 'percent', 'value_amount': 100.0, 'nb_days': 0})]"/>
+        </record>
+
+        <!-- S5: the Accountant checks the customer PO; the Salesperson fixes what doesn't match. -->
+        <record id="mail_activity_type_po_check" model="mail.activity.type">
+            <field name="name">Check Customer PO</field>
+            <field name="summary">Check the customer PO</field>
+            <field name="res_model">sale.order</field>
+            <field name="icon">fa-check-square-o</field>
+            <field name="delay_count">0</field>
+            <field name="sequence">6</field>
+        </record>
+        <record id="mail_activity_type_po_fix" model="mail.activity.type">
+            <field name="name">Fix Customer PO</field>
+            <field name="summary">Fix the customer PO</field>
+            <field name="res_model">sale.order</field>
+            <field name="icon">fa-exclamation-triangle</field>
+            <field name="delay_count">0</field>
+            <field name="sequence">7</field>
+        </record>
+
+        <!-- S6: the Accountant sends the PI (from his own address). -->
         <record id="mail_template_proforma" model="mail.template">
-            <field name="name">Proforma: send by email</field>
+            <field name="name">PI: send by email</field>
             <field name="model_id" ref="model_x4u_sale_proforma"/>
-            <field name="subject">{{ object.company_id.name }} Proforma {{ object.name }}</field>
-            <field name="email_from">{{ (object.user_id.email_formatted or user.email_formatted) }}</field>
+            <field name="subject">{{ object.company_id.name }} Proforma Invoice {{ object.name }}</field>
+            <field name="email_from">{{ (user.email_formatted or object.company_id.email_formatted) }}</field>
             <field name="partner_to">{{ object.order_id.partner_invoice_id.id }}</field>
             <field name="report_template_ids" eval="[Command.link(ref('x4u_sale.action_report_proforma'))]"/>
             <field name="lang">{{ object.partner_id.lang }}</field>
@@ -27,12 +56,15 @@
     <p style="margin: 0px; padding: 0px; font-size: 13px;">
         Dear <t t-out="object.order_id.partner_invoice_id.name or ''">Customer</t>,
         <br/><br/>
-        Please find attached proforma <strong t-out="object.name or ''">S001-PF1</strong>
-        for <strong t-out="format_amount(object.amount_total, object.currency_id) or ''">AED 15,750.00</strong>,
-        an advance on sales order <t t-out="object.order_id.name or ''">S001</t>.
-        <t t-if="object.date_due">Please pay by <t t-out="format_date(object.date_due) or ''">05/05/2026</t>.</t>
+        Please find attached proforma invoice <strong t-out="object.name or ''">S001-PI</strong>
+        for sales order <t t-out="object.order_id.name or ''">S001</t>
+        (<t t-out="format_amount(object.amount_total, object.currency_id) or ''">AED 52,500.00</t>), with its payment schedule.
+        <t t-if="object.amount_due_now">
+            <br/><br/>
+            Amount due now: <strong t-out="format_amount(object.amount_due_now, object.currency_id) or ''">AED 15,750.00</strong>.
+        </t>
         <br/><br/>
-        This is not a tax invoice: the tax invoice follows before delivery.
+        This is not a tax invoice.
         <br/><br/>
         Best regards,
     </p>

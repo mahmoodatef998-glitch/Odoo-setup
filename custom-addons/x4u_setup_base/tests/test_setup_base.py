@@ -124,6 +124,7 @@ class TestSetupBase(TransactionCase):
             ("payment_term_30_30_40", [0, 0, 0]),
             ("payment_term_60_days", [60]),
             ("payment_term_90_days", [90]),
+            ("payment_term_120_days", [120]),
             ("payment_term_lc_sight", [0]),
         ):
             term = self.env.ref("x4u_setup_base." + xmlid)

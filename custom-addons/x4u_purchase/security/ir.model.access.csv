@@ -1,0 +1,7 @@
+id,name,model_id:id,group_id:id,perm_read,perm_write,perm_create,perm_unlink
+access_x4u_purchase_proforma_readonly,x4u.purchase.proforma readonly,model_x4u_purchase_proforma,account.group_account_readonly,1,0,0,0
+access_x4u_purchase_proforma_accountant,x4u.purchase.proforma accountant,model_x4u_purchase_proforma,account.group_account_invoice,1,1,1,0
+access_x4u_purchase_schedule_buyer,x4u.purchase.schedule buyer,model_x4u_purchase_schedule,purchase.group_purchase_user,1,1,1,1
+access_x4u_purchase_schedule_readonly,x4u.purchase.schedule readonly,model_x4u_purchase_schedule,account.group_account_readonly,1,0,0,0
+access_x4u_purchase_schedule_accountant,x4u.purchase.schedule accountant,model_x4u_purchase_schedule,account.group_account_invoice,1,1,0,0
+access_x4u_purchase_pi_mismatch_accountant,x4u.purchase.pi.mismatch accountant,model_x4u_purchase_pi_mismatch,account.group_account_invoice,1,1,1,0

@@ -1,21 +1,28 @@
 <?xml version="1.0" encoding="utf-8"?>
 <odoo>
     <data noupdate="1">
+        <!-- The PI is the Accountant's (spec §7): no salesperson access, so no salesperson rule. -->
         <record id="x4u_sale_proforma_company_rule" model="ir.rule">
-            <field name="name">Proforma: multi-company</field>
+            <field name="name">PI: multi-company</field>
             <field name="model_id" ref="model_x4u_sale_proforma"/>
             <field name="domain_force">[('company_id', 'in', company_ids)]</field>
         </record>
-        <!-- Same as the sales orders: a Salesperson sees the proformas of his own orders. -->
-        <record id="x4u_sale_proforma_personal_rule" model="ir.rule">
-            <field name="name">Proforma: own orders</field>
-            <field name="model_id" ref="model_x4u_sale_proforma"/>
-            <field name="domain_force">['|', ('user_id', '=', user.id), ('user_id', '=', False)]</field>
+
+        <!-- Same as the sales orders: a Salesperson sees the schedule of his own orders. -->
+        <record id="x4u_sale_schedule_company_rule" model="ir.rule">
+            <field name="name">Payment schedule: multi-company</field>
+            <field name="model_id" ref="model_x4u_sale_schedule"/>
+            <field name="domain_force">[('order_id.company_id', 'in', company_ids)]</field>
+        </record>
+        <record id="x4u_sale_schedule_personal_rule" model="ir.rule">
+            <field name="name">Payment schedule: own orders</field>
+            <field name="model_id" ref="model_x4u_sale_schedule"/>
+            <field name="domain_force">['|', ('order_id.user_id', '=', user.id), ('order_id.user_id', '=', False)]</field>
             <field name="groups" eval="[Command.link(ref('sales_team.group_sale_salesman'))]"/>
         </record>
-        <record id="x4u_sale_proforma_all_rule" model="ir.rule">
-            <field name="name">Proforma: all orders</field>
-            <field name="model_id" ref="model_x4u_sale_proforma"/>
+        <record id="x4u_sale_schedule_all_rule" model="ir.rule">
+            <field name="name">Payment schedule: all orders</field>
+            <field name="model_id" ref="model_x4u_sale_schedule"/>
             <field name="domain_force">[(1, '=', 1)]</field>
             <field name="groups" eval="[
                 Command.link(ref('sales_team.group_sale_salesman_all_leads')),

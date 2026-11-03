@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <data noupdate="1">
+        <!-- P12: Purchasing attached the vendor's PI, the Accountant records it and pays. -->
+        <record id="mail_activity_type_vendor_pi" model="mail.activity.type">
+            <field name="name">Record Vendor PI</field>
+            <field name="summary">Record and pay the vendor PI</field>
+            <field name="res_model">purchase.order</field>
+            <field name="icon">fa-file-text-o</field>
+            <field name="delay_count">0</field>
+            <field name="sequence">6</field>
+        </record>
+        <!-- P6: the vendor PI doesn't match the PO, the buyer sorts it out with the vendor. -->
+        <record id="mail_activity_type_vendor_pi_fix" model="mail.activity.type">
+            <field name="name">Fix Vendor PI</field>
+            <field name="summary">The vendor PI doesn't match the PO</field>
+            <field name="res_model">purchase.order</field>
+            <field name="icon">fa-exclamation-triangle</field>
+            <field name="delay_count">0</field>
+            <field name="sequence">7</field>
+        </record>
+    </data>
+</odoo>

@@ -4,7 +4,7 @@
     "name": "4U Job Orders",
     "summary": "Generator Job Orders: status, parts tracking, material "
     "requests, timeline of every step and where the delay is",
-    "version": "18.0.1.4.0",
+    "version": "18.0.1.4.1",
     "category": "Manufacturing/Manufacturing",
     # AGPL-3 because it depends on x4u_generator (AGPL-3).
     "license": "AGPL-3",

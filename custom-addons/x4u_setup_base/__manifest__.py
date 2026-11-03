@@ -3,7 +3,7 @@
     "summary": "Shared 4U / ATA setup: settings, categories, units, "
     "generator attributes, CRM stages, payment terms, document numbering, "
     "purchase approval to-do",
-    "version": "18.0.1.0.4",
+    "version": "18.0.1.0.5",
     "category": "Hidden",
     "license": "LGPL-3",
     "author": "4U Power Generation FZC",

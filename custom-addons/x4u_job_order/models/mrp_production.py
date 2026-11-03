@@ -382,8 +382,8 @@ class MrpProduction(models.Model):
         return res
 
     def _x4u_ask_final_invoice(self):
-        """x4u_sale spec §6 B9: every generator of an order paid before delivery is ready,
-        so the Accountant issues the final invoice and collects the balance."""
+        """x4u_sale spec §6 S10: every generator of an order paid before delivery is ready,
+        so the Accountant issues the tax invoice and collects the balance."""
         orders = self.sudo().x4u_sale_order_id.filtered(
             lambda o: o.x4u_pay_before_delivery and not o.x4u_final_invoice_paid
         )
@@ -393,7 +393,7 @@ class MrpProduction(models.Model):
             )
             if jobs and all(job.x4u_job_state in ("finished", "delivered") for job in jobs):
                 order._x4u_notify_accountant(
-                    _("Generator ready: issue the final invoice of %s and collect the balance before delivery", order.name)
+                    _("Generator ready: issue the tax invoice of %s and collect the balance before delivery", order.name)
                 )
 
     def _cal_price(self, consumed_moves):

@@ -1,6 +1,8 @@
 id,name,model_id:id,group_id:id,perm_read,perm_write,perm_create,perm_unlink
-access_x4u_sale_proforma_salesman,x4u.sale.proforma salesman,model_x4u_sale_proforma,sales_team.group_sale_salesman,1,0,0,0
 access_x4u_sale_proforma_readonly,x4u.sale.proforma readonly,model_x4u_sale_proforma,account.group_account_readonly,1,0,0,0
 access_x4u_sale_proforma_accountant,x4u.sale.proforma accountant,model_x4u_sale_proforma,account.group_account_invoice,1,1,1,0
-access_x4u_sale_proforma_wizard_accountant,x4u.sale.proforma.wizard accountant,model_x4u_sale_proforma_wizard,account.group_account_invoice,1,1,1,0
+access_x4u_sale_schedule_salesman,x4u.sale.schedule salesman,model_x4u_sale_schedule,sales_team.group_sale_salesman,1,1,1,1
+access_x4u_sale_schedule_readonly,x4u.sale.schedule readonly,model_x4u_sale_schedule,account.group_account_readonly,1,0,0,0
+access_x4u_sale_schedule_accountant,x4u.sale.schedule accountant,model_x4u_sale_schedule,account.group_account_invoice,1,1,0,0
+access_x4u_sale_po_mismatch_accountant,x4u.sale.po.mismatch accountant,model_x4u_sale_po_mismatch,account.group_account_invoice,1,1,1,0
 access_sale_advance_payment_inv_accountant,sale.advance.payment.inv accountant,sale.model_sale_advance_payment_inv,account.group_account_invoice,1,1,1,0

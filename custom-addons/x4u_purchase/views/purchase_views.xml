@@ -1,0 +1,137 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <!-- PO: payment terms and mode on the main page (P1 / P3), the schedule (P4), the vendor PI
+         file for Purchasing and the vendor PI for the Accountant (P5), what we paid (P11). -->
+    <record id="purchase_order_form_x4u_purchase" model="ir.ui.view">
+        <field name="name">purchase.order.form.x4u.purchase</field>
+        <field name="model">purchase.order</field>
+        <field name="inherit_id" ref="purchase.purchase_order_form"/>
+        <field name="arch" type="xml">
+            <xpath expr="//header" position="inside">
+                <button name="action_x4u_record_vendor_pi" type="object" string="Record Vendor PI" class="btn-primary"
+                        groups="account.group_account_invoice"
+                        invisible="state not in ('purchase', 'done') or x4u_proforma_state in ('to_check', 'mismatch', 'open', 'paid', 'billed')"/>
+            </xpath>
+            <xpath expr="//div[@name='button_box']" position="inside">
+                <button name="action_x4u_view_vendor_pis" type="object" class="oe_stat_button" icon="fa-file-text-o"
+                        groups="account.group_account_invoice,account.group_account_readonly" invisible="not x4u_proforma_count">
+                    <field name="x4u_proforma_count" widget="statinfo" string="Vendor PI"/>
+                </button>
+                <button name="action_x4u_view_advances" type="object" class="oe_stat_button" icon="fa-money"
+                        groups="account.group_account_invoice,account.group_account_readonly" invisible="not x4u_advance_count">
+                    <field name="x4u_advance_count" widget="statinfo" string="Payments"/>
+                </button>
+            </xpath>
+            <xpath expr="//group/field[@name='partner_ref']" position="after">
+                <xpath expr="//page[@name='purchase_delivery_invoice']//field[@name='payment_term_id']" position="move"/>
+                <field name="x4u_payment_mode" readonly="state in ('purchase', 'done', 'cancel')"/>
+                <field name="x4u_vendor_pi_attachment_ids" widget="many2many_binary" invisible="state not in ('purchase', 'done')"/>
+                <field name="x4u_proforma_state" widget="badge" invisible="not x4u_proforma_state"
+                       decoration-warning="x4u_proforma_state == 'to_check'" decoration-danger="x4u_proforma_state == 'mismatch'"
+                       decoration-info="x4u_proforma_state == 'open'" decoration-success="x4u_proforma_state in ('paid', 'billed')"/>
+            </xpath>
+            <xpath expr="//field[@name='payment_term_id']" position="attributes">
+                <attribute name="readonly">state in ('purchase', 'done', 'cancel')</attribute>
+            </xpath>
+            <xpath expr="//page[@name='products']" position="after">
+                <page string="Payment Schedule" name="x4u_payment_schedule">
+                    <field name="x4u_schedule_custom" invisible="1"/>
+                    <field name="x4u_schedule_ids"
+                           readonly="not x4u_schedule_custom or state in ('purchase', 'done', 'cancel')">
+                        <list editable="bottom">
+                            <field name="sequence" widget="handle"/>
+                            <field name="percent"/>
+                            <field name="trigger"/>
+                            <field name="days" invisible="trigger != 'invoice'"/>
+                            <field name="currency_id" column_invisible="True"/>
+                            <field name="amount_total" sum="Total"/>
+                            <field name="amount_paid" column_invisible="parent.state not in ('purchase', 'done')"/>
+                            <field name="state" widget="badge" column_invisible="parent.state not in ('purchase', 'done')"
+                                   decoration-success="state == 'paid'" decoration-warning="state == 'partial'"/>
+                        </list>
+                    </field>
+                    <div class="text-muted" invisible="x4u_schedule_custom">
+                        The schedule comes from the payment terms. Choose Custom in Payment Terms to write your own.
+                    </div>
+                    <div class="text-danger" invisible="not x4u_schedule_custom or x4u_schedule_percent == 100">
+                        Total <field name="x4u_schedule_percent" class="oe_inline"/>%: the payments must add up to 100%.
+                    </div>
+                </page>
+            </xpath>
+            <xpath expr="//field[@name='tax_totals']" position="after">
+                <field name="x4u_amount_advance" invisible="state not in ('purchase', 'done') or not x4u_amount_advance"/>
+                <field name="x4u_amount_remaining" invisible="state not in ('purchase', 'done')"/>
+            </xpath>
+        </field>
+    </record>
+
+    <!-- Payment: the PO (and vendor PI) it is an advance for (P7) -->
+    <record id="view_account_payment_form_x4u_purchase" model="ir.ui.view">
+        <field name="name">account.payment.form.x4u.purchase</field>
+        <field name="model">account.payment</field>
+        <field name="inherit_id" ref="account.view_account_payment_form"/>
+        <field name="arch" type="xml">
+            <xpath expr="//field[@name='memo']" position="after">
+                <field name="x4u_purchase_order_id" options="{'no_create': True}"
+                       invisible="partner_type != 'supplier' or payment_type != 'outbound'"
+                       readonly="state not in ('draft', 'in_process')"/>
+                <field name="x4u_purchase_proforma_id" options="{'no_create': True}"
+                       invisible="not x4u_purchase_order_id" readonly="state not in ('draft', 'in_process')"/>
+            </xpath>
+        </field>
+    </record>
+
+    <record id="view_account_payment_search_x4u_purchase" model="ir.ui.view">
+        <field name="name">account.payment.search.x4u.purchase</field>
+        <field name="model">account.payment</field>
+        <field name="inherit_id" ref="account.view_account_payment_search"/>
+        <field name="arch" type="xml">
+            <xpath expr="//field[@name='partner_id']" position="after">
+                <field name="x4u_purchase_order_id"/>
+                <field name="x4u_purchase_proforma_id"/>
+            </xpath>
+        </field>
+    </record>
+
+    <!-- Vendor: the payment terms for Purchasing too (P1), and the Purchase Orders tab (P10) -->
+    <record id="view_partner_property_form_x4u_purchase" model="ir.ui.view">
+        <field name="name">res.partner.property.form.x4u.purchase</field>
+        <field name="model">res.partner</field>
+        <field name="inherit_id" ref="account.view_partner_property_form"/>
+        <field name="arch" type="xml">
+            <field name="property_supplier_payment_term_id" position="attributes">
+                <attribute name="groups">account.group_account_invoice,account.group_account_readonly,sales_team.group_sale_salesman,purchase.group_purchase_user</attribute>
+            </field>
+        </field>
+    </record>
+
+    <record id="view_partner_form_x4u_purchase" model="ir.ui.view">
+        <field name="name">res.partner.form.x4u.purchase</field>
+        <field name="model">res.partner</field>
+        <field name="inherit_id" ref="base.view_partner_form"/>
+        <field name="arch" type="xml">
+            <xpath expr="//page[@name='sales_purchases']" position="before">
+                <page string="Purchase Orders" name="x4u_purchase_orders" invisible="not id"
+                      groups="purchase.group_purchase_user,account.group_account_invoice,account.group_account_readonly">
+                    <field name="x4u_purchase_order_ids" readonly="1">
+                        <list>
+                            <field name="name"/>
+                            <field name="date_approve" widget="date"/>
+                            <field name="partner_ref"/>
+                            <field name="payment_term_id"/>
+                            <field name="x4u_payment_mode"/>
+                            <field name="currency_id" column_invisible="True"/>
+                            <field name="amount_total" sum="Total"/>
+                            <field name="x4u_proforma_state" widget="badge"
+                                   decoration-warning="x4u_proforma_state == 'to_check'" decoration-danger="x4u_proforma_state == 'mismatch'"
+                                   decoration-info="x4u_proforma_state == 'open'" decoration-success="x4u_proforma_state in ('paid', 'billed')"/>
+                            <field name="x4u_amount_advance" optional="show"/>
+                            <field name="x4u_amount_remaining"/>
+                            <field name="invoice_status" optional="show"/>
+                        </list>
+                    </field>
+                </page>
+            </xpath>
+        </field>
+    </record>
+</odoo>

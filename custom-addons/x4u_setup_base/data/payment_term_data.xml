@@ -29,6 +29,12 @@
             <field name="note">Payment terms: 90 Days</field>
             <field name="line_ids" eval="[Command.clear(), Command.create({'value': 'percent', 'value_amount': 100.0, 'nb_days': 90})]"/>
         </record>
+        <!-- Cheques at 120 days from some vendors and customers (x4u_purchase spec P2, 2026-10-28). -->
+        <record id="payment_term_120_days" model="account.payment.term">
+            <field name="name">120 Days</field>
+            <field name="note">Payment terms: 120 Days</field>
+            <field name="line_ids" eval="[Command.clear(), Command.create({'value': 'percent', 'value_amount': 100.0, 'nb_days': 120})]"/>
+        </record>
         <record id="payment_term_lc_sight" model="account.payment.term">
             <field name="name">LC at Sight</field>
             <field name="note">Payment terms: Letter of Credit at sight.</field>

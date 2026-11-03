@@ -19,7 +19,7 @@
 | # | الموديول | الملف | الحالة |
 |---|---|---|---|
 | 1 | **Sales**: CRM ← Quotation ← Sales Order | [01-sales.md](01-sales.md) | 🔄 شغالين |
-| 2 | Purchase: طلب المواد ← RFQ ← موافقة المدير العام ← PO | — | ⏳ |
+| 2 | Purchase: طلب المواد ← RFQ ← موافقة المدير العام ← PO | [spec `x4u_purchase` v0.2](../specs/x4u_purchase.md): شروط الدفع و Payment Mode، والـ PI بتاع المورد عند المحاسب، والمقدم بيتخصم من الـ Bill | 🔄 `x4u_purchase` اتبنى (2026-10-28) |
 | 3 | Inventory: الاستلام، الصرف، الجرد، الكابلات | — | ⏳ |
 | 4 | Manufacturing: الـ Job Order والـ BOMs | — | ⏳ الدورة متبنية (`x4u_job_order`) |
 | 5 | Quality: الفحص قبل التسليم | — | ⏳ |

@@ -1,15 +1,15 @@
 {
     "name": "4U Sales Payments",
-    "summary": "Advance payments by proforma (S007-PF1), payments linked to the sales order, "
-    "one tax invoice before delivery that applies the advances by itself",
-    "version": "18.0.1.0.0",
+    "summary": "Customer PO on confirm, payment schedule from the terms or Custom, the Accountant checks "
+    "the PO and issues one PI per order (S012-PI), payments on the PI, the tax invoice applies them",
+    "version": "18.0.2.0.0",
     "category": "Sales/Sales",
     "license": "LGPL-3",
     "author": "4U Power Generation FZC",
     "depends": [
         "sale_management",
         "account",
-        # The payment terms flagged "paid before delivery" (spec §6 B1).
+        # The payment terms flagged "paid before delivery" (spec §6 S10).
         "x4u_setup_base",
     ],
     "data": [

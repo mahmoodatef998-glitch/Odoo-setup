@@ -1,0 +1,158 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <record id="x4u_purchase_proforma_view_list" model="ir.ui.view">
+        <field name="name">x4u.purchase.proforma.list</field>
+        <field name="model">x4u.purchase.proforma</field>
+        <field name="arch" type="xml">
+            <list string="Vendor PIs" create="0" decoration-muted="state == 'cancel'">
+                <field name="name"/>
+                <field name="vendor_ref"/>
+                <field name="order_id"/>
+                <field name="partner_id"/>
+                <field name="date"/>
+                <field name="user_id" widget="many2one_avatar_user" optional="hide"/>
+                <field name="currency_id" column_invisible="True"/>
+                <field name="company_id" column_invisible="True"/>
+                <field name="amount_total" sum="Total"/>
+                <field name="amount_paid" sum="Paid"/>
+                <field name="amount_due_now" optional="show"/>
+                <field name="state" widget="badge" decoration-warning="state == 'to_check'" decoration-danger="state == 'mismatch'"
+                       decoration-info="state == 'open'" decoration-success="state in ('paid', 'billed')"/>
+            </list>
+        </field>
+    </record>
+
+    <record id="x4u_purchase_proforma_view_form" model="ir.ui.view">
+        <field name="name">x4u.purchase.proforma.form</field>
+        <field name="model">x4u.purchase.proforma</field>
+        <field name="arch" type="xml">
+            <form string="Vendor PI" create="0">
+                <header>
+                    <button name="action_match" type="object" string="PI Matches PO" class="btn-primary"
+                            groups="account.group_account_invoice" invisible="state not in ('to_check', 'mismatch')"/>
+                    <button name="action_mismatch" type="object" string="PI Doesn't Match"
+                            groups="account.group_account_invoice" invisible="state != 'to_check'"/>
+                    <button name="action_register_payment" type="object" string="Register Payment" class="btn-primary"
+                            groups="account.group_account_invoice" invisible="state != 'open'"/>
+                    <button name="action_cancel" type="object" string="Cancel" groups="account.group_account_invoice"
+                            invisible="state not in ('to_check', 'mismatch', 'open') or amount_paid" confirm="Cancel this vendor PI?"/>
+                    <field name="state" widget="statusbar" statusbar_visible="to_check,open,paid,billed"/>
+                </header>
+                <sheet>
+                    <div class="oe_button_box" name="button_box">
+                        <button name="action_view_payments" type="object" class="oe_stat_button" icon="fa-money" invisible="not payment_count">
+                            <field name="payment_count" widget="statinfo" string="Payments"/>
+                        </button>
+                    </div>
+                    <widget name="web_ribbon" title="Paid" invisible="state != 'paid'"/>
+                    <widget name="web_ribbon" title="Billed" invisible="state != 'billed'"/>
+                    <widget name="web_ribbon" title="Cancelled" bg_color="text-bg-danger" invisible="state != 'cancel'"/>
+                    <div class="oe_title">
+                        <h1><field name="name"/></h1>
+                    </div>
+                    <group>
+                        <group>
+                            <field name="order_id" readonly="id" options="{'no_create': True}"/>
+                            <field name="partner_id"/>
+                            <field name="user_id" widget="many2one_avatar_user"/>
+                            <field name="vendor_ref" readonly="state not in ('to_check', 'mismatch')"/>
+                            <field name="date" readonly="state not in ('to_check', 'mismatch')"/>
+                            <field name="attachment_ids" widget="many2many_binary" readonly="state not in ('to_check', 'mismatch')"/>
+                            <field name="company_id" groups="base.group_multi_company"/>
+                        </group>
+                        <group>
+                            <field name="mismatch_reason" invisible="state != 'mismatch'"/>
+                            <field name="check_user_id" invisible="check_state != 'match'"/>
+                            <field name="check_date" invisible="check_state != 'match'"/>
+                            <field name="check_state" invisible="1"/>
+                            <field name="next_payment" invisible="not next_payment or state != 'open'"/>
+                            <field name="amount_due_now" invisible="state != 'open'" class="fw-bold"/>
+                        </group>
+                    </group>
+                    <field name="schedule_ids" readonly="state in ('billed', 'cancel')" invisible="not id">
+                        <list editable="bottom" create="0" delete="0">
+                            <field name="percent" readonly="1"/>
+                            <field name="trigger" readonly="1"/>
+                            <field name="days" readonly="1" invisible="trigger != 'invoice'"/>
+                            <field name="currency_id" column_invisible="True"/>
+                            <field name="amount_total"/>
+                            <field name="amount_paid"/>
+                            <field name="state" widget="badge" decoration-success="state == 'paid'" decoration-warning="state == 'partial'"/>
+                            <field name="date_due" readonly="state == 'paid'"/>
+                        </list>
+                    </field>
+                    <group class="oe_subtotal_footer">
+                        <field name="currency_id" invisible="1"/>
+                        <field name="amount_untaxed"/>
+                        <field name="amount_tax"/>
+                        <field name="amount_total" class="oe_subtotal_footer_separator"/>
+                        <field name="amount_paid"/>
+                    </group>
+                </sheet>
+                <chatter/>
+            </form>
+        </field>
+    </record>
+
+    <record id="x4u_purchase_proforma_view_search" model="ir.ui.view">
+        <field name="name">x4u.purchase.proforma.search</field>
+        <field name="model">x4u.purchase.proforma</field>
+        <field name="arch" type="xml">
+            <search string="Vendor PIs">
+                <field name="name"/>
+                <field name="vendor_ref"/>
+                <field name="order_id"/>
+                <field name="partner_id"/>
+                <filter name="to_check" string="To Check" domain="[('state', 'in', ('to_check', 'mismatch'))]"/>
+                <filter name="open" string="Open" domain="[('state', '=', 'open')]"/>
+                <filter name="paid" string="Paid" domain="[('state', '=', 'paid')]"/>
+                <filter name="billed" string="Billed" domain="[('state', '=', 'billed')]"/>
+                <separator/>
+                <filter name="group_partner" string="Vendor" context="{'group_by': 'partner_id'}"/>
+                <filter name="group_state" string="Status" context="{'group_by': 'state'}"/>
+            </search>
+        </field>
+    </record>
+
+    <record id="x4u_purchase_proforma_action" model="ir.actions.act_window">
+        <field name="name">Vendor PIs</field>
+        <field name="res_model">x4u.purchase.proforma</field>
+        <field name="view_mode">list,form</field>
+        <field name="search_view_id" ref="x4u_purchase_proforma_view_search"/>
+        <field name="context">{'create': False}</field>
+        <field name="help" type="html">
+            <p class="o_view_nocontent_smiling_face">No vendor PI yet</p>
+            <p>On an approved purchase order: Record Vendor PI, once Purchasing attached the PI the vendor sent.</p>
+        </field>
+    </record>
+
+    <record id="x4u_purchase_pi_mismatch_view_form" model="ir.ui.view">
+        <field name="name">x4u.purchase.pi.mismatch.form</field>
+        <field name="model">x4u.purchase.pi.mismatch</field>
+        <field name="arch" type="xml">
+            <form string="Vendor PI Doesn't Match">
+                <group>
+                    <field name="proforma_id" force_save="1"/>
+                    <field name="reason" placeholder="e.g. the PI asks for 60% advance, the PO says 50%"/>
+                </group>
+                <footer>
+                    <button name="action_confirm" type="object" string="Send to the Buyer" class="btn-primary" data-hotkey="q"/>
+                    <button string="Discard" special="cancel" data-hotkey="x"/>
+                </footer>
+            </form>
+        </field>
+    </record>
+
+    <!-- Accounting › Vendors: the approved POs to pay and to bill, and their vendor PIs. -->
+    <record id="x4u_purchase_order_accounting_action" model="ir.actions.act_window">
+        <field name="name">Purchase Orders</field>
+        <field name="res_model">purchase.order</field>
+        <field name="view_mode">list,form</field>
+        <field name="domain">[('state', 'in', ('purchase', 'done'))]</field>
+        <field name="context">{'create': False}</field>
+    </record>
+    <menuitem id="menu_x4u_purchase_order_accounting" parent="account.menu_finance_payables"
+              action="x4u_purchase_order_accounting_action" sequence="10" groups="account.group_account_invoice"/>
+    <menuitem id="menu_x4u_purchase_proforma_accounting" parent="account.menu_finance_payables"
+              action="x4u_purchase_proforma_action" sequence="11" groups="account.group_account_invoice,account.group_account_readonly"/>
+</odoo>

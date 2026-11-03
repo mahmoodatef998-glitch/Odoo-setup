@@ -318,9 +318,10 @@ class TestJobOrder(X4uJobOrderCommon):
         accountant = new_test_user(self.env, login="x4u_jo_accountant", groups="base.group_user,account.group_account_invoice")
         self.env["ir.config_parameter"].sudo().set_param("x4u_sale.accountant_user_id", accountant.id)
         order, delivery = self._sell_paid_before_delivery()
-        todo = order.activity_ids.filtered(lambda a: a.user_id == accountant)
+        # The Accountant also checks the customer PO of the confirmed order (x4u_sale S5).
+        todo = order.activity_ids.filtered(lambda a: a.user_id == accountant and "Generator ready" in a.summary)
         self.assertEqual(len(todo), 1)
-        self.assertIn("final invoice of %s" % order.name, todo.summary)
+        self.assertIn("tax invoice of %s" % order.name, todo.summary)
         self.assertFalse(order.x4u_final_invoice_paid)
         delivery.with_user(self.storekeeper).button_validate()
         self.assertEqual(delivery.state, "done")
