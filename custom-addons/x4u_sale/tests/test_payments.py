@@ -29,6 +29,7 @@ class TestSalePayments(TransactionCase):
         )
         cls.term = cls.env.ref("x4u_setup_base.payment_term_30_30_40")
         cls.custom = cls.env.ref("x4u_sale.payment_term_custom")
+        cls.lpo_type = cls.env.ref("x4u_sale.mail_activity_type_lpo")
         cls.check_type = cls.env.ref("x4u_sale.mail_activity_type_po_check")
         cls.fix_type = cls.env.ref("x4u_sale.mail_activity_type_po_fix")
         cls.accountant = new_test_user(
@@ -72,10 +73,10 @@ class TestSalePayments(TransactionCase):
         )
 
     def _sell(self, term=None, match=True):
-        """Confirmed by the Salesperson with the customer PO; the Accountant says it matches."""
+        """Confirmed by the Salesperson when the customer agrees, then the LPO; the Accountant checks it."""
         order = self._quote(term)
-        self._attach_po(order)
         order.action_confirm()
+        self._attach_po(order)
         self.assertEqual(order.amount_total, 52500.0)
         if match:
             order.with_user(self.accountant).action_x4u_po_match()
@@ -106,17 +107,23 @@ class TestSalePayments(TransactionCase):
     def _todo(self, order, activity_type):
         return order.activity_ids.filtered(lambda activity: activity.activity_type_id == activity_type)
 
-    # 1: no Confirm without the customer PO; then the Accountant gets the PO to check
-    def test_confirm_needs_the_customer_po(self):
+    # 1 (v0.6): Confirm when the customer agrees, then the LPO; only then the Accountant checks it
+    def test_lpo_after_confirm(self):
         order = self._quote()
-        with self.assertRaisesRegex(UserError, "missing: LPO Number, LPO File"):
-            order.action_confirm()
-        self._attach_po(order)
         order.action_confirm()
-        self.assertEqual(order.state, "sale")
+        self.assertEqual((order.state, order.x4u_po_check), ("sale", "waiting"))
         self.assertTrue(order.locked)
+        self.assertEqual(self._todo(order, self.lpo_type).user_id, self.salesperson)
+        self.assertFalse(self._todo(order, self.check_type))
+        with self.assertRaisesRegex(UserError, "waiting for the customer's LPO"):
+            order.with_user(self.accountant).action_x4u_create_proforma()
+        with self.assertRaises(UserError):
+            order.with_user(self.accountant).action_x4u_po_match()
+        self._attach_po(order)
         self.assertEqual(order.x4u_po_check, "to_check")
+        self.assertFalse(self._todo(order, self.lpo_type))
         self.assertEqual(self._todo(order, self.check_type).user_id, self.accountant)
+        self.assertTrue(any("LPO PO-123" in (body or "") for body in order.message_ids.mapped("body")))
         with self.assertRaises(AccessError):
             order.action_x4u_po_match()
         with self.assertRaises(AccessError):
@@ -127,6 +134,12 @@ class TestSalePayments(TransactionCase):
         )
         order.write({"x4u_lpo_attachment_ids": [Command.link(loose.id)]})
         self.assertEqual(loose.with_user(self.accountant).read(["name"])[0]["name"], "PO-124.pdf")
+        # An LPO that came before the Confirm: straight to the Accountant, no LPO to-do.
+        early = self._quote()
+        self._attach_po(early)
+        early.action_confirm()
+        self.assertEqual(early.x4u_po_check, "to_check")
+        self.assertFalse(self._todo(early, self.lpo_type))
 
     # 7: no PI before the check; Doesn't Match goes back to the Salesperson; then one PI
     def test_po_check_before_the_pi(self):

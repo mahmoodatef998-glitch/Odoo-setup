@@ -4,8 +4,14 @@ from odoo.exceptions import AccessError, UserError, ValidationError
 from .x4u_payment_schedule import BEFORE_DELIVERY
 from .x4u_sale_proforma import POSTED_PAYMENT_STATES, PROFORMA_STATES
 
-PO_CHECK_STATES = [("to_check", "To Check"), ("match", "Matches"), ("mismatch", "Doesn't Match")]
+PO_CHECK_STATES = [
+    ("waiting", "Waiting for LPO"),
+    ("to_check", "To Check"),
+    ("match", "Matches"),
+    ("mismatch", "Doesn't Match"),
+]
 PO_CHECK_FIELDS = {"x4u_po_check", "x4u_po_check_user_id", "x4u_po_check_date", "x4u_po_mismatch_reason"}
+ACTIVITY_LPO = "x4u_sale.mail_activity_type_lpo"
 ACTIVITY_PO_CHECK = "x4u_sale.mail_activity_type_po_check"
 ACTIVITY_PO_FIX = "x4u_sale.mail_activity_type_po_fix"
 
@@ -223,6 +229,8 @@ class SaleOrder(models.Model):
                 custom._x4u_log_schedule()
         if "x4u_lpo_attachment_ids" in vals:
             x4u_own_attachments(self, "x4u_lpo_attachment_ids")
+        if {"client_order_ref", "x4u_lpo_attachment_ids"} & set(vals):
+            self.filtered(lambda o: o.x4u_po_check == "waiting" and o._x4u_has_lpo())._x4u_lpo_received()
         return res
 
     # ------------------------------------------------------------------
@@ -230,29 +238,32 @@ class SaleOrder(models.Model):
     # ------------------------------------------------------------------
 
     def action_confirm(self):
-        if not self.env.su:
-            for order in self:
-                missing = [
-                    label
-                    for label, value in (
-                        (_("LPO Number"), order.client_order_ref),
-                        (_("LPO File"), order.x4u_lpo_attachment_ids),
-                    )
-                    if not value
-                ]
-                if missing:
-                    raise UserError(
-                        _(
-                            "%(order)s: attach the customer PO before confirming (missing: %(missing)s).",
-                            order=order.name,
-                            missing=", ".join(missing),
-                        )
-                    )
+        """The customer agreed to the quotation; the LPO comes after (v0.6), then the Accountant checks it."""
         self._x4u_check_schedule_total()
         res = super().action_confirm()
-        self.sudo().write({"x4u_po_check": "to_check"})
-        self._x4u_ask_po_check()
+        with_lpo = self.filtered(lambda o: o._x4u_has_lpo())
+        with_lpo._x4u_lpo_received()
+        (self - with_lpo)._x4u_wait_for_lpo()
         return res
+
+    def _x4u_has_lpo(self):
+        self.ensure_one()
+        return bool(self.client_order_ref and self.x4u_lpo_attachment_ids)
+
+    def _x4u_wait_for_lpo(self):
+        self.sudo().write({"x4u_po_check": "waiting"})
+        for order in self.sudo().filtered("user_id"):
+            order.activity_schedule(
+                ACTIVITY_LPO, user_id=order.user_id.id, summary=_("Get the customer PO (LPO) of %s", order.name)
+            )
+
+    def _x4u_lpo_received(self):
+        """The LPO number and file are on the confirmed order: the Accountant checks it (S5)."""
+        self.sudo().write({"x4u_po_check": "to_check"})
+        self.sudo().activity_feedback([ACTIVITY_LPO], feedback=_("LPO received"))
+        self._x4u_ask_po_check()
+        for order in self:
+            order.message_post(body=_("Customer PO received: LPO %s.", order.client_order_ref))
 
     @api.model
     def _x4u_accountant_only(self):
@@ -283,7 +294,7 @@ class SaleOrder(models.Model):
     def action_x4u_po_match(self):
         self._x4u_check_accountant()
         for order in self:
-            if order.state != "sale" or order.x4u_po_check == "match":
+            if order.state != "sale" or order.x4u_po_check not in ("to_check", "mismatch"):
                 raise UserError(_("%s is not waiting for the customer PO check.", order.name))
         self._x4u_po_checked("match")
         self.sudo().activity_feedback([ACTIVITY_PO_CHECK], feedback=_("Matches the quotation"))
@@ -352,6 +363,8 @@ class SaleOrder(models.Model):
         self._x4u_check_accountant()
         if self.state != "sale":
             raise UserError(_("Confirm %s before its PI.", self.name))
+        if self.x4u_po_check == "waiting":
+            raise UserError(_("%s is waiting for the customer's LPO.", self.name))
         if self.x4u_po_check != "match":
             raise UserError(_("Check the customer PO of %s first: PO Matches Quotation.", self.name))
         if self._x4u_active_proforma():

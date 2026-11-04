@@ -23,6 +23,16 @@
             <field name="line_ids" eval="[Command.clear(), Command.create({'value': 'percent', 'value_amount': 100.0, 'nb_days': 0})]"/>
         </record>
 
+        <!-- §3 (v0.6): the customer agreed and the order is confirmed; the Salesperson gets the LPO. -->
+        <record id="mail_activity_type_lpo" model="mail.activity.type">
+            <field name="name">Get Customer LPO</field>
+            <field name="summary">Get the customer PO (LPO)</field>
+            <field name="res_model">sale.order</field>
+            <field name="icon">fa-file-text-o</field>
+            <field name="delay_count">0</field>
+            <field name="sequence">5</field>
+        </record>
+
         <!-- S5: the Accountant checks the customer PO; the Salesperson fixes what doesn't match. -->
         <record id="mail_activity_type_po_check" model="mail.activity.type">
             <field name="name">Check Customer PO</field>

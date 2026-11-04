@@ -44,6 +44,7 @@
                 <field name="x4u_lpo_date" readonly="x4u_po_check == 'match'"/>
                 <field name="x4u_lpo_attachment_ids" widget="many2many_binary" readonly="x4u_po_check == 'match'"/>
                 <field name="x4u_po_check" widget="badge" invisible="not x4u_po_check"
+                       decoration-info="x4u_po_check == 'waiting'"
                        decoration-success="x4u_po_check == 'match'" decoration-warning="x4u_po_check == 'to_check'"
                        decoration-danger="x4u_po_check == 'mismatch'"/>
                 <field name="x4u_po_mismatch_reason" invisible="x4u_po_check != 'mismatch'"/>
@@ -92,6 +93,7 @@
         <field name="inherit_id" ref="sale.view_sales_order_filter"/>
         <field name="arch" type="xml">
             <xpath expr="//filter[@name='my_sale_orders_filter']" position="before">
+                <filter name="x4u_po_waiting" string="Waiting for LPO" domain="[('x4u_po_check', '=', 'waiting')]"/>
                 <filter name="x4u_po_to_check" string="Customer PO to Check" domain="[('x4u_po_check', '=', 'to_check')]"/>
                 <filter name="x4u_po_mismatch" string="Customer PO Doesn't Match" domain="[('x4u_po_check', '=', 'mismatch')]"/>
                 <separator/>
@@ -174,7 +176,7 @@
                             <field name="payment_term_id" optional="show"/>
                             <field name="currency_id" column_invisible="True"/>
                             <field name="amount_total" sum="Total"/>
-                            <field name="x4u_po_check" widget="badge"
+                            <field name="x4u_po_check" widget="badge" decoration-info="x4u_po_check == 'waiting'"
                                    decoration-success="x4u_po_check == 'match'" decoration-warning="x4u_po_check == 'to_check'"
                                    decoration-danger="x4u_po_check == 'mismatch'"/>
                             <field name="x4u_proforma_state" widget="badge"
