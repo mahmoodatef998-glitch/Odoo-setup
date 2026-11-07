@@ -1,2 +1,5 @@
 # Extra Python packages for OCA modules (pinned)
 openupgradelib==3.13.7
+# Tests only: OCA date_range (needed by account_financial_report) imports it in its tests
+# (oca-addons/server-ux/test-requirements.txt). 2.1.3 on PyPI, 2026-02-20, checked 2026-11-07.
+odoo-test-helper==2.1.3

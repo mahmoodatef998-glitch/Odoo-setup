@@ -59,7 +59,8 @@
 | 3 | سطور "Contact - check" في الـ Excel (أطراف ذات علاقة، أسامي مش عملاء حقيقيين، سطور في أول الشجرة) | 🟡 مراجعة |
 | 4 | الأرصدة الافتتاحية: تاريخ التشغيل، وميزان + أرصدة العملاء والموردين المفتوحة + الأصول بمجمع إهلاكها | ⏳ مع الـ go-live |
 | 5 | **تكلفة المولد** (دليل الدورة A2) | ✅ 2026-10-27: قيمة المولد = القطع اللي اتصرفت + 20% (Settings › Manufacturing › 4U Job Orders). والقطع والمولدات بقت FIFO، وكل مولد بقيمته بالسيريال ([x4u_job_order v0.4](../specs/x4u_job_order.md) V5، V6) |
-| 6 | **التقييم** (دليل الدورة A1): Manual Periodic ولا Automated | 🔵 لسه Manual Periodic: القيم بتظهر في تقرير المخزون من غير قيود. ولو بقى Automated، الـ 20% هتحتاج حساب "تكاليف تشغيل محمّلة" |
+| 6 | **التقييم** (دليل الدورة A1): Manual Periodic ولا Automated | ✅ 2026-11-07: **Automated (Perpetual) + Anglo-Saxon**، والـ 20% لحساب `400072 Applied Manufacturing Overhead` ([x4u_account v0.4](../specs/x4u_account.md) §9). 🔵 الأكواد مع المحاسب |
+| 7 | **القوايم والـ PDC للموردين** (2026-11-07) | ✅ [x4u_account v0.1](../specs/x4u_account.md): Assets جوه Accounting، ومفيش Products، و Sales Section، و Invoices، و DR، و PDC Cheques بحساب `201020 Post Dated Cheques Issued` (🔵 الكود مع المحاسب في الشجرة) |
 
 ## 5. الخطوات
 1. ✅ Excel للمراجعة: `private/accounting/ata-account-tree-mapping.xlsx` (شيت Odoo Chart، Account Groups، Focus Tree Mapping، Summary).

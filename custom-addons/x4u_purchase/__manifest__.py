@@ -2,7 +2,7 @@
     "name": "4U Purchase Payments",
     "summary": "Payment terms and payment mode on the PO, Custom schedule, the vendor PI recorded and paid "
     "by the Accountant, advances linked to the PO, the vendor bill applies them",
-    "version": "18.0.1.0.0",
+    "version": "18.0.1.0.1",
     "category": "Inventory/Purchase",
     "license": "LGPL-3",
     "author": "4U Power Generation FZC",

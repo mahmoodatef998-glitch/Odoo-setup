@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <record id="x4u_pdc_bounce_view_form" model="ir.ui.view">
+        <field name="name">x4u.pdc.bounce.form</field>
+        <field name="model">x4u.pdc.bounce</field>
+        <field name="arch" type="xml">
+            <form string="Cheque Bounced">
+                <p>The payment entry is cancelled and the vendor bill is open again.</p>
+                <group>
+                    <field name="payment_id"/>
+                    <field name="reason" placeholder="e.g. insufficient funds"/>
+                </group>
+                <footer>
+                    <button name="action_confirm" type="object" string="Cheque Bounced" class="btn-danger"/>
+                    <button special="cancel" string="Discard"/>
+                </footer>
+            </form>
+        </field>
+    </record>
+</odoo>

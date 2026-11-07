@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo noupdate="1">
+    <!-- Spec §4 R2: every night at 02:00 UAE (22:00 UTC). -->
+    <record id="ir_cron_x4u_mass_reconcile" model="ir.cron">
+        <field name="name">4U: Automatic reconciliation (payments with invoices by reference)</field>
+        <field name="model_id" ref="account_mass_reconcile.model_account_mass_reconcile"/>
+        <field name="state">code</field>
+        <field name="code">model.run_scheduler(run_all=True)</field>
+        <field name="interval_number">1</field>
+        <field name="interval_type">days</field>
+        <field name="nextcall" eval="(DateTime.now() + timedelta(days=1)).strftime('%Y-%m-%d 22:00:00')"/>
+        <field name="active" eval="True"/>
+    </record>
+</odoo>

@@ -1,0 +1,25 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <!-- Spec §10: one category per landed cost, so its clearing account is both the bill's account
+         (expense) and the landed cost's credit (stock input); x4u_setup sets them per company. -->
+    <record id="categ_landed_costs" model="product.category">
+        <field name="name">Landed Costs</field>
+        <field name="parent_id" ref="product.product_category_all"/>
+    </record>
+    <record id="categ_landed_freight" model="product.category">
+        <field name="name">Freight</field>
+        <field name="parent_id" ref="categ_landed_costs"/>
+    </record>
+    <record id="categ_landed_insurance" model="product.category">
+        <field name="name">Insurance</field>
+        <field name="parent_id" ref="categ_landed_costs"/>
+    </record>
+    <record id="categ_landed_clearing" model="product.category">
+        <field name="name">Clearing &amp; Documentation</field>
+        <field name="parent_id" ref="categ_landed_costs"/>
+    </record>
+    <record id="categ_landed_customs" model="product.category">
+        <field name="name">Customs Duty</field>
+        <field name="parent_id" ref="categ_landed_costs"/>
+    </record>
+</odoo>

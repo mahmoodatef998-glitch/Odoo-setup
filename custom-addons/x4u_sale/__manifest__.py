@@ -3,7 +3,7 @@
     "summary": "Confirm when the customer agrees, then the customer PO (LPO); payment schedule from the terms "
     "or Custom; the Accountant checks the PO and issues one PI per order (S012-PI), payments on the PI, "
     "the tax invoice applies them",
-    "version": "18.0.2.1.0",
+    "version": "18.0.2.1.1",
     "category": "Sales/Sales",
     "license": "LGPL-3",
     "author": "4U Power Generation FZC",

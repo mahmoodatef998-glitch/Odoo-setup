@@ -1,0 +1,111 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <!-- The payment: cheque number, cheque date, status, and "Cheque Bounced". -->
+    <record id="x4u_view_account_payment_form" model="ir.ui.view">
+        <field name="name">account.payment.form.x4u.pdc</field>
+        <field name="model">account.payment</field>
+        <field name="inherit_id" ref="account.view_account_payment_form"/>
+        <field name="arch" type="xml">
+            <xpath expr="//header/button[@name='action_post']" position="after">
+                <button name="action_x4u_pdc_bounce" type="object" string="Cheque Bounced"
+                        invisible="x4u_pdc_state != 'issued'" groups="account.group_account_invoice"/>
+            </xpath>
+            <xpath expr="//field[@name='payment_method_line_id']" position="after">
+                <field name="payment_method_code" invisible="1"/>
+                <field name="x4u_pdc_bounced" invisible="1"/>
+                <field name="x4u_cheque_number" invisible="payment_method_code != 'x4u_pdc'"
+                       required="payment_method_code == 'x4u_pdc' and state == 'draft'" readonly="state != 'draft'"/>
+                <field name="x4u_cheque_date" invisible="payment_method_code != 'x4u_pdc'"
+                       required="payment_method_code == 'x4u_pdc' and state == 'draft'" readonly="state != 'draft'"/>
+                <field name="x4u_pdc_state" widget="badge" invisible="not x4u_pdc_state or x4u_pdc_state == 'draft'"
+                       decoration-info="x4u_pdc_state == 'issued'" decoration-success="x4u_pdc_state == 'cleared'"
+                       decoration-danger="x4u_pdc_state == 'bounced'"/>
+                <field name="x4u_pdc_bounce_reason" invisible="not x4u_pdc_bounced"/>
+            </xpath>
+        </field>
+    </record>
+
+    <!-- Register Payment on the bill: the cheque goes in here when the method is PDC Cheque. -->
+    <record id="x4u_view_account_payment_register_form" model="ir.ui.view">
+        <field name="name">account.payment.register.form.x4u.pdc</field>
+        <field name="model">account.payment.register</field>
+        <field name="inherit_id" ref="account.view_account_payment_register_form"/>
+        <field name="arch" type="xml">
+            <xpath expr="//field[@name='payment_method_line_id']" position="after">
+                <field name="payment_method_code" invisible="1"/>
+                <field name="x4u_cheque_number" invisible="payment_method_code != 'x4u_pdc'"
+                       required="payment_method_code == 'x4u_pdc'"/>
+                <field name="x4u_cheque_date" invisible="payment_method_code != 'x4u_pdc'"
+                       required="payment_method_code == 'x4u_pdc'"/>
+            </xpath>
+        </field>
+    </record>
+
+    <record id="x4u_pdc_view_list" model="ir.ui.view">
+        <field name="name">account.payment.list.x4u.pdc</field>
+        <field name="model">account.payment</field>
+        <field name="priority">100</field>
+        <field name="arch" type="xml">
+            <list string="PDC Cheques" default_order="x4u_cheque_date, id"
+                  decoration-danger="x4u_pdc_state == 'bounced'" decoration-muted="x4u_pdc_state == 'canceled'">
+                <field name="x4u_cheque_date"/>
+                <field name="x4u_cheque_number"/>
+                <field name="partner_id" string="Vendor"/>
+                <field name="name" string="Payment"/>
+                <field name="date" string="Issued On" optional="show"/>
+                <field name="journal_id" string="Bank" optional="show"/>
+                <field name="memo" optional="hide"/>
+                <field name="currency_id" column_invisible="1"/>
+                <field name="amount" sum="Total" widget="monetary"/>
+                <field name="x4u_pdc_state" widget="badge"
+                       decoration-info="x4u_pdc_state == 'issued'" decoration-success="x4u_pdc_state == 'cleared'"
+                       decoration-danger="x4u_pdc_state == 'bounced'"/>
+            </list>
+        </field>
+    </record>
+
+    <record id="x4u_pdc_view_search" model="ir.ui.view">
+        <field name="name">account.payment.search.x4u.pdc</field>
+        <field name="model">account.payment</field>
+        <field name="priority">100</field>
+        <field name="arch" type="xml">
+            <search string="PDC Cheques">
+                <field name="x4u_cheque_number"/>
+                <field name="partner_id" string="Vendor"/>
+                <field name="journal_id" string="Bank"/>
+                <filter name="issued" string="Issued" domain="[('x4u_pdc_state', '=', 'issued')]"/>
+                <filter name="due" string="Cheque Date Passed"
+                        domain="[('x4u_pdc_state', '=', 'issued'), ('x4u_cheque_date', '&lt;=', context_today().strftime('%Y-%m-%d'))]"/>
+                <filter name="due_7" string="Due in 7 Days"
+                        domain="[('x4u_pdc_state', '=', 'issued'), ('x4u_cheque_date', '&lt;=', (context_today() + relativedelta(days=7)).strftime('%Y-%m-%d'))]"/>
+                <separator/>
+                <filter name="cleared" string="Cleared" domain="[('x4u_pdc_state', '=', 'cleared')]"/>
+                <filter name="bounced" string="Bounced" domain="[('x4u_pdc_state', '=', 'bounced')]"/>
+                <separator/>
+                <filter name="cheque_date" string="Cheque Date" date="x4u_cheque_date"/>
+                <group>
+                    <filter name="group_state" string="Cheque Status" context="{'group_by': 'x4u_pdc_state'}"/>
+                    <filter name="group_vendor" string="Vendor" context="{'group_by': 'partner_id'}"/>
+                    <filter name="group_month" string="Cheque Month" context="{'group_by': 'x4u_cheque_date:month'}"/>
+                </group>
+            </search>
+        </field>
+    </record>
+
+    <record id="x4u_pdc_action" model="ir.actions.act_window">
+        <field name="name">PDC Cheques</field>
+        <field name="res_model">account.payment</field>
+        <field name="view_mode">list,form</field>
+        <field name="domain">[('x4u_pdc_state', '!=', False)]</field>
+        <field name="context">{'default_payment_type': 'outbound', 'default_partner_type': 'supplier', 'search_default_issued': 1}</field>
+        <field name="search_view_id" ref="x4u_pdc_view_search"/>
+        <field name="view_ids" eval="[Command.clear(),
+            Command.create({'view_mode': 'list', 'view_id': ref('x4u_pdc_view_list')}),
+            Command.create({'view_mode': 'form', 'view_id': ref('account.view_account_payment_form')})]"/>
+        <field name="help" type="html">
+            <p class="o_view_nocontent_smiling_face">No post-dated cheques yet</p>
+            <p>Pay a vendor bill with the payment method <b>PDC Cheque</b>: the amount waits in
+                PDC Payable until the bank clears the cheque.</p>
+        </field>
+    </record>
+</odoo>

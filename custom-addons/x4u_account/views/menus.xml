@@ -1,0 +1,58 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <!-- 1. Assets (Assets, Compute Assets) inside Accounting › Accounting, after "Payments and due list". -->
+    <record id="account_asset_management.menu_finance_assets" model="ir.ui.menu">
+        <field name="parent_id" ref="account.menu_finance_entries"/>
+        <field name="sequence">60</field>
+    </record>
+
+    <!-- 2. No Products under Customers and Vendors (they stay in Sales, Purchase and Inventory). -->
+    <record id="account.product_product_menu_sellable" model="ir.ui.menu">
+        <field name="active" eval="False"/>
+    </record>
+    <record id="account.product_product_menu_purchasable" model="ir.ui.menu">
+        <field name="active" eval="False"/>
+    </record>
+
+    <!-- 4. Vendors › Bills becomes Invoices. -->
+    <record id="account.menu_action_move_in_invoice_type" model="ir.ui.menu">
+        <field name="name">Invoices</field>
+    </record>
+
+    <!-- 6. Vendors › PDC Cheques, after Payments. -->
+    <menuitem id="menu_x4u_pdc" parent="account.menu_finance_payables" action="x4u_pdc_action" sequence="25"
+              groups="account.group_account_invoice,account.group_account_readonly"/>
+
+    <!-- v1.1 (2026-11-07) -->
+    <!-- 1. Journal Items: the Chief Accountant only (Accounting Manager); everyone else uses
+         Journal Entries and the General Ledger. -->
+    <record id="account.menu_action_account_moves_all" model="ir.ui.menu">
+        <field name="groups_id" eval="[Command.set([ref('account.group_account_manager')])]"/>
+    </record>
+
+    <!-- 2. Bank and Cash › Cash Registers becomes Petty Cash. -->
+    <record id="account_usability.menu_accounting_statement_cash" model="ir.ui.menu">
+        <field name="name">Petty Cash</field>
+    </record>
+
+    <!-- 4 + 6. Receivables & Payables, between Vendors and Accounting. -->
+    <menuitem id="menu_x4u_receivable_payable" name="Receivables &amp; Payables" parent="account.menu_finance"
+              sequence="3" groups="account.group_account_invoice,account.group_account_readonly"/>
+    <menuitem id="menu_x4u_customer_due" parent="menu_x4u_receivable_payable" action="x4u_customer_due_action"
+              sequence="10"/>
+    <menuitem id="menu_x4u_vendor_due" parent="menu_x4u_receivable_payable" action="x4u_vendor_due_action"
+              sequence="20"/>
+    <menuitem id="menu_x4u_customer_balance" parent="menu_x4u_receivable_payable" action="x4u_customer_balance_action"
+              sequence="30"/>
+    <menuitem id="menu_x4u_vendor_balance" parent="menu_x4u_receivable_payable" action="x4u_vendor_balance_action"
+              sequence="40"/>
+    <record id="account_due_list.menu_action_invoice_payments" model="ir.ui.menu">
+        <field name="name">Payments and Due List</field>
+        <field name="parent_id" ref="menu_x4u_receivable_payable"/>
+        <field name="sequence">50</field>
+    </record>
+    <menuitem id="menu_x4u_aged_partner_balance" name="Aged Partner Balance" parent="menu_x4u_receivable_payable"
+              action="account_financial_report.action_aged_partner_balance_wizard" sequence="60"/>
+    <menuitem id="menu_x4u_open_items" name="Open Items" parent="menu_x4u_receivable_payable"
+              action="account_financial_report.action_open_items_wizard" sequence="70"/>
+</odoo>

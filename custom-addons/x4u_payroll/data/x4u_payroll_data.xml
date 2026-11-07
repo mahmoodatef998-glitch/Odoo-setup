@@ -1,0 +1,191 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <!-- Categories -->
+    <record id="categ_basic" model="hr.salary.rule.category">
+        <field name="name">Basic</field>
+        <field name="code">BASIC</field>
+    </record>
+    <record id="categ_allowance" model="hr.salary.rule.category">
+        <field name="name">Allowances</field>
+        <field name="code">ALW</field>
+    </record>
+    <record id="categ_gross" model="hr.salary.rule.category">
+        <field name="name">Gross</field>
+        <field name="code">GROSS</field>
+    </record>
+    <record id="categ_deduction" model="hr.salary.rule.category">
+        <field name="name">Deductions</field>
+        <field name="code">DED</field>
+    </record>
+    <record id="categ_net" model="hr.salary.rule.category">
+        <field name="name">Net</field>
+        <field name="code">NET</field>
+    </record>
+    <record id="categ_provision" model="hr.salary.rule.category">
+        <field name="name">Company Provisions</field>
+        <field name="code">PROV</field>
+    </record>
+
+    <!-- Amounts per contract (Contract › Advantages) -->
+    <record id="advantage_housing" model="hr.contract.advantage.template">
+        <field name="name">Housing Allowance</field>
+        <field name="code">HOUSING</field>
+        <field name="lower_bound">0</field>
+        <field name="upper_bound">10000000</field>
+    </record>
+    <record id="advantage_transport" model="hr.contract.advantage.template">
+        <field name="name">Transportation Allowance</field>
+        <field name="code">TRANSPORT</field>
+        <field name="lower_bound">0</field>
+        <field name="upper_bound">10000000</field>
+    </record>
+    <record id="advantage_other" model="hr.contract.advantage.template">
+        <field name="name">Other Allowance</field>
+        <field name="code">OTHER_ALW</field>
+        <field name="lower_bound">0</field>
+        <field name="upper_bound">10000000</field>
+    </record>
+    <record id="advantage_air_ticket" model="hr.contract.advantage.template">
+        <field name="name">Air Ticket (yearly amount)</field>
+        <field name="code">AIR_TICKET</field>
+        <field name="lower_bound">0</field>
+        <field name="upper_bound">10000000</field>
+    </record>
+
+    <!-- Earnings -->
+    <record id="rule_basic" model="hr.salary.rule">
+        <field name="name">Basic Salary</field>
+        <field name="code">BASIC</field>
+        <field name="sequence">10</field>
+        <field name="category_id" ref="categ_basic"/>
+        <field name="condition_select">none</field>
+        <field name="amount_select">code</field>
+        <field name="amount_python_compute">result = contract.wage</field>
+    </record>
+    <record id="rule_housing" model="hr.salary.rule">
+        <field name="name">Housing Allowance</field>
+        <field name="code">HOUSING</field>
+        <field name="sequence">20</field>
+        <field name="category_id" ref="categ_allowance"/>
+        <field name="condition_select">none</field>
+        <field name="amount_select">code</field>
+        <field name="amount_python_compute">result = current_contract.advantages.HOUSING</field>
+    </record>
+    <record id="rule_transport" model="hr.salary.rule">
+        <field name="name">Transportation Allowance</field>
+        <field name="code">TRANSPORT</field>
+        <field name="sequence">21</field>
+        <field name="category_id" ref="categ_allowance"/>
+        <field name="condition_select">none</field>
+        <field name="amount_select">code</field>
+        <field name="amount_python_compute">result = current_contract.advantages.TRANSPORT</field>
+    </record>
+    <record id="rule_other_allowance" model="hr.salary.rule">
+        <field name="name">Other Allowance</field>
+        <field name="code">OTHER_ALW</field>
+        <field name="sequence">22</field>
+        <field name="category_id" ref="categ_allowance"/>
+        <field name="condition_select">none</field>
+        <field name="amount_select">code</field>
+        <field name="amount_python_compute">result = current_contract.advantages.OTHER_ALW</field>
+    </record>
+    <record id="rule_gross" model="hr.salary.rule">
+        <field name="name">Gross Salary</field>
+        <field name="code">GROSS</field>
+        <field name="sequence">30</field>
+        <field name="category_id" ref="categ_gross"/>
+        <field name="condition_select">none</field>
+        <field name="amount_select">code</field>
+        <field name="amount_python_compute">result = categories.BASIC + categories.ALW</field>
+    </record>
+
+    <!-- Deductions (negative) -->
+    <record id="rule_absence" model="hr.salary.rule">
+        <field name="name">Unpaid Days</field>
+        <field name="code">ABSENCE</field>
+        <field name="sequence">40</field>
+        <field name="category_id" ref="categ_deduction"/>
+        <field name="condition_select">none</field>
+        <field name="amount_select">code</field>
+        <field name="amount_python_compute">days = inputs.ABSENCE_DAYS and inputs.ABSENCE_DAYS.amount or 0.0
+result = -round(GROSS / 30.0 * days, 2)</field>
+    </record>
+    <record id="rule_advance" model="hr.salary.rule">
+        <field name="name">Salary Advance / Loan Recovery</field>
+        <field name="code">ADVANCE</field>
+        <field name="sequence">41</field>
+        <field name="category_id" ref="categ_deduction"/>
+        <field name="condition_select">none</field>
+        <field name="amount_select">code</field>
+        <field name="amount_python_compute">result = -(inputs.ADVANCE and inputs.ADVANCE.amount or 0.0)</field>
+    </record>
+
+    <!-- Inputs HR fills on each payslip -->
+    <record id="input_absence_days" model="hr.rule.input">
+        <field name="name">Unpaid days</field>
+        <field name="code">ABSENCE_DAYS</field>
+        <field name="input_id" ref="rule_absence"/>
+    </record>
+    <record id="input_advance" model="hr.rule.input">
+        <field name="name">Advance / loan to recover</field>
+        <field name="code">ADVANCE</field>
+        <field name="input_id" ref="rule_advance"/>
+    </record>
+
+    <!-- Net pay: what the bank pays on the WPS run -->
+    <record id="rule_net" model="hr.salary.rule">
+        <field name="name">Net Salary</field>
+        <field name="code">NET</field>
+        <field name="sequence">50</field>
+        <field name="category_id" ref="categ_net"/>
+        <field name="condition_select">none</field>
+        <field name="amount_select">code</field>
+        <field name="amount_python_compute">result = categories.BASIC + categories.ALW + categories.DED</field>
+    </record>
+
+    <!-- Company provisions, booked every month, not on the payslip (spec x4u_payroll §3) -->
+    <record id="rule_eosb" model="hr.salary.rule">
+        <field name="name">End of Service Provision</field>
+        <field name="code">EOSB</field>
+        <field name="sequence">60</field>
+        <field name="category_id" ref="categ_provision"/>
+        <field name="appears_on_payslip" eval="False"/>
+        <field name="condition_select">none</field>
+        <field name="amount_select">code</field>
+        <field name="amount_python_compute"># UAE Labour Law 2021: 21 days' basic per year for the first 5 years, 30 days after; daily wage = basic / 30.
+start = employee.service_start_date or contract.date_start
+years = start and (payslip.date_to - start).days / 365.25 or 0.0
+days = 30 if years >= 5 else 21
+result = round(contract.wage / 30.0 * days / 12.0, 2)</field>
+    </record>
+    <record id="rule_leave_salary" model="hr.salary.rule">
+        <field name="name">Leave Salary Provision</field>
+        <field name="code">LEAVE_SAL</field>
+        <field name="sequence">61</field>
+        <field name="category_id" ref="categ_provision"/>
+        <field name="appears_on_payslip" eval="False"/>
+        <field name="condition_select">none</field>
+        <field name="amount_select">code</field>
+        <field name="amount_python_compute"># 30 days a year on the basic salary: basic / 30 x 30 / 12.
+result = round(contract.wage / 12.0, 2)</field>
+    </record>
+    <record id="rule_air_ticket" model="hr.salary.rule">
+        <field name="name">Air Ticket Provision</field>
+        <field name="code">AIR_TICKET</field>
+        <field name="sequence">62</field>
+        <field name="category_id" ref="categ_provision"/>
+        <field name="appears_on_payslip" eval="False"/>
+        <field name="condition_select">none</field>
+        <field name="amount_select">code</field>
+        <field name="amount_python_compute">result = round(current_contract.advantages.AIR_TICKET / 12.0, 2)</field>
+    </record>
+
+    <record id="structure_uae" model="hr.payroll.structure">
+        <field name="name">4U UAE Salary</field>
+        <field name="code">X4U_UAE</field>
+        <field name="rule_ids" eval="[Command.set([
+            ref('rule_basic'), ref('rule_housing'), ref('rule_transport'), ref('rule_other_allowance'),
+            ref('rule_gross'), ref('rule_absence'), ref('rule_advance'), ref('rule_net'),
+            ref('rule_eosb'), ref('rule_leave_salary'), ref('rule_air_ticket')])]"/>
+    </record>
+</odoo>

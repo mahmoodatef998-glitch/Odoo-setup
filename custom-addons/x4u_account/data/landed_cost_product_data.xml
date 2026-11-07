@@ -1,0 +1,43 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- noupdate: the Accountant may change taxes or split methods; upgrades keep them. -->
+<odoo noupdate="1">
+    <!-- Spec §10: split by value (customs and insurance are charged on value), clearing equally per line. -->
+    <record id="product_landed_freight" model="product.product">
+        <field name="name">Freight</field>
+        <field name="type">service</field>
+        <field name="categ_id" ref="categ_landed_freight"/>
+        <field name="landed_cost_ok" eval="True"/>
+        <field name="split_method_landed_cost">by_current_cost_price</field>
+        <field name="sale_ok" eval="False"/>
+        <field name="purchase_ok" eval="True"/>
+    </record>
+    <record id="product_landed_insurance" model="product.product">
+        <field name="name">Shipment Insurance</field>
+        <field name="type">service</field>
+        <field name="categ_id" ref="categ_landed_insurance"/>
+        <field name="landed_cost_ok" eval="True"/>
+        <field name="split_method_landed_cost">by_current_cost_price</field>
+        <field name="sale_ok" eval="False"/>
+        <field name="purchase_ok" eval="True"/>
+    </record>
+    <record id="product_landed_clearing" model="product.product">
+        <field name="name">Clearing &amp; Documentation</field>
+        <field name="type">service</field>
+        <field name="categ_id" ref="categ_landed_clearing"/>
+        <field name="landed_cost_ok" eval="True"/>
+        <field name="split_method_landed_cost">equal</field>
+        <field name="sale_ok" eval="False"/>
+        <field name="purchase_ok" eval="True"/>
+    </record>
+    <!-- Customs duty is paid to Customs without VAT; the import VAT is a separate, recoverable tax. -->
+    <record id="product_landed_customs" model="product.product">
+        <field name="name">Customs Duty</field>
+        <field name="type">service</field>
+        <field name="categ_id" ref="categ_landed_customs"/>
+        <field name="landed_cost_ok" eval="True"/>
+        <field name="split_method_landed_cost">by_current_cost_price</field>
+        <field name="sale_ok" eval="False"/>
+        <field name="purchase_ok" eval="True"/>
+        <field name="supplier_taxes_id" eval="[Command.clear()]"/>
+    </record>
+</odoo>

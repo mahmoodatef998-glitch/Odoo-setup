@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <!-- Creating it adds a "PDC Cheque" line to every bank journal (mode "multi"). -->
+    <record id="account_payment_method_pdc_out" model="account.payment.method">
+        <field name="name">PDC Cheque</field>
+        <field name="code">x4u_pdc</field>
+        <field name="payment_type">outbound</field>
+    </record>
+</odoo>

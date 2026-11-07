@@ -1,0 +1,84 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <!-- Spec §5: Receivables & Payables. The due lists reuse OCA account_due_list (+ days overdue). -->
+    <record id="x4u_customer_due_action" model="ir.actions.act_window">
+        <field name="name">Customer Due List</field>
+        <field name="res_model">account.move.line</field>
+        <field name="view_mode">list,pivot,graph</field>
+        <field name="view_ids" eval="[Command.clear(),
+            Command.create({'view_mode': 'list', 'view_id': ref('account_due_list.view_payments_tree')}),
+            Command.create({'view_mode': 'pivot', 'view_id': ref('account_due_list.view_payments_pivot')}),
+            Command.create({'view_mode': 'graph', 'view_id': ref('account_due_list.view_payments_graph')})]"/>
+        <field name="search_view_id" ref="account_due_list.view_payments_filter"/>
+        <field name="domain">[('account_id.account_type', '=', 'asset_receivable'), ('parent_state', '=', 'posted'),
+            ('reconciled', '=', False), ('balance', '!=', 0)]</field>
+        <field name="help" type="html">
+            <p class="o_view_nocontent_smiling_face">No customer amounts due</p>
+            <p>Every open customer invoice and unapplied payment, with its due date and days overdue.</p>
+        </field>
+    </record>
+
+    <record id="x4u_vendor_due_action" model="ir.actions.act_window">
+        <field name="name">Vendor Due List</field>
+        <field name="res_model">account.move.line</field>
+        <field name="view_mode">list,pivot,graph</field>
+        <field name="view_ids" eval="[Command.clear(),
+            Command.create({'view_mode': 'list', 'view_id': ref('account_due_list.view_payments_tree')}),
+            Command.create({'view_mode': 'pivot', 'view_id': ref('account_due_list.view_payments_pivot')}),
+            Command.create({'view_mode': 'graph', 'view_id': ref('account_due_list.view_payments_graph')})]"/>
+        <field name="search_view_id" ref="account_due_list.view_payments_filter"/>
+        <field name="domain">[('account_id.account_type', '=', 'liability_payable'), ('parent_state', '=', 'posted'),
+            ('reconciled', '=', False), ('balance', '!=', 0)]</field>
+        <field name="help" type="html">
+            <p class="o_view_nocontent_smiling_face">Nothing due to vendors</p>
+            <p>Every open vendor invoice and unapplied payment, with its due date and days overdue.</p>
+        </field>
+    </record>
+
+    <!-- Balances per partner; select partners, then Action › Partner Outstanding / Activity Statement. -->
+    <record id="x4u_partner_balance_view_list" model="ir.ui.view">
+        <field name="name">res.partner.list.x4u.balance</field>
+        <field name="model">res.partner</field>
+        <field name="priority">100</field>
+        <field name="arch" type="xml">
+            <list string="Balances" create="0">
+                <field name="display_name" string="Partner"/>
+                <field name="vat" optional="show"/>
+                <field name="phone" optional="show"/>
+                <field name="user_id" optional="hide"/>
+                <field name="currency_id" column_invisible="1"/>
+                <field name="credit" string="Receivable" widget="monetary"/>
+                <field name="debit" string="Payable" widget="monetary"/>
+                <field name="credit_limit" optional="hide"/>
+            </list>
+        </field>
+    </record>
+
+    <record id="x4u_customer_balance_action" model="ir.actions.act_window">
+        <field name="name">Customer Balances</field>
+        <field name="res_model">res.partner</field>
+        <field name="view_mode">list,form</field>
+        <field name="domain">[('credit', '>', 0)]</field>
+        <field name="context">{'res_partner_search_mode': 'customer', 'create': False}</field>
+        <field name="view_ids" eval="[Command.clear(),
+            Command.create({'view_mode': 'list', 'view_id': ref('x4u_partner_balance_view_list')})]"/>
+        <field name="help" type="html">
+            <p class="o_view_nocontent_smiling_face">No customer owes us anything</p>
+            <p>Select customers, then <b>Action › Partner Outstanding Statement</b> to send them their statement.</p>
+        </field>
+    </record>
+
+    <record id="x4u_vendor_balance_action" model="ir.actions.act_window">
+        <field name="name">Vendor Balances</field>
+        <field name="res_model">res.partner</field>
+        <field name="view_mode">list,form</field>
+        <field name="domain">[('debit', '>', 0)]</field>
+        <field name="context">{'res_partner_search_mode': 'supplier', 'create': False}</field>
+        <field name="view_ids" eval="[Command.clear(),
+            Command.create({'view_mode': 'list', 'view_id': ref('x4u_partner_balance_view_list')})]"/>
+        <field name="help" type="html">
+            <p class="o_view_nocontent_smiling_face">We owe no vendor anything</p>
+            <p>Select vendors, then <b>Action › Partner Outstanding Statement</b> to check their balance.</p>
+        </field>
+    </record>
+</odoo>

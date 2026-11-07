@@ -152,7 +152,8 @@
         <field name="domain">[('state', '=', 'sale')]</field>
         <field name="context">{'create': False}</field>
     </record>
-    <menuitem id="menu_x4u_sale_order_accounting" parent="account.menu_finance_receivables"
+    <!-- Accounting › Customers › Sales Section (the user, 2026-11-07). -->
+    <menuitem id="menu_x4u_sale_order_accounting" name="Sales Section" parent="account.menu_finance_receivables"
               action="x4u_sale_order_accounting_action" sequence="10" groups="account.group_account_invoice"/>
     <menuitem id="menu_x4u_sale_proforma_accounting" parent="account.menu_finance_receivables"
               action="x4u_sale_proforma_action" sequence="11" groups="account.group_account_invoice,account.group_account_readonly"/>

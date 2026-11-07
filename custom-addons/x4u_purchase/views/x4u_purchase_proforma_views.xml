@@ -151,7 +151,8 @@
         <field name="domain">[('state', 'in', ('purchase', 'done'))]</field>
         <field name="context">{'create': False}</field>
     </record>
-    <menuitem id="menu_x4u_purchase_order_accounting" parent="account.menu_finance_payables"
+    <!-- Accounting › Vendors › DR (debit; the user, 2026-11-07). -->
+    <menuitem id="menu_x4u_purchase_order_accounting" name="DR" parent="account.menu_finance_payables"
               action="x4u_purchase_order_accounting_action" sequence="10" groups="account.group_account_invoice"/>
     <menuitem id="menu_x4u_purchase_proforma_accounting" parent="account.menu_finance_payables"
               action="x4u_purchase_proforma_action" sequence="11" groups="account.group_account_invoice,account.group_account_readonly"/>
