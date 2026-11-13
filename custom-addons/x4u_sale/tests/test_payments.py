@@ -7,7 +7,8 @@ from odoo.tests import Form, TransactionCase, new_test_user, tagged
 
 @tagged("post_install", "-at_install")
 class TestSalePayments(TransactionCase):
-    """Spec §6 / §9 tests 1, 7-13: the customer PO, the Accountant's PI, the tax invoice."""
+    """Spec v0.7 §0 (O1-O10) and §6: the Salesperson sends the customer PO and the first payment,
+    the Accountant checks, records and confirms; a PI for each payment; one tax invoice."""
 
     @classmethod
     def setUpClass(cls):
@@ -29,7 +30,6 @@ class TestSalePayments(TransactionCase):
         )
         cls.term = cls.env.ref("x4u_setup_base.payment_term_30_30_40")
         cls.custom = cls.env.ref("x4u_sale.payment_term_custom")
-        cls.lpo_type = cls.env.ref("x4u_sale.mail_activity_type_lpo")
         cls.check_type = cls.env.ref("x4u_sale.mail_activity_type_po_check")
         cls.fix_type = cls.env.ref("x4u_sale.mail_activity_type_po_fix")
         cls.accountant = new_test_user(
@@ -60,35 +60,36 @@ class TestSalePayments(TransactionCase):
             }
         )
 
-    def _attach_po(self, order):
-        attachment = self.env["ir.attachment"].create(
-            {"name": "PO-123.pdf", "datas": base64.b64encode(b"%PDF-1.4"), "res_model": "sale.order", "res_id": order.id}
+    def _file(self, name, order):
+        return self.env["ir.attachment"].with_user(self.salesperson).create(
+            {"name": name, "datas": base64.b64encode(b"%PDF-1.4"), "res_model": "sale.order", "res_id": order.id}
         )
+
+    def _attach_po(self, order):
         order.write(
             {
                 "client_order_ref": "PO-123",
                 "x4u_lpo_date": fields.Date.today(),
-                "x4u_lpo_attachment_ids": [Command.set(attachment.ids)],
+                "x4u_lpo_attachment_ids": [Command.set(self._file("PO-123.pdf", order).ids)],
             }
         )
 
-    def _sell(self, term=None, match=True):
-        """Confirmed by the Salesperson when the customer agrees, then the LPO; the Accountant checks it."""
+    def _attach_receipt(self, order, name="Transfer-1.pdf"):
+        order.write({"x4u_payment_proof_ids": [Command.link(self._file(name, order).id)]})
+
+    def _send(self, term=None):
+        """The Salesperson: the quotation with the customer PO and the first payment receipt."""
         order = self._quote(term)
-        order.action_confirm()
         self._attach_po(order)
+        if order.x4u_advance_due:
+            self._attach_receipt(order)
+        order.action_x4u_send_to_accountant()
         self.assertEqual(order.amount_total, 52500.0)
-        if match:
-            order.with_user(self.accountant).action_x4u_po_match()
-        return order.with_env(self.env)
+        return order
 
-    def _pi(self, order):
-        action = order.with_user(self.accountant).action_x4u_create_proforma()
-        return self.env["x4u.sale.proforma"].browse(action["res_id"])
-
-    def _pay(self, proforma, amount=None):
-        """The Accountant: Register Payment on the PI, then Confirm."""
-        action = proforma.with_user(self.accountant).action_register_payment()
+    def _pay(self, order, amount=None):
+        """The Accountant: Register Payment on the order, then Confirm the payment (its PI comes)."""
+        action = order.with_user(self.accountant).action_x4u_register_payment()
         payment = self.env["account.payment"].with_user(self.accountant).browse(action["res_id"])
         if amount is not None:
             payment.amount = amount
@@ -96,9 +97,19 @@ class TestSalePayments(TransactionCase):
         self.env.invalidate_all()
         return payment
 
-    def _tax_invoice(self, proforma):
-        """The Accountant: Create Tax Invoice on the PI, then Confirm."""
-        action = proforma.with_user(self.accountant).action_create_tax_invoice()
+    def _sell(self, term=None):
+        """Sent by the Salesperson; the Accountant: PO Matches, the first payment, Confirm."""
+        order = self._send(term)
+        as_accountant = order.with_user(self.accountant)
+        as_accountant.action_x4u_po_match()
+        if order.x4u_advance_due:
+            self._pay(order)
+        as_accountant.action_confirm()
+        return order.with_env(self.env)
+
+    def _tax_invoice(self, order):
+        """The Accountant: Create Tax Invoice on the order, then Confirm."""
+        action = order.with_user(self.accountant).action_x4u_create_tax_invoice()
         invoice = self.env["account.move"].with_user(self.accountant).browse(action["res_id"])
         invoice.action_post()
         self.env.invalidate_all()
@@ -107,98 +118,101 @@ class TestSalePayments(TransactionCase):
     def _todo(self, order, activity_type):
         return order.activity_ids.filtered(lambda activity: activity.activity_type_id == activity_type)
 
-    # 1 (v0.6): Confirm when the customer agrees, then the LPO; only then the Accountant checks it
-    def test_lpo_after_confirm(self):
+    # O2: the quotation goes to the Accountant only with the customer PO and the first payment
+    def test_send_to_accountant(self):
         order = self._quote()
-        order.action_confirm()
-        self.assertEqual((order.state, order.x4u_po_check), ("sale", "waiting"))
-        self.assertTrue(order.locked)
-        self.assertEqual(self._todo(order, self.lpo_type).user_id, self.salesperson)
-        self.assertFalse(self._todo(order, self.check_type))
-        with self.assertRaisesRegex(UserError, "waiting for the customer's LPO"):
-            order.with_user(self.accountant).action_x4u_create_proforma()
-        with self.assertRaises(UserError):
-            order.with_user(self.accountant).action_x4u_po_match()
+        self.assertTrue(order.x4u_advance_due, "30/30/40: a payment comes with the order")
+        with self.assertRaisesRegex(UserError, "customer PO"):
+            order.action_x4u_send_to_accountant()
         self._attach_po(order)
-        self.assertEqual(order.x4u_po_check, "to_check")
-        self.assertFalse(self._todo(order, self.lpo_type))
+        with self.assertRaisesRegex(UserError, "first payment"):
+            order.action_x4u_send_to_accountant()
+        # A file uploaded before it was linked belongs to the order: the Accountant opens it.
+        loose = self.env["ir.attachment"].with_user(self.salesperson).create(
+            {"name": "Transfer-1.pdf", "datas": base64.b64encode(b"%PDF-1.4")}
+        )
+        order.write({"x4u_payment_proof_ids": [Command.link(loose.id)]})
+        self.assertEqual(loose.with_user(self.accountant).read(["name"])[0]["name"], "Transfer-1.pdf")
+        order.action_x4u_send_to_accountant()
+        self.assertEqual((order.state, order.x4u_po_check), ("draft", "to_check"))
         self.assertEqual(self._todo(order, self.check_type).user_id, self.accountant)
-        self.assertTrue(any("LPO PO-123" in (body or "") for body in order.message_ids.mapped("body")))
+        # The Salesperson does not confirm any more, nor changes what the Accountant checks.
         with self.assertRaises(AccessError):
-            order.action_x4u_po_match()
+            order.action_confirm()
+        with self.assertRaisesRegex(UserError, "with the Accountant"):
+            order.write({"order_line": [Command.update(order.order_line.id, {"product_uom_qty": 2})]})
         with self.assertRaises(AccessError):
             order.write({"x4u_po_check": "match"})
-        # A file uploaded before the order was saved belongs to the order: the Accountant opens it.
-        loose = self.env["ir.attachment"].with_user(self.salesperson).create(
-            {"name": "PO-124.pdf", "datas": base64.b64encode(b"%PDF-1.4")}
-        )
-        order.write({"x4u_lpo_attachment_ids": [Command.link(loose.id)]})
-        self.assertEqual(loose.with_user(self.accountant).read(["name"])[0]["name"], "PO-124.pdf")
-        # An LPO that came before the Confirm: straight to the Accountant, no LPO to-do.
-        early = self._quote()
-        self._attach_po(early)
-        early.action_confirm()
-        self.assertEqual(early.x4u_po_check, "to_check")
-        self.assertFalse(self._todo(early, self.lpo_type))
 
-    # 7: no PI before the check; Doesn't Match goes back to the Salesperson; then one PI
-    def test_po_check_before_the_pi(self):
-        order = self._sell(match=False)
-        with self.assertRaises(UserError):
-            self._pi(order)
+    # O3-O5: Doesn't Match goes back; the Accountant confirms after the match and the first payment
+    def test_accountant_confirms(self):
+        order = self._send()
+        as_accountant = order.with_user(self.accountant)
+        with self.assertRaisesRegex(UserError, "check the customer PO"):
+            as_accountant.action_confirm()
         self.env["x4u.sale.po.mismatch"].with_user(self.accountant).create(
             {"order_id": order.id, "reason": "The PO says 400 kVA"}
         ).action_confirm()
         self.assertEqual(order.x4u_po_check, "mismatch")
-        self.assertFalse(self._todo(order, self.check_type))
         fix = self._todo(order, self.fix_type)
         self.assertEqual(fix.user_id, self.salesperson)
         self.assertIn("400 kVA", fix.summary)
-        order.with_user(self.salesperson).action_x4u_po_recheck()
+        # The Salesperson fixes it with the customer and sends it again.
+        order.write({"order_line": [Command.update(order.order_line.id, {"name": "Generator 500 kVA, as on the PO"})]})
+        order.action_x4u_send_to_accountant()
         self.assertEqual(order.x4u_po_check, "to_check")
         self.assertFalse(self._todo(order, self.fix_type))
-        self.assertEqual(self._todo(order, self.check_type).user_id, self.accountant)
-        order.with_user(self.accountant).action_x4u_po_match()
+        as_accountant.action_x4u_po_match()
         self.assertEqual(order.x4u_po_check_user_id, self.accountant)
-        moves_before = self.env["account.move"].search_count([])
-        proforma = self._pi(order)
-        self.assertEqual(proforma.name, "%s-PI" % order.name)
-        self.assertEqual(proforma.schedule_ids.mapped("amount_total"), [15750.0, 15750.0, 21000.0])
-        self.assertEqual(proforma.schedule_ids.mapped("amount_tax"), [750.0, 750.0, 1000.0])
-        self.assertEqual(proforma.schedule_ids.mapped("trigger"), ["order", "progress", "delivery"])
-        self.assertEqual((proforma.amount_due_now, proforma.next_payment), (15750.0, "1/3"))
-        self.assertEqual(self.env["account.move"].search_count([]), moves_before)
-        self.assertFalse(order.invoice_ids)
-        html = self.env["ir.actions.report"]._render_qweb_html("x4u_sale.action_report_proforma", proforma.ids)[0]
-        self.assertIn(b"This is not a tax invoice", html)
-        self.assertIn(proforma.name.encode(), html)
-        with self.assertRaises(UserError):
-            self._pi(order)
+        with self.assertRaisesRegex(UserError, "first payment"):
+            as_accountant.action_confirm()
+        moves_before = self.env["account.move"].search_count([("move_type", "=", "out_invoice")])
+        payment = self._pay(order)
+        self.assertEqual((payment.amount, payment.x4u_sale_order_id), (15750.0, order))
+        proforma = payment.x4u_proforma_id
+        self.assertEqual(proforma.name, "%s-PI1" % order.name)
+        self.assertEqual(
+            (proforma.amount_payment, proforma.amount_paid, proforma.amount_remaining), (15750.0, 15750.0, 36750.0)
+        )
+        as_accountant.action_confirm()
+        self.assertEqual(order.state, "sale")
+        self.assertTrue(order.locked)
+        self.assertFalse(self._todo(order, self.check_type))
+        self.assertEqual(self.env["account.move"].search_count([("move_type", "=", "out_invoice")]), moves_before)
 
-    # 8: payments on the PI, paid in the order of the schedule; the PI stays open
-    def test_payments_on_the_pi(self):
+    # O2 / O5: terms with no payment with the order go with the customer PO only
+    def test_no_advance_terms(self):
+        order = self._quote(self.env.ref("x4u_setup_base.payment_term_60_days"))
+        self.assertFalse(order.x4u_advance_due)
+        self._attach_po(order)
+        order.action_x4u_send_to_accountant()
+        order.with_user(self.accountant).action_x4u_po_match()
+        order.with_user(self.accountant).action_confirm()
+        self.assertEqual(order.state, "sale")
+        self.assertFalse(order.with_env(self.env).x4u_proforma_ids)
+
+    # O6: a PI for each payment, after it came in: what is paid to date and what is left
+    def test_pi_per_payment(self):
         order = self._sell()
-        proforma = self._pi(order)
-        payment = self._pay(proforma)
-        self.assertEqual(payment.x4u_sale_order_id, order)
-        self.assertEqual(payment.memo, "%s · 1/3" % proforma.name)
-        self.assertEqual(payment.amount, 15750.0)
-        self.assertEqual(proforma.schedule_ids.mapped("state"), ["paid", "not_paid", "not_paid"])
-        self.assertEqual((proforma.state, proforma.amount_paid), ("open", 15750.0))
-        self.assertEqual((order.x4u_amount_advance, order.x4u_amount_remaining), (15750.0, 36750.0))
-        self.assertEqual((proforma.amount_due_now, proforma.next_payment), (15750.0, "2/3"))
+        self._pay(order, amount=10000.0)
+        first, second = order.x4u_proforma_ids.sorted("sequence")
+        self.assertEqual(second.name, "%s-PI2" % order.name)
+        self.assertEqual(
+            (second.amount_payment, second.amount_paid, second.amount_remaining), (10000.0, 25750.0, 26750.0)
+        )
+        self.assertEqual((first.amount_paid, first.amount_remaining), (15750.0, 36750.0), "PI1 keeps its own numbers")
+        self.assertEqual(order.x4u_schedule_ids.mapped("state"), ["paid", "partial", "not_paid"])
+        self.assertEqual((order.x4u_amount_advance, order.x4u_amount_remaining), (25750.0, 26750.0))
+        payment = self._pay(order)
+        self.assertEqual(payment.amount, 5750.0, "the rest of the second payment")
+        self.assertEqual(payment.x4u_proforma_id.name, "%s-PI3" % order.name)
+        html = self.env["ir.actions.report"]._render_qweb_html("x4u_sale.action_report_proforma", second.ids)[0]
+        self.assertIn(b"This is not a tax invoice", html)
+        self.assertIn(b"Remaining", html)
+        self.assertIn(second.name.encode(), html)
         self.assertFalse(order.invoice_ids)
-        self._pay(proforma, amount=10000.0)
-        self.assertEqual(proforma.schedule_ids.mapped("state"), ["paid", "partial", "not_paid"])
-        self.assertEqual(proforma.amount_due_now, 5750.0)
-        # The Accountant asks for another amount, until the next payment comes in.
-        proforma.with_user(self.accountant).amount_due_now = 3000.0
-        self.assertEqual(proforma.amount_due_now, 3000.0)
-        self._pay(proforma)
-        self.assertEqual(proforma.amount_paid, 28750.0)
-        self.assertEqual(proforma.amount_due_now, 2750.0)
 
-    # 9: Custom: the Salesperson writes the schedule (100% in all), it is written on the order
+    # S3: Custom: the Salesperson writes the schedule (100% in all), frozen once sent
     def test_custom_schedule(self):
         order = self._quote(self.custom)
         self.assertEqual(order.x4u_schedule_ids.mapped("percent"), [100.0])
@@ -225,15 +239,17 @@ class TestSalePayments(TransactionCase):
         self.assertIn("20% With Order, 30% Before Shipment, 50% Before Delivery", order.message_ids[0].body)
         self.assertTrue(order.x4u_pay_before_delivery)
         self._attach_po(order)
-        order.action_confirm()
-        # Locked once confirmed: the Sales Manager unlocks it to change the schedule.
+        self._attach_receipt(order)
+        order.action_x4u_send_to_accountant()
         with self.assertRaises(UserError), self.cr.savepoint():
-            first.with_user(self.salesperson).write({"percent": 25.0})
+            order.write({"x4u_schedule_ids": [Command.update(first.id, {"percent": 25.0})]})
         order.with_user(self.accountant).action_x4u_po_match()
-        proforma = self._pi(order.with_env(self.env))
-        self.assertEqual(proforma.schedule_ids.mapped("amount_total"), [10500.0, 15750.0, 26250.0])
+        payment = self._pay(order)
+        self.assertEqual(payment.amount, 10500.0)
+        order.with_user(self.accountant).action_confirm()
+        self.assertEqual(order.x4u_schedule_ids.mapped("amount_total"), [10500.0, 15750.0, 26250.0])
 
-    # The standard terms fill the schedule; the Salesperson cannot change it
+    # S2: the standard terms fill the schedule; the Salesperson cannot change it
     def test_standard_terms_fill_the_schedule(self):
         order = self._quote(self.env.ref("x4u_setup_base.payment_term_50_50"))
         self.assertEqual(order.x4u_schedule_ids.mapped("trigger"), ["order", "delivery"])
@@ -248,25 +264,20 @@ class TestSalePayments(TransactionCase):
         order.payment_term_id = self.env.ref("x4u_setup_base.payment_term_120_days")
         self.assertEqual(order.x4u_schedule_ids.days, 120)
 
-    # 10: the tax invoice from the PI, any time; it applies the payments of this order only
+    # O8: one tax invoice for the whole order; it applies the payments of this order only
     def test_tax_invoice_applies_the_payments(self):
         order = self._sell()
-        proforma = self._pi(order)
-        self._pay(proforma)
-        self._pay(proforma)
+        self._pay(order)
         other = self._sell()
-        self._pay(self._pi(other))
-        invoice = self._tax_invoice(proforma)
+        invoice = self._tax_invoice(order)
         self.assertEqual(invoice.amount_total, 52500.0)
         self.assertEqual(invoice.amount_residual, 21000.0)
         self.assertEqual(invoice.payment_state, "partial")
-        self.assertIn(proforma.name, invoice.message_ids[0].body)
-        self.assertEqual(proforma.state, "invoiced")
+        self.assertIn("%s-PI1" % order.name, invoice.message_ids[0].body)
+        self.assertEqual(set(order.x4u_proforma_ids.mapped("state")), {"invoiced"})
         self.assertEqual(order.x4u_amount_remaining, 21000.0)
         self.assertFalse(order.x4u_final_invoice_paid)
         self.assertEqual(other.x4u_amount_remaining, 36750.0)
-        with self.assertRaises(UserError):
-            proforma.with_user(self.accountant).action_register_payment()
         self.env["account.payment.register"].with_user(self.accountant).with_context(
             active_model="account.move", active_ids=invoice.ids
         ).create({})._create_payments()
@@ -274,37 +285,33 @@ class TestSalePayments(TransactionCase):
         self.assertIn(invoice.payment_state, ("in_payment", "paid"))
         self.assertEqual(order.x4u_amount_remaining, 0.0)
         self.assertTrue(order.x4u_final_invoice_paid)
-        self.assertEqual(proforma.schedule_ids.mapped("state"), ["paid", "paid", "paid"])
+        self.assertEqual(order.x4u_schedule_ids.mapped("state"), ["paid", "paid", "paid"])
 
-    # 11: a cancelled payment is not paid any more; a PI with a payment stays; then PI2
-    def test_cancel_rules(self):
+    # S13: a cancelled payment takes its PI with it; the next payment gets the next number
+    def test_cancel_payment(self):
         order = self._sell()
-        proforma = self._pi(order)
-        payment = self._pay(proforma)
+        payment = self._pay(order)
+        proforma = payment.x4u_proforma_id
         with self.assertRaises(UserError):
-            proforma.with_user(self.accountant).action_cancel()
+            proforma.unlink()
         payment.with_user(self.accountant).action_cancel()
         self.env.invalidate_all()
-        self.assertEqual(proforma.schedule_ids[0].state, "not_paid")
-        self.assertEqual(order.x4u_amount_advance, 0.0)
-        proforma.with_user(self.accountant).action_cancel()
         self.assertEqual(proforma.state, "cancel")
-        self.assertFalse(proforma.schedule_ids)
-        again = self._pi(order)
-        self.assertEqual(again.name, "%s-PI2" % order.name)
-        self.assertEqual(len(again.schedule_ids), 3)
+        self.assertEqual(order.x4u_amount_advance, 15750.0)
+        self.assertEqual(order.x4u_schedule_ids.mapped("state"), ["paid", "not_paid", "not_paid"])
+        again = self._pay(order)
+        self.assertEqual(again.x4u_proforma_id.name, "%s-PI3" % order.name)
+        self.assertEqual(again.x4u_proforma_id.amount_paid, 31500.0)
 
-    # 100% advance: the PI is paid before any invoice, then the tax invoice is paid by it
+    # 100% advance: paid before the Confirm, then the tax invoice is paid by it
     def test_full_advance(self):
         order = self._sell(self.env.ref("x4u_setup_base.payment_term_advance_100"))
-        proforma = self._pi(order)
-        self.assertEqual(proforma.schedule_ids.mapped("trigger"), ["order"])
-        self.assertFalse(proforma.next_payment)
-        self._pay(proforma)
-        self.assertEqual(proforma.state, "paid")
+        self.assertEqual(order.x4u_schedule_ids.mapped("trigger"), ["order"])
+        proforma = order.x4u_proforma_ids
+        self.assertEqual((proforma.amount_payment, proforma.amount_remaining), (52500.0, 0.0))
         self.assertEqual(order.x4u_amount_remaining, 0.0)
         self.assertFalse(order.x4u_final_invoice_paid)
-        invoice = self._tax_invoice(proforma)
+        invoice = self._tax_invoice(order)
         self.assertEqual(invoice.amount_residual, 0.0)
         self.assertEqual(proforma.state, "invoiced")
         self.assertTrue(order.x4u_final_invoice_paid)
@@ -312,35 +319,36 @@ class TestSalePayments(TransactionCase):
     # S12: a due date on a payment is a to-do for the Accountant until that payment is made
     def test_due_dates(self):
         order = self._sell()
-        proforma = self._pi(order)
-        second = proforma.schedule_ids[1]
+        second = order.x4u_schedule_ids[1]
         due = fields.Date.add(fields.Date.today(), days=14)
-        proforma.with_user(self.accountant).write({"schedule_ids": [Command.update(second.id, {"date_due": due})]})
-        todo = proforma.activity_ids
+        order.with_user(self.accountant).write({"x4u_schedule_due_ids": [Command.update(second.id, {"date_due": due})]})
+        todo = order.activity_ids.filtered(lambda a: "Follow up" in (a.summary or ""))
         self.assertEqual((todo.user_id, todo.date_deadline), (self.accountant, due))
         self.assertIn("payment 2/3", todo.summary)
         with self.assertRaises(AccessError):
             second.with_user(self.salesperson).write({"date_due": fields.Date.today()})
-        self._pay(proforma)
-        self.assertTrue(proforma.activity_ids)
-        self._pay(proforma)
-        self.assertFalse(proforma.activity_ids)
+        self._pay(order)
+        self.assertFalse(order.activity_ids.filtered(lambda a: "Follow up" in (a.summary or "")))
 
-    # 12: the Salesperson sees the PI status and the amounts on his orders, not the PI itself
+    # O7: a receipt of a later payment, attached by the Salesperson, tells the Accountant
+    def test_later_receipt_tells_the_accountant(self):
+        order = self._sell()
+        self._attach_receipt(order.with_user(self.salesperson), "Transfer-2.pdf")
+        todo = order.activity_ids.filtered(lambda a: "Payment receipt" in (a.summary or ""))
+        self.assertEqual(todo.user_id, self.accountant)
+
+    # §7: the Salesperson sees the amounts on his orders, not the PIs nor the payments
     def test_salesperson_rights(self):
         order = self._sell()
-        proforma = self._pi(order)
-        self._pay(proforma)
         as_salesperson = order.with_user(self.salesperson)
-        self.assertEqual(as_salesperson.x4u_proforma_state, "open")
         self.assertEqual((as_salesperson.x4u_amount_advance, as_salesperson.x4u_amount_remaining), (15750.0, 36750.0))
-        # No access to the PI at all: no form, no Print, no Send.
+        proforma = order.x4u_proforma_ids
         with self.assertRaises(AccessError):
             proforma.with_user(self.salesperson).read(["name"])
         with self.assertRaises(AccessError):
-            proforma.with_user(self.salesperson).check_access("read")
+            as_salesperson.action_x4u_register_payment()
         with self.assertRaises(AccessError):
-            as_salesperson.action_x4u_create_proforma()
+            as_salesperson.action_x4u_create_tax_invoice()
         wizard = (
             self.env["sale.advance.payment.inv"]
             .with_user(self.salesperson)

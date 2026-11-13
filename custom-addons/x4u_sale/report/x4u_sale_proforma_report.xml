@@ -107,22 +107,27 @@
                         </tr>
                     </tbody>
                 </table>
-                <div class="row justify-content-end" t-if="o.state == 'open' and o.amount_due_now">
+                <!-- v0.7 O6: this PI is for a payment received; what is paid and what is left -->
+                <div class="row justify-content-end">
                     <div class="col-5">
                         <table class="table table-sm">
-                            <tr t-if="o.amount_paid">
-                                <td>Received so far</td>
+                            <tr>
+                                <td>This payment, received <span t-field="o.date"/></td>
+                                <td class="text-end"><span t-field="o.amount_payment"/></td>
+                            </tr>
+                            <tr>
+                                <td>Paid to date</td>
                                 <td class="text-end"><span t-field="o.amount_paid"/></td>
                             </tr>
                             <tr class="fw-bold">
-                                <td>Amount due now<t t-if="o.next_payment"> (payment <t t-out="o.next_payment"/>)</t></td>
-                                <td class="text-end"><span t-field="o.amount_due_now"/></td>
+                                <td>Remaining</td>
+                                <td class="text-end"><span t-field="o.amount_remaining"/></td>
                             </tr>
                         </table>
                     </div>
                 </div>
                 <p t-if="order.payment_term_id">Payment terms: <span t-field="order.payment_term_id.name"/></p>
-                <div t-if="o.x4u_bank_accounts()" class="mt-3">
+                <div t-if="o.amount_remaining and o.x4u_bank_accounts()" class="mt-3">
                     <strong>Bank details</strong>
                     <div t-foreach="o.x4u_bank_accounts()" t-as="bank">
                         <span t-field="bank.bank_id.name"/>
@@ -131,7 +136,7 @@
                         <span t-if="bank.bank_id.bic"> · SWIFT <span t-field="bank.bank_id.bic"/></span>
                     </div>
                 </div>
-                <p class="mt-3">Please quote <strong t-field="o.name"/> with your payment. The tax invoice is issued by our accounts department.</p>
+                <p class="mt-3">Thank you for your payment. Please quote <strong t-field="order.name"/> with the next one. The tax invoice of the whole order is issued by our accounts department.</p>
             </div>
         </t>
     </template>

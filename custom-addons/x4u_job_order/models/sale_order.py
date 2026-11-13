@@ -1,7 +1,7 @@
 from odoo import _, api, fields, models
 from odoo.exceptions import UserError
 
-SUPPLY = [("assemble", "Assemble"), ("ready", "Buy Ready")]
+SUPPLY = [("assemble", "Assembly"), ("ready", "Ready Product")]
 
 
 class SaleOrder(models.Model):
@@ -14,26 +14,45 @@ class SaleOrder(models.Model):
         for order in self:
             order.x4u_ready_order_count = len(order.x4u_ready_order_ids)
 
+    def _x4u_send_problems(self):
+        """x4u_sale spec v0.7 O1: every generator says Assembly or Ready Product, nobody opens an
+        assembly by mistake."""
+        problems = super()._x4u_send_problems()
+        missing = self.order_line.filtered(lambda line: line.x4u_is_generator and not line.x4u_supply)
+        if missing:
+            problems.append(
+                _("Supply (Assembly or Ready Product) for %s", ", ".join(missing.product_id.mapped("display_name")))
+            )
+        return problems
+
     def action_confirm(self):
         # Spec v0.7 G1: a generator bought ready is bought (one request for the complete generator),
         # not assembled from 3 parts.
+        # The Accountant confirms (x4u_sale v0.7 O5) without Sales or Manufacturing rights: x4u_sale
+        # checks him first, the routes and the Job Orders are set up with full rights.
         ready_lines = self.order_line.filtered(lambda line: line.x4u_supply == "ready" and line.x4u_is_generator)
-        if ready_lines:
-            buy = self.env.ref("purchase_stock.route_warehouse0_buy")
-            ready_lines.write({"route_id": buy.id})
-            templates = ready_lines.product_id.product_tmpl_id.sudo().filtered(lambda t: not t.purchase_request)
-            templates.write({"purchase_request": True})
-        res = super().action_confirm()
-        for order in self:
-            productions = order.mrp_production_ids.sudo()
+        res = super(SaleOrder, self.with_context(x4u_ready_lines=ready_lines.ids)).action_confirm()
+        for order in self.sudo():
+            productions = order.mrp_production_ids
             productions._x4u_log("order_opened", document=order, date=order.date_order)
             # Odoo links the sale to the Job Order only after confirming it: fill the card now.
             productions._x4u_fill_generator_card()
             # ...and the customer on the Job Order's analytic account (spec v0.5 A1).
             productions._x4u_job_analytic()
         if ready_lines:
-            ready_lines._x4u_open_ready_orders()
+            ready_lines.sudo()._x4u_open_ready_orders()
         return res
+
+    def _action_confirm(self):
+        # Spec v0.7 G1: a generator bought ready is bought (one request for the complete generator),
+        # not assembled from 3 parts. Here, after x4u_sale's checks, before the procurements.
+        ready_lines = self.env["sale.order.line"].browse(self.env.context.get("x4u_ready_lines") or [])
+        if ready_lines:
+            buy = self.env.ref("purchase_stock.route_warehouse0_buy")
+            ready_lines.sudo().write({"route_id": buy.id})
+            templates = ready_lines.product_id.product_tmpl_id.sudo().filtered(lambda t: not t.purchase_request)
+            templates.write({"purchase_request": True})
+        return super()._action_confirm()
 
     def _action_cancel(self):
         res = super()._action_cancel()
@@ -51,17 +70,18 @@ class SaleOrderLine(models.Model):
     _inherit = "sale.order.line"
 
     x4u_is_generator = fields.Boolean(related="product_id.x4u_is_generator", string="Is Generator")
+    # x4u_sale spec v0.7 O1: no default, the Salesperson chooses before sending to the Accountant.
     x4u_supply = fields.Selection(
-        SUPPLY, string="Supply", default="assemble",
-        help="Assemble: a Job Order with its parts (engine, alternator, body). "
-        "Buy Ready: the complete generator is bought from a supplier and goes to stock as a finished good.",
+        SUPPLY, string="Supply",
+        help="Assembly: a Job Order with its parts (engine, alternator, body). "
+        "Ready Product: the complete generator is bought from a supplier and goes to stock as a finished good.",
     )
 
     @api.constrains("x4u_supply", "product_id")
     def _check_x4u_supply(self):
         for line in self:
             if line.x4u_supply == "ready" and line.product_id and not line.x4u_is_generator:
-                raise UserError(_("Buy Ready is for generators only (%s).", line.product_id.display_name))
+                raise UserError(_("Ready Product is for generators only (%s).", line.product_id.display_name))
 
     def _x4u_open_ready_orders(self):
         """One Ready Job Order per generator on the line, its material request approved and

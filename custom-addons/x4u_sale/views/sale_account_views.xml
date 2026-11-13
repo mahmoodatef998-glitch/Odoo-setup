@@ -7,18 +7,34 @@
         <field name="model">sale.order</field>
         <field name="inherit_id" ref="sale.view_order_form"/>
         <field name="arch" type="xml">
+            <!-- Spec v0.7: the Salesperson sends the PO and the first payment, the Accountant checks
+                 the PO, records the payment and confirms (O2-O5); a PI per payment (O6). -->
             <xpath expr="//button[@id='create_invoice']" position="before">
+                <button name="action_x4u_send_to_accountant" type="object" string="Send to Accountant" class="btn-primary"
+                        groups="sales_team.group_sale_salesman"
+                        invisible="state not in ('draft', 'sent') or x4u_po_check in ('to_check', 'match')"/>
                 <button name="action_x4u_po_match" type="object" string="PO Matches Quotation" class="btn-primary"
                         groups="account.group_account_invoice"
-                        invisible="state != 'sale' or x4u_po_check not in ('to_check', 'mismatch')"/>
+                        invisible="state == 'cancel' or x4u_po_check != 'to_check'"/>
                 <button name="action_x4u_po_mismatch" type="object" string="PO Doesn't Match"
-                        groups="account.group_account_invoice" invisible="state != 'sale' or x4u_po_check != 'to_check'"/>
-                <button name="action_x4u_create_proforma" type="object" string="Create PI" class="btn-primary"
                         groups="account.group_account_invoice"
-                        invisible="state != 'sale' or x4u_po_check != 'match' or x4u_proforma_state in ('open', 'paid', 'invoiced')"/>
-                <button name="action_x4u_po_recheck" type="object" string="Ask the Accountant Again" class="btn-primary"
-                        groups="sales_team.group_sale_salesman" invisible="x4u_po_check != 'mismatch'"
-                        confirm="Did you fix it with the customer (new PO file, or the quotation)? The Accountant checks it again."/>
+                        invisible="state not in ('draft', 'sent') or x4u_po_check not in ('to_check', 'match')"/>
+                <button name="action_x4u_register_payment" type="object" string="Register Payment"
+                        groups="account.group_account_invoice"
+                        invisible="state == 'cancel' or (state != 'sale' and x4u_po_check not in ('to_check', 'match')) or (state == 'sale' and not x4u_amount_remaining)"/>
+                <button name="action_x4u_create_tax_invoice" type="object" string="Create Tax Invoice"
+                        groups="account.group_account_invoice" invisible="state != 'sale' or invoice_status != 'to invoice'"
+                        confirm="Create the tax invoice of the whole order? Confirming it applies the payments received."/>
+            </xpath>
+            <!-- O5: only the Accountant confirms, after PO Matches. -->
+            <xpath expr="(//button[@name='action_confirm'])[1]" position="attributes">
+                <attribute name="groups">account.group_account_invoice</attribute>
+                <attribute name="invisible">state != 'sent' or x4u_po_check != 'match'</attribute>
+            </xpath>
+            <xpath expr="(//button[@name='action_confirm'])[2]" position="attributes">
+                <attribute name="groups">account.group_account_invoice</attribute>
+                <attribute name="invisible">state != 'draft' or x4u_po_check != 'match'</attribute>
+                <attribute name="class">btn-primary</attribute>
             </xpath>
             <xpath expr="//button[@id='create_invoice']" position="attributes">
                 <attribute name="groups">account.group_account_invoice</attribute>
@@ -37,28 +53,28 @@
                 </button>
             </xpath>
             <xpath expr="//group[@name='order_details']/field[@name='payment_term_id']" position="attributes">
-                <attribute name="readonly">locked or x4u_proforma_state in ('open', 'paid', 'invoiced')</attribute>
+                <attribute name="readonly">locked or x4u_amount_advance or x4u_po_check in ('to_check', 'match')</attribute>
             </xpath>
             <xpath expr="//group[@name='order_details']/field[@name='payment_term_id']" position="after">
                 <xpath expr="//page[@name='other_information']//field[@name='client_order_ref']" position="move"/>
-                <field name="x4u_lpo_date" readonly="x4u_po_check == 'match'"/>
-                <field name="x4u_lpo_attachment_ids" widget="many2many_binary" readonly="x4u_po_check == 'match'"/>
+                <field name="x4u_lpo_date" readonly="state == 'sale' or x4u_po_check in ('to_check', 'match')"/>
+                <field name="x4u_lpo_attachment_ids" widget="many2many_binary"
+                       readonly="state == 'sale' or x4u_po_check in ('to_check', 'match')"/>
+                <field name="x4u_advance_due" invisible="1"/>
+                <field name="x4u_payment_proof_ids" widget="many2many_binary" readonly="state == 'cancel'"/>
                 <field name="x4u_po_check" widget="badge" invisible="not x4u_po_check"
-                       decoration-info="x4u_po_check == 'waiting'"
                        decoration-success="x4u_po_check == 'match'" decoration-warning="x4u_po_check == 'to_check'"
                        decoration-danger="x4u_po_check == 'mismatch'"/>
                 <field name="x4u_po_mismatch_reason" invisible="x4u_po_check != 'mismatch'"/>
-                <field name="x4u_proforma_state" widget="badge" invisible="not x4u_proforma_state"
-                       decoration-info="x4u_proforma_state == 'open'" decoration-success="x4u_proforma_state in ('paid', 'invoiced')"/>
             </xpath>
             <xpath expr="//field[@name='client_order_ref']" position="attributes">
-                <attribute name="readonly">x4u_po_check == 'match'</attribute>
+                <attribute name="readonly">state == 'sale' or x4u_po_check in ('to_check', 'match')</attribute>
             </xpath>
             <xpath expr="//page[@name='order_lines']" position="after">
                 <page string="Payment Schedule" name="x4u_payment_schedule">
                     <field name="x4u_schedule_custom" invisible="1"/>
                     <field name="x4u_schedule_ids"
-                           readonly="not x4u_schedule_custom or locked or x4u_proforma_state in ('open', 'paid', 'invoiced')">
+                           readonly="not x4u_schedule_custom or locked or x4u_amount_advance or x4u_po_check in ('to_check', 'match')">
                         <list editable="bottom">
                             <field name="sequence" widget="handle"/>
                             <field name="percent"/>
@@ -75,14 +91,28 @@
                     <div class="text-muted" invisible="x4u_schedule_custom">
                         The schedule comes from the payment terms. Choose Custom in Payment Terms to write your own.
                     </div>
+                    <!-- S12: the Accountant's due dates; a to-do on each date until that payment comes in. -->
+                    <group string="Due Dates (Accountant)" groups="account.group_account_invoice" invisible="state != 'sale'">
+                        <field name="x4u_schedule_due_ids" nolabel="1" colspan="2">
+                            <list editable="bottom" create="0" delete="0">
+                                <field name="percent" readonly="1"/>
+                                <field name="trigger" readonly="1"/>
+                                <field name="currency_id" column_invisible="True"/>
+                                <field name="amount_total" readonly="1"/>
+                                <field name="state" widget="badge" readonly="1"
+                                       decoration-success="state == 'paid'" decoration-warning="state == 'partial'"/>
+                                <field name="date_due" readonly="state == 'paid'"/>
+                            </list>
+                        </field>
+                    </group>
                     <div class="text-danger" invisible="not x4u_schedule_custom or x4u_schedule_percent == 100">
                         Total <field name="x4u_schedule_percent" class="oe_inline"/>%: the payments must add up to 100%.
                     </div>
                 </page>
             </xpath>
             <xpath expr="//field[@name='tax_totals']" position="after">
-                <field name="x4u_amount_advance" invisible="state != 'sale' or not x4u_amount_advance"/>
-                <field name="x4u_amount_remaining" invisible="state != 'sale'"/>
+                <field name="x4u_amount_advance" invisible="not x4u_amount_advance"/>
+                <field name="x4u_amount_remaining" invisible="state != 'sale' and not x4u_amount_advance"/>
             </xpath>
         </field>
     </record>
@@ -93,8 +123,8 @@
         <field name="inherit_id" ref="sale.view_sales_order_filter"/>
         <field name="arch" type="xml">
             <xpath expr="//filter[@name='my_sale_orders_filter']" position="before">
-                <filter name="x4u_po_waiting" string="Waiting for LPO" domain="[('x4u_po_check', '=', 'waiting')]"/>
-                <filter name="x4u_po_to_check" string="Customer PO to Check" domain="[('x4u_po_check', '=', 'to_check')]"/>
+                <filter name="x4u_po_to_check" string="To Approve (Accountant)"
+                        domain="[('state', 'in', ('draft', 'sent')), ('x4u_po_check', 'in', ('to_check', 'match'))]"/>
                 <filter name="x4u_po_mismatch" string="Customer PO Doesn't Match" domain="[('x4u_po_check', '=', 'mismatch')]"/>
                 <separator/>
             </xpath>
@@ -112,8 +142,7 @@
                 <field name="x4u_sale_order_id" options="{'no_create': True}"
                        invisible="partner_type != 'customer' or payment_type != 'inbound'"
                        readonly="state not in ('draft', 'in_process')"/>
-                <field name="x4u_proforma_id" options="{'no_create': True}"
-                       invisible="not x4u_sale_order_id" readonly="state not in ('draft', 'in_process')"/>
+                <field name="x4u_proforma_id" invisible="not x4u_proforma_id"/>
             </xpath>
         </field>
     </record>
@@ -151,7 +180,7 @@
         <field name="arch" type="xml">
             <xpath expr="//block[@name='invoicing_setting_container']" position="inside">
                 <setting id="x4u_sale_accountant" string="Payment to-dos"
-                         help="The Accountant who gets them: check the customer PO of a confirmed order, a PI payment on its due date, a generator ready for its tax invoice.">
+                         help="The Accountant who gets them: a quotation sent with its customer PO and first payment, a payment receipt, a payment on its due date, a generator ready for its tax invoice.">
                     <field name="x4u_accountant_user_id" options="{'no_create': True}"/>
                 </setting>
             </xpath>
@@ -176,11 +205,9 @@
                             <field name="payment_term_id" optional="show"/>
                             <field name="currency_id" column_invisible="True"/>
                             <field name="amount_total" sum="Total"/>
-                            <field name="x4u_po_check" widget="badge" decoration-info="x4u_po_check == 'waiting'"
+                            <field name="x4u_po_check" widget="badge"
                                    decoration-success="x4u_po_check == 'match'" decoration-warning="x4u_po_check == 'to_check'"
                                    decoration-danger="x4u_po_check == 'mismatch'"/>
-                            <field name="x4u_proforma_state" widget="badge"
-                                   decoration-info="x4u_proforma_state == 'open'" decoration-success="x4u_proforma_state in ('paid', 'invoiced')"/>
                             <field name="x4u_amount_advance" optional="show"/>
                             <field name="x4u_amount_remaining"/>
                             <field name="invoice_status" optional="show"/>

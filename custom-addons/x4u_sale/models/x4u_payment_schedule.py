@@ -15,8 +15,8 @@ LINE_STATES = [("not_paid", "Not Paid"), ("partial", "Partially Paid"), ("paid",
 class X4uPaymentScheduleMixin(models.AbstractModel):
     """One payment agreed with the customer or the vendor (spec §6 S3, x4u_purchase P4).
 
-    The concrete models add `order_id` (whose `x4u_schedule_ids` they are) and
-    `proforma_id`; the order gives `_x4u_amount_received()`.
+    The concrete models add `order_id` (whose `x4u_schedule_ids` they are), and the vendor
+    schedule its `proforma_id`; the order gives `_x4u_amount_received()`.
     """
 
     _name = "x4u.payment.schedule.mixin"
@@ -114,7 +114,6 @@ class X4uSaleSchedule(models.Model):
     _description = "Sales Payment Schedule"
 
     order_id = fields.Many2one("sale.order", string="Sales Order", required=True, ondelete="cascade", index=True)
-    proforma_id = fields.Many2one("x4u.sale.proforma", string="PI", index="btree_not_null", ondelete="set null")
     currency_id = fields.Many2one(related="order_id.currency_id")
 
     @api.depends(
@@ -138,7 +137,7 @@ class X4uSaleSchedule(models.Model):
         self._x4u_check_change(set(vals))
         res = super().write(vals)
         if "date_due" in vals:
-            self.sudo().proforma_id._x4u_sync_followup()
+            self.sudo().order_id._x4u_sync_followup()
         return res
 
     def unlink(self):

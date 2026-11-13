@@ -133,6 +133,29 @@ class TestReadyGenerator(X4uJobOrderCommon):
                 }
             )
 
+    # x4u_sale spec v0.7 O1: a generator without Supply (no default) does not go to the Accountant
+    def test_supply_is_required(self):
+        order = self.env["sale.order"].create(
+            {
+                "partner_id": self.customer.id,
+                "warehouse_id": self.warehouse.id,
+                "order_line": [Command.create({"product_id": self.variant.id, "product_uom_qty": 1})],
+            }
+        )
+        line = order.order_line
+        self.assertFalse(line.x4u_supply, "nothing chosen for the Salesperson")
+        attachment = self.env["ir.attachment"].create(
+            {"name": "PO-77.pdf", "datas": "JVBERi0xLjQ=", "res_model": "sale.order", "res_id": order.id}
+        )
+        order.write(
+            {"client_order_ref": "PO-77", "x4u_lpo_date": "2026-11-13", "x4u_lpo_attachment_ids": [Command.set(attachment.ids)]}
+        )
+        with self.assertRaisesRegex(UserError, "Supply"):
+            order.action_x4u_send_to_accountant()
+        line.x4u_supply = "assemble"
+        order.action_x4u_send_to_accountant()
+        self.assertEqual(order.x4u_po_check, "to_check")
+
     def test_assemble_unchanged(self):
         _order, production = self._sell()
         self.assertEqual(len(production), 1)

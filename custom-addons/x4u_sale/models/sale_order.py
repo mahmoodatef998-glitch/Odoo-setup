@@ -2,18 +2,18 @@ from odoo import Command, _, api, fields, models
 from odoo.exceptions import AccessError, UserError, ValidationError
 
 from .x4u_payment_schedule import BEFORE_DELIVERY
-from .x4u_sale_proforma import POSTED_PAYMENT_STATES, PROFORMA_STATES
+from .x4u_sale_proforma import POSTED_PAYMENT_STATES
 
 PO_CHECK_STATES = [
-    ("waiting", "Waiting for LPO"),
-    ("to_check", "To Check"),
-    ("match", "Matches"),
+    ("to_check", "To Approve"),
+    ("match", "PO Matches"),
     ("mismatch", "Doesn't Match"),
 ]
 PO_CHECK_FIELDS = {"x4u_po_check", "x4u_po_check_user_id", "x4u_po_check_date", "x4u_po_mismatch_reason"}
-ACTIVITY_LPO = "x4u_sale.mail_activity_type_lpo"
 ACTIVITY_PO_CHECK = "x4u_sale.mail_activity_type_po_check"
 ACTIVITY_PO_FIX = "x4u_sale.mail_activity_type_po_fix"
+# v0.7 O2: what the Salesperson cannot change while the Accountant has the order.
+FROZEN_FIELDS = {"order_line", "partner_id", "pricelist_id", "payment_term_id", "x4u_schedule_ids", "currency_id"}
 
 
 def x4u_own_attachments(records, field):
@@ -28,26 +28,39 @@ def x4u_own_attachments(records, field):
 class SaleOrder(models.Model):
     _inherit = "sale.order"
 
-    # §3: the LPO is the customer's PO; Confirm needs its number and file.
+    # §3: the LPO is the customer's PO.
     client_order_ref = fields.Char(string="LPO Number")
     x4u_lpo_date = fields.Date(string="LPO Date", copy=False)
     x4u_lpo_attachment_ids = fields.Many2many(
         "ir.attachment", "x4u_sale_order_lpo_attachment_rel", "order_id", "attachment_id",
         string="LPO File", copy=False,
     )
-    # §6 S5: the Accountant checks the PO against the quotation before the PI.
+    # v0.7 O2 / O7: the transfer receipts (or cheque copies) of the customer's payments.
+    x4u_payment_proof_ids = fields.Many2many(
+        "ir.attachment", "x4u_sale_order_payment_proof_rel", "order_id", "attachment_id",
+        string="Payment Receipts", copy=False,
+        help="The transfer receipt (or the cheque) of each payment: the first one goes to the Accountant with the "
+        "customer PO; a new one later tells the Accountant to record it.",
+    )
+    # S5 / v0.7 O3: the Accountant checks the PO against the quotation before the Confirm.
     x4u_po_check = fields.Selection(
-        PO_CHECK_STATES, string="Customer PO Check", copy=False, readonly=True, tracking=True
+        PO_CHECK_STATES, string="Accountant", copy=False, readonly=True, tracking=True
     )
     x4u_po_check_user_id = fields.Many2one("res.users", string="PO Checked By", copy=False, readonly=True)
     x4u_po_check_date = fields.Datetime(string="PO Checked On", copy=False, readonly=True)
     x4u_po_mismatch_reason = fields.Text(string="Why It Doesn't Match", copy=False, readonly=True)
+    x4u_advance_due = fields.Boolean(
+        string="Payment with the Order", compute="_compute_x4u_advance_due",
+        help="The terms ask for a payment with the order: it comes before the Accountant confirms it.",
+    )
     # §6 S2 / S3: the payments agreed in the quotation, from the terms or Custom.
     x4u_schedule_ids = fields.One2many("x4u.sale.schedule", "order_id", string="Payment Schedule", copy=True)
+    # S12: the same lines for the Accountant, who sets their due dates (and nothing else).
+    x4u_schedule_due_ids = fields.One2many("x4u.sale.schedule", "order_id", string="Payment Due Dates")
     x4u_schedule_custom = fields.Boolean(related="payment_term_id.x4u_custom")
     x4u_schedule_percent = fields.Float(string="Total %", compute="_compute_x4u_schedule_percent")
     x4u_pay_before_delivery = fields.Boolean(compute="_compute_x4u_pay_before_delivery")
-    # §6 S6: the Accountant's PI; salespeople see its status and the amounts only.
+    # v0.7 O6: a PI for each payment, the Accountant's; salespeople see the amounts only.
     x4u_proforma_ids = fields.One2many(
         "x4u.sale.proforma", "order_id", string="PIs",
         groups="account.group_account_invoice,account.group_account_readonly",
@@ -55,7 +68,6 @@ class SaleOrder(models.Model):
     x4u_proforma_count = fields.Integer(
         compute="_compute_x4u_proforma_count", groups="account.group_account_invoice,account.group_account_readonly"
     )
-    x4u_proforma_state = fields.Selection(PROFORMA_STATES, string="PI", compute="_compute_x4u_proforma_state")
     x4u_advance_payment_ids = fields.One2many(
         "account.payment", "x4u_sale_order_id", string="Advance Payments",
         groups="account.group_account_invoice,account.group_account_readonly",
@@ -79,15 +91,15 @@ class SaleOrder(models.Model):
             else:
                 order.x4u_pay_before_delivery = order.payment_term_id.x4u_pay_before_delivery
 
+    @api.depends("x4u_schedule_ids.trigger")
+    def _compute_x4u_advance_due(self):
+        for order in self:
+            order.x4u_advance_due = "order" in order.x4u_schedule_ids.mapped("trigger")
+
     @api.depends("x4u_proforma_ids")
     def _compute_x4u_proforma_count(self):
         for order in self:
             order.x4u_proforma_count = len(order.x4u_proforma_ids)
-
-    @api.depends("x4u_proforma_ids.state")
-    def _compute_x4u_proforma_state(self):
-        for order in self:
-            order.x4u_proforma_state = order._x4u_active_proforma().state
 
     @api.depends(
         "amount_total",
@@ -132,8 +144,13 @@ class SaleOrder(models.Model):
         )
 
     def _x4u_active_proforma(self):
+        """The last PI that still counts (the payments' PIs, v0.7 O6)."""
         self.ensure_one()
-        return self.sudo().x4u_proforma_ids.filtered(lambda proforma: proforma.state != "cancel")[:1]
+        return self.sudo().x4u_proforma_ids.filtered(lambda proforma: proforma.state != "cancel").sorted("sequence")[-1:]
+
+    def _x4u_first_payment_received(self):
+        self.ensure_one()
+        return bool(self.sudo().x4u_advance_payment_ids.filtered(lambda p: p.state in POSTED_PAYMENT_STATES))
 
     # ------------------------------------------------------------------
     # Payment schedule (S2 / S3)
@@ -177,13 +194,43 @@ class SaleOrder(models.Model):
         if self.locked:
             raise UserError(_("%s is locked: the Sales Manager unlocks it to change the payment terms.", self.name))
         if self._x4u_active_proforma():
-            raise UserError(_("%s has a PI: the Accountant cancels it before the payment terms change.", self.name))
+            raise UserError(_("%s has a payment with its PI: the terms stay as agreed.", self.name))
 
     def _x4u_log_schedule(self):
         for order in self:
             order.message_post(
                 body=_("Payment schedule: %s", ", ".join(line._x4u_label() for line in order.x4u_schedule_ids))
             )
+
+    def _x4u_sync_followup(self):
+        """S12: a to-do for the Accountant on the first due date of a payment not made yet."""
+        todo = self.env.ref("mail.mail_activity_data_todo")
+        for order in self.sudo():
+            activities = order.activity_ids.filtered(
+                lambda a: a.activity_type_id == todo and (a.summary or "").startswith(_("Follow up"))
+            )
+            lines = order.x4u_schedule_ids.filtered(lambda line: line.date_due and line.state != "paid")
+            if order.state != "sale" or not lines:
+                if activities and not order.x4u_schedule_ids.filtered("date_due"):
+                    activities.unlink()
+                elif activities:
+                    activities.action_feedback(feedback=_("Paid"))
+                continue
+            line = lines.sorted("date_due")[0]
+            summary = _(
+                "Follow up %(order)s: payment %(n)s/%(count)s",
+                order=order.name,
+                n=list(order.x4u_schedule_ids).index(line) + 1,
+                count=len(order.x4u_schedule_ids),
+            )
+            if activities:
+                activities[1:].unlink()
+                activities[:1].write({"date_deadline": line.date_due, "summary": summary})
+            else:
+                user = order._x4u_accountant_user() or self.env.user
+                order.activity_schedule(
+                    "mail.mail_activity_data_todo", date_deadline=line.date_due, user_id=user.id, summary=summary
+                )
 
     @api.onchange("payment_term_id")
     def _onchange_x4u_payment_term(self):
@@ -203,11 +250,18 @@ class SaleOrder(models.Model):
                 order._x4u_check_schedule_total()
                 order._x4u_log_schedule()
         x4u_own_attachments(orders, "x4u_lpo_attachment_ids")
+        x4u_own_attachments(orders, "x4u_payment_proof_ids")
         return orders
 
     def write(self, vals):
         if PO_CHECK_FIELDS & set(vals) and not self.env.su:
             raise self._x4u_accountant_only()
+        if FROZEN_FIELDS & set(vals) and not self.env.su and not self._x4u_is_accountant():
+            with_accountant = self.filtered(lambda o: o.state in ("draft", "sent") and o.x4u_po_check in ("to_check", "match"))
+            if with_accountant:
+                raise UserError(
+                    _("%s is with the Accountant: ask to send it back before changing it.", ", ".join(with_accountant.mapped("name")))
+                )
         if self.env.context.get("x4u_schedule_sync"):
             return super().write(vals)
         if "payment_term_id" in vals:
@@ -216,6 +270,7 @@ class SaleOrder(models.Model):
         schedule = vals.get("x4u_schedule_ids")
         vals = {key: value for key, value in vals.items() if key != "x4u_schedule_ids"}
         terms = {order: order.payment_term_id for order in self}
+        proofs = {order: order.x4u_payment_proof_ids for order in self} if "x4u_payment_proof_ids" in vals else {}
         res = super().write(vals) if vals else True
         # A standard term decides the schedule; the form's lines only showed it.
         self.filtered(
@@ -229,48 +284,58 @@ class SaleOrder(models.Model):
                 custom._x4u_log_schedule()
         if "x4u_lpo_attachment_ids" in vals:
             x4u_own_attachments(self, "x4u_lpo_attachment_ids")
-        if {"client_order_ref", "x4u_lpo_attachment_ids"} & set(vals):
-            self.filtered(lambda o: o.x4u_po_check == "waiting" and o._x4u_has_lpo())._x4u_lpo_received()
+        if proofs:
+            x4u_own_attachments(self, "x4u_payment_proof_ids")
+            # v0.7 O7: a receipt of a later payment tells the Accountant.
+            new = self.filtered(lambda o: o.state == "sale" and o.x4u_payment_proof_ids - proofs[o])
+            new._x4u_notify_accountant_each(lambda o: _("Payment receipt for %s: check the bank and record it", o.name))
         return res
 
     # ------------------------------------------------------------------
-    # Confirm and the customer PO check (§3, S1, S5)
+    # v0.7: the Salesperson sends the PO and the first payment, the Accountant confirms (O1-O5)
     # ------------------------------------------------------------------
 
-    def action_confirm(self):
-        """The customer agreed to the quotation; the LPO comes after (v0.6), then the Accountant checks it."""
-        self._x4u_check_schedule_total()
-        res = super().action_confirm()
-        with_lpo = self.filtered(lambda o: o._x4u_has_lpo())
-        with_lpo._x4u_lpo_received()
-        (self - with_lpo)._x4u_wait_for_lpo()
-        return res
-
-    def _x4u_has_lpo(self):
+    def _x4u_send_problems(self):
+        """What the order still needs before the Accountant gets it (O1, O2). x4u_job_order adds
+        the Supply of each generator."""
         self.ensure_one()
-        return bool(self.client_order_ref and self.x4u_lpo_attachment_ids)
+        problems = []
+        if not self.client_order_ref:
+            problems.append(_("the customer PO number (LPO Number)"))
+        if not self.x4u_lpo_date:
+            problems.append(_("the customer PO date"))
+        if not self.x4u_lpo_attachment_ids:
+            problems.append(_("the customer PO file"))
+        if self.x4u_advance_due and not self.x4u_payment_proof_ids:
+            problems.append(_("the receipt of the first payment (transfer receipt or cheque)"))
+        return problems
 
-    def _x4u_wait_for_lpo(self):
-        self.sudo().write({"x4u_po_check": "waiting"})
-        for order in self.sudo().filtered("user_id"):
-            order.activity_schedule(
-                ACTIVITY_LPO, user_id=order.user_id.id, summary=_("Get the customer PO (LPO) of %s", order.name)
-            )
-
-    def _x4u_lpo_received(self):
-        """The LPO number and file are on the confirmed order: the Accountant checks it (S5)."""
-        self.sudo().write({"x4u_po_check": "to_check"})
-        self.sudo().activity_feedback([ACTIVITY_LPO], feedback=_("LPO received"))
+    def action_x4u_send_to_accountant(self):
+        """O2: the Salesperson sends the customer PO and the first payment to the Accountant."""
+        for order in self:
+            if order.state not in ("draft", "sent") or order.x4u_po_check in ("to_check", "match"):
+                raise UserError(_("%s is not a quotation to send to the Accountant.", order.name))
+            order._x4u_check_schedule_total()
+            problems = order._x4u_send_problems()
+            if problems:
+                raise UserError(
+                    _("%(order)s needs before it goes to the Accountant:\n- %(list)s", order=order.name, list="\n- ".join(problems))
+                )
+        self.sudo().write({"x4u_po_check": "to_check", "x4u_po_mismatch_reason": False})
+        self.sudo().activity_feedback([ACTIVITY_PO_FIX], feedback=_("Sent back to the Accountant"))
         self._x4u_ask_po_check()
         for order in self:
-            order.message_post(body=_("Customer PO received: LPO %s.", order.client_order_ref))
+            order.message_post(body=_("Sent to the Accountant: customer PO %s and the first payment.", order.client_order_ref))
 
     @api.model
     def _x4u_accountant_only(self):
-        return AccessError(_("The Accountant checks the customer PO and handles the PI and the payments."))
+        return AccessError(_("The Accountant checks the customer PO, records the payments and confirms the order."))
+
+    def _x4u_is_accountant(self):
+        return self.env.user.has_group("account.group_account_invoice")
 
     def _x4u_check_accountant(self):
-        if not self.env.su and not self.env.user.has_group("account.group_account_invoice"):
+        if not self.env.su and not self._x4u_is_accountant():
             raise self._x4u_accountant_only()
 
     def _x4u_ask_po_check(self):
@@ -278,7 +343,8 @@ class SaleOrder(models.Model):
         if user:
             for order in self.sudo():
                 order.activity_schedule(
-                    ACTIVITY_PO_CHECK, user_id=user.id, summary=_("Check the customer PO of %s", order.name)
+                    ACTIVITY_PO_CHECK, user_id=user.id,
+                    summary=_("Check %s: customer PO and first payment", order.name),
                 )
 
     def _x4u_po_checked(self, state, reason=False):
@@ -294,10 +360,10 @@ class SaleOrder(models.Model):
     def action_x4u_po_match(self):
         self._x4u_check_accountant()
         for order in self:
-            if order.state != "sale" or order.x4u_po_check not in ("to_check", "mismatch"):
-                raise UserError(_("%s is not waiting for the customer PO check.", order.name))
+            # A confirmed order still "To Approve" is one confirmed before v0.7: its PO is checked too.
+            if order.state == "cancel" or order.x4u_po_check != "to_check":
+                raise UserError(_("%s is not waiting for the Accountant.", order.name))
         self._x4u_po_checked("match")
-        self.sudo().activity_feedback([ACTIVITY_PO_CHECK], feedback=_("Matches the quotation"))
         self.sudo().activity_unlink([ACTIVITY_PO_FIX])
         for order in self:
             order.message_post(body=_("Customer PO checked: it matches the quotation."))
@@ -316,10 +382,11 @@ class SaleOrder(models.Model):
         }
 
     def _x4u_po_mismatch(self, reason):
+        """O3: back to the Salesperson, who fixes it with the customer and sends it again."""
         self._x4u_check_accountant()
         for order in self:
-            if order.state != "sale" or order.x4u_po_check != "to_check":
-                raise UserError(_("%s is not waiting for the customer PO check.", order.name))
+            if order.state not in ("draft", "sent") or order.x4u_po_check not in ("to_check", "match"):
+                raise UserError(_("%s is not waiting for the Accountant.", order.name))
         self._x4u_po_checked("mismatch", reason)
         self.sudo().activity_feedback([ACTIVITY_PO_CHECK], feedback=_("Doesn't match: %s", reason))
         for order in self.sudo():
@@ -331,19 +398,29 @@ class SaleOrder(models.Model):
                 )
             order.message_post(body=_("Customer PO doesn't match the quotation: %s", reason))
 
-    def action_x4u_po_recheck(self):
-        """The Salesperson fixed it with the customer: back to the Accountant."""
-        for order in self:
-            if order.x4u_po_check != "mismatch":
-                raise UserError(_("%s is not waiting for a fix of the customer PO.", order.name))
-        self.sudo().write({"x4u_po_check": "to_check"})
-        self.sudo().activity_feedback([ACTIVITY_PO_FIX], feedback=_("Sent back to the Accountant"))
-        self._x4u_ask_po_check()
-        for order in self:
-            order.message_post(body=_("Customer PO sent back to the Accountant to check."))
+    def action_confirm(self):
+        """O5: the Accountant confirms, once the PO matches and the first payment came in; the
+        order opens with the Salesperson's choices."""
+        if not self.env.su:
+            self._x4u_check_accountant()
+            for order in self:
+                if order.x4u_po_check != "match":
+                    raise UserError(_("%s: check the customer PO first (PO Matches Quotation).", order.name))
+                if order.x4u_advance_due and not order._x4u_first_payment_received():
+                    raise UserError(_("%s: record the first payment before confirming it.", order.name))
+                problems = order._x4u_send_problems()
+                if problems:
+                    raise UserError(_("%(order)s still needs:\n- %(list)s", order=order.name, list="\n- ".join(problems)))
+        self._x4u_check_schedule_total()
+        # The Accountant has no Sales rights (quotation templates, routes...): once the checks
+        # above pass, Odoo's own confirmation runs with full rights; the chatter keeps his name.
+        res = super(SaleOrder, self.sudo()).action_confirm()
+        self.sudo().activity_feedback([ACTIVITY_PO_CHECK], feedback=_("Confirmed"))
+        self._x4u_sync_followup()
+        return res
 
     # ------------------------------------------------------------------
-    # The PI (S6)
+    # Payments, PIs and the tax invoice (O4, O6, O8)
     # ------------------------------------------------------------------
 
     @api.model
@@ -358,23 +435,68 @@ class SaleOrder(models.Model):
             for order in self:
                 order.sudo().activity_schedule("mail.mail_activity_data_todo", user_id=user.id, summary=summary)
 
-    def action_x4u_create_proforma(self):
+    def _x4u_notify_accountant_each(self, summary):
+        for order in self:
+            order._x4u_notify_accountant(summary(order))
+
+    def _x4u_next_amount(self):
+        """The next payment of the schedule not made yet, or what is left."""
+        self.ensure_one()
+        line = self.x4u_schedule_ids.filtered(lambda l: l.state != "paid")[:1]
+        left = self.x4u_amount_remaining
+        due = line.amount_total - line.amount_paid if line else left
+        return min(due, left) if left else due
+
+    def action_x4u_register_payment(self):
+        """O4: the Accountant records a payment of the order (a draft to confirm); confirming it
+        issues its PI."""
         self.ensure_one()
         self._x4u_check_accountant()
-        if self.state != "sale":
-            raise UserError(_("Confirm %s before its PI.", self.name))
-        if self.x4u_po_check == "waiting":
-            raise UserError(_("%s is waiting for the customer's LPO.", self.name))
-        if self.x4u_po_check != "match":
-            raise UserError(_("Check the customer PO of %s first: PO Matches Quotation.", self.name))
-        if self._x4u_active_proforma():
-            raise UserError(_("%s already has a PI.", self.name))
-        if not self.x4u_schedule_ids:
-            # An order from before the schedules: its terms give it one.
-            self.sudo()._x4u_fill_schedule()
-        self._x4u_check_schedule_total()
-        proforma = self.env["x4u.sale.proforma"].create({"order_id": self.id})
-        return proforma._x4u_open()
+        if self.state == "cancel" or (self.state != "sale" and self.x4u_po_check not in ("to_check", "match")):
+            raise UserError(_("%s is not with the Accountant.", self.name))
+        number = len(self.sudo().x4u_advance_payment_ids.filtered(lambda p: p.state in POSTED_PAYMENT_STATES)) + 1
+        payment = self.env["account.payment"].create(
+            {
+                "payment_type": "inbound",
+                "partner_type": "customer",
+                "partner_id": self.partner_id.commercial_partner_id.id,
+                "amount": self._x4u_next_amount(),
+                "currency_id": self.currency_id.id,
+                "memo": "%s · %s/%s" % (self.name, number, len(self.x4u_schedule_ids) or 1),
+                "x4u_sale_order_id": self.id,
+            }
+        )
+        return {
+            "type": "ir.actions.act_window",
+            "name": _("Register Payment"),
+            "res_model": "account.payment",
+            "res_id": payment.id,
+            "view_mode": "form",
+            "views": [(False, "form")],
+            "target": "current",
+        }
+
+    def action_x4u_create_tax_invoice(self):
+        """O8 (S8): the tax invoice of the whole order; confirming it applies the payments."""
+        self.ensure_one()
+        self._x4u_check_accountant()
+        if self.state != "sale" or self.invoice_status != "to invoice":
+            raise UserError(_("%s has nothing left to invoice.", self.name))
+        before = self.invoice_ids
+        self.env["sale.advance.payment.inv"].with_context(
+            active_model="sale.order", active_ids=self.ids
+        ).create({"advance_payment_method": "delivered"}).create_invoices()
+        self.invalidate_recordset(["invoice_ids"])
+        invoice = self.invoice_ids - before
+        return {
+            "type": "ir.actions.act_window",
+            "name": _("Tax Invoice"),
+            "res_model": "account.move",
+            "res_id": invoice[:1].id,
+            "view_mode": "form",
+            "views": [(False, "form")],
+            "target": "current",
+        }
 
     def action_x4u_view_proformas(self):
         self.ensure_one()

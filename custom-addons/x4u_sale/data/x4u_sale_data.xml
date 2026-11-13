@@ -66,15 +66,14 @@
     <p style="margin: 0px; padding: 0px; font-size: 13px;">
         Dear <t t-out="object.order_id.partner_invoice_id.name or ''">Customer</t>,
         <br/><br/>
-        Please find attached proforma invoice <strong t-out="object.name or ''">S001-PI</strong>
-        for sales order <t t-out="object.order_id.name or ''">S001</t>
-        (<t t-out="format_amount(object.amount_total, object.currency_id) or ''">AED 52,500.00</t>), with its payment schedule.
-        <t t-if="object.amount_due_now">
-            <br/><br/>
-            Amount due now: <strong t-out="format_amount(object.amount_due_now, object.currency_id) or ''">AED 15,750.00</strong>.
-        </t>
+        Thank you for your payment of <strong t-out="format_amount(object.amount_payment, object.currency_id) or ''">AED 15,750.00</strong>
+        for sales order <t t-out="object.order_id.name or ''">S001</t>.
+        Please find attached proforma invoice <strong t-out="object.name or ''">S001-PI1</strong>:
+        paid to date <t t-out="format_amount(object.amount_paid, object.currency_id) or ''">AED 15,750.00</t>
+        of <t t-out="format_amount(object.amount_total, object.currency_id) or ''">AED 52,500.00</t>,
+        remaining <strong t-out="format_amount(object.amount_remaining, object.currency_id) or ''">AED 36,750.00</strong>.
         <br/><br/>
-        This is not a tax invoice.
+        This is not a tax invoice: the tax invoice of the whole order follows.
         <br/><br/>
         Best regards,
     </p>
