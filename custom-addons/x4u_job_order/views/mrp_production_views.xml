@@ -14,9 +14,6 @@
                 <button name="action_x4u_finish" type="object" string="Finish Job Order" class="oe_highlight"
                         groups="mrp.group_mrp_user"
                         invisible="not x4u_is_job_order or x4u_job_state != 'material_delivered'"/>
-                <button name="action_x4u_reserved_parts" type="object" string="Who Holds the Parts"
-                        groups="mrp.group_mrp_user,stock.group_stock_user"
-                        invisible="not x4u_is_job_order or x4u_material_flag != 'missing'"/>
             </xpath>
             <xpath expr="(//header/button[@name='button_mark_done'])[1]" position="attributes">
                 <attribute name="invisible" add="x4u_is_job_order" separator=" or "/>

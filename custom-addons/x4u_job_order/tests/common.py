@@ -135,20 +135,72 @@ class X4uJobOrderCommon(TransactionCase):
         picking.action_assign()
         for move in picking.move_ids:
             move.quantity = move.product_uom_qty
+            if move.picking_code == "incoming" and move.has_tracking == "serial" and not move.product_id.x4u_is_generator:
+                # Every engine comes in with its serial (spec v0.8 N1-N2).
+                for number, line in enumerate(move.move_line_ids.filtered(lambda ml: not ml.lot_id and not ml.lot_name), 1):
+                    line.lot_name = "X4U-SN-%s-%s" % (move.id, number)
         picking.move_ids.picked = True
-        picking.button_validate()
+        res = picking.button_validate()
+        if isinstance(res, dict) and res.get("res_model") == "x4u.ready.receipt":
+            # A ready generator comes in with the serial of its engine (spec v0.8 N7).
+            wizard = self.env[res["res_model"]].browse(res["res_id"])
+            for line in wizard.line_ids:
+                line.engine_serial = "X4U-E-%s" % line.ready_order_id.name
+            wizard.action_confirm()
         self.assertEqual(picking.state, "done")
+
+    def _receipt(self, product, quantity, price=0.0):
+        """A receipt of a part from the supplier into WH/Stock, confirmed, not validated."""
+        suppliers = self.env.ref("stock.stock_location_suppliers")
+        picking = self.env["stock.picking"].create(
+            {
+                "picking_type_id": self.warehouse.in_type_id.id,
+                "location_id": suppliers.id,
+                "location_dest_id": self.warehouse.lot_stock_id.id,
+                "move_ids": [
+                    Command.create(
+                        {
+                            "name": product.name,
+                            "product_id": product.id,
+                            "product_uom_qty": quantity,
+                            "product_uom": product.uom_id.id,
+                            "price_unit": price,
+                            "location_id": suppliers.id,
+                            "location_dest_id": self.warehouse.lot_stock_id.id,
+                        }
+                    )
+                ],
+            }
+        )
+        picking.action_confirm()
+        return picking
+
+    def _stock(self, product, quantity, price=None):
+        """Parts come into WH/Stock by a receipt, engines with their serials."""
+        self._validate(self._receipt(product, quantity, price if price is not None else product.standard_price or 100.0))
+
+    def _lots(self, product):
+        """Serials of the product in WH/Stock."""
+        return self.env["stock.quant"].search(
+            [("product_id", "=", product.id), ("location_id", "child_of", self.warehouse.lot_stock_id.id), ("quantity", ">", 0)]
+        ).lot_id
 
     def _deliver_material(self, production):
         self._validate(production.picking_ids.filtered(lambda p: p.picking_type_id == self.warehouse.pbm_type_id))
 
-    def _deliver_materials(self, production, quantities=None):
-        """Deliver Materials as the Storekeeper: by product, or what the screen proposes."""
+    def _deliver_materials(self, production, quantities=None, lots=None):
+        """Deliver Materials as the Storekeeper: by product, or what the screen proposes; an engine
+        with the serials given, or the first ones in stock (spec v0.8 N3)."""
         action = production.with_user(self.storekeeper).action_x4u_deliver_materials()
         wizard = self.env[action["res_model"]].with_user(self.storekeeper).browse(action["res_id"])
-        if quantities is not None:
-            for line in wizard.line_ids:
+        for line in wizard.line_ids:
+            if quantities is not None:
                 line.quantity = quantities.get(line.product_id, 0.0)
+            if line.tracking == "serial":
+                count = int(line.quantity if quantities is not None else line.needed)
+                chosen = (lots or {}).get(line.product_id) or line.available_lot_ids.sorted("name")[:count]
+                line.lot_ids = chosen
+                line.quantity = len(chosen) if quantities is None else line.quantity
         wizard.action_confirm()
 
     def _produce(self, production):

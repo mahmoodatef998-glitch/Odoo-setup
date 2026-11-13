@@ -8,7 +8,7 @@ from . import purchase_order
 from . import sale_order
 from . import x4u_generator
 from . import x4u_job_order_deliver
-from . import x4u_job_order_reserved
 from . import x4u_ready_order
+from . import x4u_ready_receipt
 from . import purchase_request
 from . import res_config_settings

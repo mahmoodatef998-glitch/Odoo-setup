@@ -91,6 +91,29 @@ class TestReadyGenerator(X4uJobOrderCommon):
         else:
             self.assertAlmostEqual(ready.margin, 10000.0)
 
+    # T26 (spec v0.8 N7): a ready generator comes in with the serial of its engine, from the
+    # supplier's papers; the alternator and supplier serials are optional. They go on the card.
+    def test_ready_generator_engine_serial(self):
+        order = self._sell_ready()
+        ready = order.x4u_ready_order_ids
+        receipt = self._buy(order).picking_ids
+        receipt.move_ids.quantity = 1
+        receipt.move_ids.picked = True
+        action = receipt.button_validate()
+        self.assertEqual(action["res_model"], "x4u.ready.receipt", "the receipt asks for the engine serial first")
+        self.assertNotEqual(receipt.state, "done")
+        wizard = self.env[action["res_model"]].browse(action["res_id"])
+        self.assertEqual(wizard.line_ids.ready_order_id, ready)
+        with self.assertRaises(UserError):
+            wizard.action_confirm()
+        wizard.line_ids.write({"engine_serial": "E-2001", "supplier_serial": "SUP-77"})
+        wizard.action_confirm()
+        self.assertEqual(receipt.state, "done")
+        self.assertEqual((ready.state, ready.engine_serial, ready.supplier_serial), ("in_stock", "E-2001", "SUP-77"))
+        card = ready.generator_id
+        self.assertEqual((card.engine_serial, card.x4u_supplier_serial), ("E-2001", "SUP-77"))
+        self.assertFalse(card.alternator_serial)
+
     def test_two_ready_generators(self):
         order = self._sell_ready(qty=2)
         ready = order.x4u_ready_order_ids

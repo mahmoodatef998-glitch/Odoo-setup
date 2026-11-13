@@ -10,6 +10,14 @@
                 <field name="x4u_enclosure"/>
                 <field name="x4u_supplier_serial"/>
             </xpath>
+            <!-- Spec v0.8 N5: the engine fitted, linked to its serial in stock, not typed by hand -->
+            <xpath expr="//field[@name='engine_serial']" position="attributes">
+                <attribute name="readonly">x4u_engine_linked</attribute>
+            </xpath>
+            <xpath expr="//field[@name='engine_serial']" position="after">
+                <field name="x4u_engine_linked" invisible="1"/>
+                <field name="x4u_engine_lot_id" invisible="not x4u_engine_lot_id" groups="stock.group_stock_user"/>
+            </xpath>
         </field>
     </record>
 
@@ -21,7 +29,7 @@
         <field name="arch" type="xml">
             <xpath expr="//app[@name='mrp']" position="inside">
                 <block title="4U Job Orders" name="x4u_job_order_settings">
-                    <setting string="Who gets the activities" help="Purchasing Officer: new material request. Storekeeper: parts ready to deliver. Operation Manager: materials delivered, finish the Job Order.">
+                    <setting string="Who gets the activities" help="Purchasing Officer: new material request. Storekeeper: no to-do since spec v0.8, you choose which Job Order gets the parts. Operation Manager: materials delivered, finish the Job Order.">
                         <div class="row">
                             <label for="x4u_purchase_user_id" class="col-lg-4"/>
                             <field name="x4u_purchase_user_id"/>

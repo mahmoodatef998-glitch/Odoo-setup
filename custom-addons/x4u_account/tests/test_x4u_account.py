@@ -270,6 +270,12 @@ class TestX4uAccount(TransactionCase):
             result[key] = result.get(key, 0.0) + line.balance
         return result
 
+    def _name_serials(self, receipt):
+        """With x4u_job_order every engine comes in with its serial (its spec v0.8 N1)."""
+        for number, line in enumerate(receipt.move_line_ids, 1):
+            if line.product_id.tracking == "serial" and not line.lot_name:
+                line.lot_name = "X4U-ACC-%s-%s" % (receipt.id, number)
+
     def test_perpetual_inventory_cycle(self):
         """§9: receipt, MO with overhead, delivery and invoice each post their entry; WIP and GDNI close at zero."""
         from odoo.addons.x4u_account import hooks
@@ -325,6 +331,7 @@ class TestX4uAccount(TransactionCase):
         )
         receipt.action_confirm()
         receipt.move_ids.quantity = 1
+        self._name_serials(receipt)
         receipt.move_ids.picked = True
         receipt.button_validate()
         self.assertEqual(self._lines(receipt.move_ids), {code("103001"): 1000.0, code("201021"): -1000.0})
@@ -470,6 +477,7 @@ class TestX4uAccount(TransactionCase):
         )
         receipt.action_confirm()
         receipt.move_ids.quantity = 2
+        self._name_serials(receipt)
         receipt.move_ids.picked = True
         receipt.button_validate()
         self.assertEqual(part.value_svl, 2000.0)

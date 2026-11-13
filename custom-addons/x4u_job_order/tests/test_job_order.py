@@ -77,7 +77,7 @@ class TestJobOrder(X4uJobOrderCommon):
 
     # T5: a part already in stock is used and not requested
     def test_part_taken_from_stock(self):
-        self.env["stock.quant"]._update_available_quantity(self.engine, self.warehouse.lot_stock_id, 1)
+        self._stock(self.engine, 1)
         _order, production = self._sell()
         engine = production.move_raw_ids.filtered(lambda m: m.x4u_role == "engine")
         self.assertEqual(engine.x4u_part_status, "from_stock")
@@ -157,7 +157,8 @@ class TestJobOrder(X4uJobOrderCommon):
         for user, menu, told in (
             (buyer, "menu_x4u_job_order_purchase", True),
             (inspector, "menu_x4u_job_order_quality", False),
-            (self.storekeeper, "menu_x4u_job_order_inventory", True),
+            # No to-do for the Storekeeper: you choose which Job Order gets the parts (spec v0.8 F4).
+            (self.storekeeper, "menu_x4u_job_order_inventory", False),
         ):
             job = production.with_user(user)
             self.assertEqual(bool(job.activity_ids.filtered(lambda a, u=user: a.user_id == u)), told)
@@ -173,18 +174,18 @@ class TestJobOrder(X4uJobOrderCommon):
 
     # T12: each part shows what the warehouse holds, and what is still free to use
     def test_parts_show_stock(self):
-        self.env["stock.quant"]._update_available_quantity(self.engine, self.warehouse.lot_stock_id, 2)
+        self._stock(self.engine, 2)
         _order, production = self._sell()
         engine = production.move_raw_ids.filtered(lambda m: m.x4u_role == "engine")
         body = production.move_raw_ids.filtered(lambda m: m.x4u_role == "body")
-        # One engine is reserved for this Job Order by Pick Components, one is still free.
-        self.assertEqual((engine.x4u_stock_on_hand, engine.x4u_stock_free), (2.0, 1.0))
+        # Nothing is reserved for the Job Order (spec v0.8 F1): both engines are free to use.
+        self.assertEqual((engine.x4u_stock_on_hand, engine.x4u_stock_free), (2.0, 2.0))
         self.assertEqual((body.x4u_stock_on_hand, body.x4u_stock_free), (0.0, 0.0))
 
     # T13: no Produce before the Storekeeper delivers the parts to the factory
     def test_produce_needs_parts_in_factory(self):
         for part in (self.engine, self.alt_stamford, self.body_canopy):
-            self.env["stock.quant"]._update_available_quantity(part, self.warehouse.lot_stock_id, 1)
+            self._stock(part, 1)
         _order, production = self._sell()
         self.assertEqual(production.x4u_job_state, "parts_ready")
         # assertRaises (not assertRaisesRegex) undoes the refused try, like the browser does.
@@ -223,7 +224,7 @@ class TestJobOrder(X4uJobOrderCommon):
     # T14b: a Job Order made in two goes (opened by hand for 2): the second serial is its own number
     def test_backorder_keeps_job_order_number(self):
         for part in (self.engine, self.alt_stamford, self.body_canopy):
-            self.env["stock.quant"]._update_available_quantity(part, self.warehouse.lot_stock_id, 2)
+            self._stock(part, 2)
         production = self.env["mrp.production"].create({"product_id": self.variant.id, "product_qty": 2})
         production.action_confirm()
         self._deliver_material(production)
@@ -245,21 +246,20 @@ class TestJobOrder(X4uJobOrderCommon):
         self._produce(backorder)
         self.assertEqual(backorder.state, "done")
 
-    # T15: red flag while a part is missing, green once every part is reserved (v0.4 V2)
+    # T15: red flag while a part is missing, green once every part is in stock (v0.4 V2, v0.8 F4)
     def test_flag_red_then_green(self):
         _order, production = self._sell()
         self.assertEqual(production.x4u_material_flag, "missing")
         self.assertIn(production, self.env["mrp.production"].search([("x4u_material_flag", "=", "missing")]))
         for part in (self.engine, self.alt_stamford, self.body_canopy):
-            self.env["stock.quant"]._update_available_quantity(part, self.warehouse.lot_stock_id, 1)
-        production._x4u_pick_components().action_assign()
+            self._stock(part, 1)
         self.assertEqual(production.x4u_job_state, "parts_ready")
         self.assertEqual(production.x4u_material_flag, "ready")
 
     # T16: the Storekeeper delivers the materials from the Job Order, in two goes (v0.4 V3)
     def test_deliver_materials(self):
         for part in (self.engine, self.alt_stamford, self.body_canopy):
-            self.env["stock.quant"]._update_available_quantity(part, self.warehouse.lot_stock_id, 1)
+            self._stock(part, 1)
         _order, production = self._sell()
         with self.assertRaises(UserError):
             self._deliver_materials(production, {self.engine: 2})
@@ -279,12 +279,8 @@ class TestJobOrder(X4uJobOrderCommon):
         self.template.categ_id = self.env.ref("x4u_setup_base.categ_generators")
         self.assertEqual(self.template.cost_method, "fifo")
         self.assertEqual(self.engine.cost_method, "fifo")
-        stock = self.warehouse.lot_stock_id
         for part, price in ((self.engine, 1000.0), (self.alt_stamford, 500.0), (self.body_canopy, 300.0)):
-            part.standard_price = price
-            self.env["stock.quant"].with_context(inventory_mode=True).create(
-                {"product_id": part.id, "location_id": stock.id, "inventory_quantity": 1}
-            ).action_apply_inventory()
+            self._stock(part, 1, price=price)
         _order, production = self._sell()
         with self.assertRaises(UserError):
             production.with_user(self.operation).action_x4u_finish()
@@ -300,7 +296,7 @@ class TestJobOrder(X4uJobOrderCommon):
     def _sell_paid_before_delivery(self):
         """A 50/50 order whose generator is finished from parts in stock."""
         for part in (self.engine, self.alt_stamford, self.body_canopy):
-            self.env["stock.quant"]._update_available_quantity(part, self.warehouse.lot_stock_id, 1)
+            self._stock(part, 1)
         self.template.list_price = 10000.0
         order, production = self._sell(payment_term_id=self.env.ref("x4u_setup_base.payment_term_50_50").id)
         self.assertTrue(order.x4u_pay_before_delivery)
@@ -334,12 +330,8 @@ class TestJobOrder(X4uJobOrderCommon):
     def test_job_order_profitability(self):
         self.template.categ_id = self.env.ref("x4u_setup_base.categ_generators")
         self.template.list_price = 10000.0
-        stock = self.warehouse.lot_stock_id
         for part, price in ((self.engine, 1000.0), (self.alt_stamford, 500.0), (self.body_canopy, 300.0)):
-            part.standard_price = price
-            self.env["stock.quant"].with_context(inventory_mode=True).create(
-                {"product_id": part.id, "location_id": stock.id, "inventory_quantity": 1}
-            ).action_apply_inventory()
+            self._stock(part, 1, price=price)
         # The company currency: AED is only active where the UAE chart is (as in x4u_sale's tests).
         pricelist = self.env["product.pricelist"].create(
             {"name": "X4U Test Profitability", "currency_id": self.env.company.currency_id.id}
@@ -383,12 +375,8 @@ class TestJobOrder(X4uJobOrderCommon):
         categ = self.template.categ_id.with_company(self.env.company)
         if not (self.env.company.anglo_saxon_accounting and categ.property_valuation == "real_time"):
             self.skipTest("perpetual valuation comes with x4u_account")
-        stock = self.warehouse.lot_stock_id
         for part, price in ((self.engine, 1000.0), (self.alt_stamford, 500.0), (self.body_canopy, 300.0)):
-            part.standard_price = price
-            self.env["stock.quant"].with_context(inventory_mode=True).create(
-                {"product_id": part.id, "location_id": stock.id, "inventory_quantity": 1}
-            ).action_apply_inventory()
+            self._stock(part, 1, price=price)
         pricelist = self.env["product.pricelist"].create(
             {"name": "X4U Test Invoice First", "currency_id": self.env.company.currency_id.id}
         )

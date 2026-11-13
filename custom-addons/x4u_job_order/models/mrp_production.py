@@ -90,23 +90,21 @@ class MrpProduction(models.Model):
         compute="_compute_x4u_material_flag",
         store=True,
         index=True,
-        help="Red: a part is not reserved in stock yet. Green: every part is reserved or delivered.",
+        help="Red: WH/Stock is short of a part this Job Order still needs. Green: every part is in "
+        "stock or delivered. Other Job Orders are not counted: the first one delivered takes the parts.",
     )
 
     @api.model
     def _read_group_x4u_job_state(self, values, domain):
         return [key for key, _label in JOB_STATES if key != "cancelled"]
 
-    @api.depends("x4u_job_state", "move_raw_ids.state", "move_raw_ids.move_orig_ids.state")
+    @api.depends("x4u_job_state")
     def _compute_x4u_material_flag(self):
-        """The flag on every Job Order (spec v0.4 V2), until the generator is made."""
+        """The flag on every Job Order (spec v0.4 V2), until the generator is made. It follows the
+        state, which follows the stock (spec v0.8 F4)."""
+        flags = {"waiting_parts": "missing", "parts_ready": "ready", "material_delivered": "ready"}
         for production in self:
-            flag = False
-            if production.x4u_job_state in ("waiting_parts", "parts_ready", "material_delivered"):
-                moves = production._x4u_component_moves()
-                ready = moves and all(move.state in ("assigned", "done") for move in moves)
-                flag = "ready" if ready else "missing"
-            production.x4u_material_flag = flag
+            production.x4u_material_flag = flags.get(production.x4u_job_state, False)
 
     @api.depends("product_id.x4u_is_generator")
     def _compute_x4u_is_job_order(self):
@@ -241,13 +239,45 @@ class MrpProduction(models.Model):
     def _x4u_set_state(self, state):
         self.filtered("x4u_is_job_order").sudo().write({"x4u_job_state": state})
 
-    def _x4u_check_parts_ready(self):
-        for production in self.filtered(lambda p: p.x4u_job_state == "waiting_parts"):
-            moves = production._x4u_component_moves()
-            if moves and all(move.state in ("assigned", "done") for move in moves):
+    def _x4u_parts_in_stock(self):
+        """Spec v0.8 F4: WH/Stock holds every part this Job Order still has to get. Nothing is
+        reserved, and the other Job Orders are not counted: the first one delivered takes them."""
+        self.ensure_one()
+        needed = defaultdict(float)
+        for move in self._x4u_pick_components().move_ids.filtered(lambda m: m.state not in ("done", "cancel")):
+            needed[move.product_id, move.location_id] += move.product_uom._compute_quantity(
+                move.product_uom_qty - move.quantity, move.product_id.uom_id
+            )
+        if not needed:
+            return False
+        return all(
+            float_compare(product.sudo().with_context(location=location.id).free_qty, qty, precision_rounding=product.uom_id.rounding)
+            >= 0
+            for (product, location), qty in needed.items()
+        )
+
+    def _x4u_refresh_parts(self):
+        """Waiting Parts / Parts Ready follow the stock both ways (spec v0.8 F4). No to-do for the
+        Storekeeper: you choose which Job Order gets the parts."""
+        for production in self.filtered(lambda p: p.x4u_job_state in ("waiting_parts", "parts_ready")):
+            ready = production._x4u_parts_in_stock()
+            if ready and production.x4u_job_state == "waiting_parts":
                 production._x4u_set_state("parts_ready")
                 production._x4u_log("parts_ready")
-                production._x4u_notify("warehouse", _("Deliver the material for %s", production.name))
+            elif not ready and production.x4u_job_state == "parts_ready":
+                production._x4u_set_state("waiting_parts")
+
+    @api.model
+    def _x4u_refresh_parts_for(self, products):
+        """The open Job Orders that need these parts, after stock came in or went out."""
+        if products:
+            self.sudo().search(
+                [
+                    ("x4u_is_job_order", "=", True),
+                    ("x4u_job_state", "in", ("waiting_parts", "parts_ready")),
+                    ("move_raw_ids.product_id", "in", products.ids),
+                ]
+            )._x4u_refresh_parts()
 
     # ------------------------------------------------------------------
     # Serial and generator card
@@ -403,7 +433,7 @@ class MrpProduction(models.Model):
                 production._x4u_log("material_request", document=request, date=request.create_date)
             if requests:
                 production._x4u_notify("purchase", _("Order the material for %s", production.name))
-            production._x4u_check_parts_ready()
+            production._x4u_refresh_parts()
         return res
 
     def pre_button_mark_done(self):
@@ -466,8 +496,21 @@ class MrpProduction(models.Model):
         for production in finished:
             production._x4u_set_state("finished")
             production._x4u_log("finished", document=production, date=production.date_finished)
+        finished._x4u_card_engine()
         finished._x4u_ask_final_invoice()
         return res
+
+    def _x4u_card_engine(self, lots=None):
+        """Spec v0.8 N5: the generator card links the engine fitted in it. At Deliver Materials
+        for a Job Order of one generator; when it is made, from the engine it consumed."""
+        for production in self:
+            card = production.lot_producing_id.sudo().x4u_generator_id
+            engine = lots
+            if engine is None:
+                moves = production.move_raw_ids.filtered(lambda m: m.x4u_role == "engine" and m.state == "done")
+                engine = moves.move_line_ids.lot_id
+            if card and len(engine) == 1:
+                card.write({"x4u_engine_lot_id": engine.id, "engine_serial": engine.name})
 
     def _x4u_ask_final_invoice(self):
         """x4u_sale spec §6 S10: every generator of an order paid before delivery is ready,
@@ -512,8 +555,11 @@ class MrpProduction(models.Model):
         wizard = self.env["x4u.job.order.deliver"].create(
             {
                 "production_id": self.id,
+                # An engine is not proposed: the Storekeeper picks its serial (spec v0.8 N3).
                 "line_ids": [
-                    Command.create({"move_id": move.id, "quantity": move._x4u_deliverable_qty()})
+                    Command.create(
+                        {"move_id": move.id, "quantity": 0.0 if move.has_tracking == "serial" else move._x4u_deliverable_qty()}
+                    )
                     for move in moves
                 ],
             }
@@ -521,24 +567,6 @@ class MrpProduction(models.Model):
         return {
             "type": "ir.actions.act_window",
             "name": _("Deliver Materials · %s", self.name),
-            "res_model": wizard._name,
-            "res_id": wizard.id,
-            "view_mode": "form",
-            "target": "new",
-        }
-
-    def action_x4u_reserved_parts(self):
-        """Reserved for Other Orders (spec v0.6 R1): who holds the parts this Job Order is short of."""
-        self.ensure_one()
-        lines = self.env["x4u.job.order.reserved.line"]._x4u_lines_for(self)
-        if not lines and not self.env["x4u.job.order.reserved"].new({"production_id": self.id})._x4u_short_moves():
-            raise UserError(_("%s is not missing any part.", self.name))
-        wizard = self.env["x4u.job.order.reserved"].create(
-            {"production_id": self.id, "line_ids": [Command.create(values) for values in lines]}
-        )
-        return {
-            "type": "ir.actions.act_window",
-            "name": _("Reserved for Other Orders · %s", self.name),
             "res_model": wizard._name,
             "res_id": wizard.id,
             "view_mode": "form",

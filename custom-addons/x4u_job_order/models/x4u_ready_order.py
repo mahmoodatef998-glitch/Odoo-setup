@@ -33,6 +33,10 @@ class X4uReadyOrder(models.Model):
     company_id = fields.Many2one(related="sale_line_id.company_id", store=True, index=True)
     state = fields.Selection(READY_STATES, default="waiting", required=True, readonly=True, tracking=True, index=True)
     lot_id = fields.Many2one("stock.lot", string="Serial No", readonly=True, copy=False)
+    # Spec v0.8 N7: written at the receipt, from the supplier's papers; copied to the generator card.
+    engine_serial = fields.Char(string="Engine Serial", readonly=True, copy=False, tracking=True)
+    alternator_serial = fields.Char(string="Alternator Serial", readonly=True, copy=False, tracking=True)
+    supplier_serial = fields.Char(string="Supplier Serial No", readonly=True, copy=False, tracking=True)
     generator_id = fields.Many2one("x4u.generator", string="Generator Card", compute="_compute_generator")
     analytic_account_id = fields.Many2one("account.analytic.account", string="Analytic Account", readonly=True, copy=False)
     currency_id = fields.Many2one(related="company_id.currency_id")
@@ -122,7 +126,15 @@ class X4uReadyOrder(models.Model):
             card = lot.x4u_generator_ids[:1]
             if card:
                 sale = order.sale_order_id
-                card.write({"sale_order_id": sale.id, "customer_id": sale.partner_id.commercial_partner_id.id})
+                vals = {"sale_order_id": sale.id, "customer_id": sale.partner_id.commercial_partner_id.id}
+                for source, target in (
+                    ("engine_serial", "engine_serial"),
+                    ("alternator_serial", "alternator_serial"),
+                    ("supplier_serial", "x4u_supplier_serial"),
+                ):
+                    if order[source]:
+                        vals[target] = order[source]
+                card.write(vals)
             order.message_post(body=_("Received in %(picking)s: in stock as a finished generator.", picking=picking.name))
         sales = self.sale_order_id.sudo().filtered(lambda o: o.x4u_pay_before_delivery and not o.x4u_final_invoice_paid)
         for sale in sales:

@@ -18,13 +18,15 @@
     <record id="role_purchasing_officer" model="res.users.role">
         <field name="name">Purchasing Officer</field>
         <field name="sequence">30</field>
-        <field name="comment">Material requests and RFQs, chooses and adds vendors, reads the Job Orders. Does not approve purchase orders.</field>
+        <field name="comment">Material requests and RFQs, chooses and adds vendors, reads the Job Orders, receives purchases and writes their serials (receipts only, no other transfer, no stock count). Does not approve purchase orders.</field>
         <field name="implied_ids" eval="[Command.set([
             ref('base.group_user'),
             ref('base.group_partner_manager'),
             ref('purchase.group_purchase_user'),
             ref('purchase_request.group_purchase_request_manager'),
             ref('x4u_job_order.group_x4u_job_order_viewer'),
+            ref('stock.group_stock_user'),
+            ref('group_x4u_receipts_only'),
         ])]"/>
     </record>
     <record id="role_general_manager" model="res.users.role">

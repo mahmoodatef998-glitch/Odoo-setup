@@ -1,6 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <odoo>
-    <!-- Deliver Materials (spec v0.4 V3): the Storekeeper sends the parts to the factory -->
+    <!-- Deliver Materials (spec v0.4 V3): the Storekeeper sends the parts to the factory.
+         Spec v0.8: parts free in stock (F2), the engine serial needed (N3), the alternator's optional (N4). -->
     <record id="x4u_job_order_deliver_view_form" model="ir.ui.view">
         <field name="name">x4u.job.order.deliver.form</field>
         <field name="model">x4u.job.order.deliver</field>
@@ -8,27 +9,28 @@
             <form string="Deliver Materials">
                 <field name="production_id" invisible="1"/>
                 <p class="text-muted">
-                    The quantities leave WH/Stock for the factory. A part left at 0 stays reserved
-                    for this Job Order and waits for the next delivery.
+                    The quantities leave WH/Stock for the factory. Each engine goes with its serial;
+                    the alternator serial is written when known. A part left at 0 waits for the next delivery.
                 </p>
                 <field name="line_ids">
                     <list editable="bottom" create="0" delete="0">
                         <field name="move_id" column_invisible="1"/>
+                        <field name="tracking" column_invisible="1"/>
+                        <field name="available_lot_ids" column_invisible="1"/>
                         <field name="x4u_role"/>
                         <field name="product_id"/>
                         <field name="needed"/>
-                        <field name="reserved"/>
                         <field name="on_hand"/>
-                        <field name="free"/>
                         <field name="quantity" decoration-bf="1"/>
+                        <field name="lot_ids" widget="many2many_tags" options="{'no_create': True}"
+                               domain="[('id', 'in', available_lot_ids)]"
+                               invisible="tracking != 'serial'"/>
+                        <field name="alternator_serial" invisible="x4u_role != 'alternator'"/>
                         <field name="product_uom_id" groups="uom.group_uom"/>
                     </list>
                 </field>
                 <footer>
                     <button name="action_confirm" type="object" string="Confirm" class="btn-primary" data-hotkey="q"/>
-                    <field name="x4u_has_shortage" invisible="1"/>
-                    <button name="action_x4u_reserved_parts" type="object" string="Reserved for Other Orders"
-                            class="btn-secondary" invisible="not x4u_has_shortage" data-hotkey="r"/>
                     <button string="Discard" class="btn-secondary" special="cancel" data-hotkey="x"/>
                 </footer>
             </form>

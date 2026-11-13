@@ -24,6 +24,44 @@ def setup_job_analytic(env):
     jobs._x4u_job_analytic(backfill=True)
 
 
+def setup_engine_serials(env):
+    """Spec v0.8 N1: every engine is tracked and valued by its serial. Engines already in stock
+    without one get a serial first (<code>-001, -002...) by a stock count, then Odoo re-values
+    them per serial."""
+    engines = env.ref("x4u_setup_base.categ_engines", raise_if_not_found=False)
+    if not engines:
+        return
+    templates = env["product.template"].with_context(active_test=False).search(
+        [("categ_id", "child_of", engines.id), ("is_storable", "=", True), ("tracking", "!=", "serial")]
+    )
+    Quant = env["stock.quant"]
+    Lot = env["stock.lot"]
+    for template in templates:
+        template.write({"tracking": "serial", "lot_valuated": False})
+        for product in template.product_variant_ids:
+            loose = Quant.search(
+                [("product_id", "=", product.id), ("location_id.usage", "=", "internal"), ("lot_id", "=", False), ("quantity", ">", 0)]
+            )
+            if not loose:
+                continue
+            code = product.default_code or "ENG%s" % product.id
+            counted = Quant
+            number = 0
+            for quant in loose:
+                units = int(quant.quantity)
+                quant.with_context(inventory_mode=True).write({"inventory_quantity": quant.quantity - units})
+                counted |= quant
+                for _unit in range(units):
+                    number += 1
+                    lot = Lot.create({"name": "%s-%03d" % (code, number), "product_id": product.id, "company_id": quant.company_id.id})
+                    counted |= Quant.with_context(inventory_mode=True).create(
+                        {"product_id": product.id, "location_id": quant.location_id.id, "lot_id": lot.id, "inventory_quantity": 1}
+                    )
+            counted._apply_inventory()
+    templates.write({"lot_valuated": True})
+
+
 def post_init_hook(env):
     set_costing(env)
     setup_job_analytic(env)
+    setup_engine_serials(env)
