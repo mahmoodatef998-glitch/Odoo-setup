@@ -552,16 +552,11 @@ class MrpProduction(models.Model):
         moves = self._x4u_pick_components().move_ids.filtered(lambda m: m.state not in ("done", "cancel"))
         if not moves:
             raise UserError(_("%s has no material left to deliver.", self.name))
-        wizard = self.env["x4u.job.order.deliver"].create(
+        Wizard = self.env["x4u.job.order.deliver"]
+        wizard = Wizard.create(
             {
                 "production_id": self.id,
-                # An engine is not proposed: the Storekeeper picks its serial (spec v0.8 N3).
-                "line_ids": [
-                    Command.create(
-                        {"move_id": move.id, "quantity": 0.0 if move.has_tracking == "serial" else move._x4u_deliverable_qty()}
-                    )
-                    for move in moves
-                ],
+                "line_ids": [Command.create(values) for values in Wizard._x4u_line_values(moves)],
             }
         )
         return {
@@ -578,7 +573,25 @@ class MrpProduction(models.Model):
         self.ensure_one()
         if self.x4u_job_state != "material_delivered":
             raise UserError(_("%s is finished after the Storekeeper delivers all its materials.", self.name))
+        self._x4u_reserve_delivered_parts()
         return self.button_mark_done()
+
+    def _x4u_reserve_delivered_parts(self, all_parts=False):
+        """The Job Order consumes what Pick Components brought to the factory, engines by their
+        serial. A reservation made before engines had serials (spec v0.8) holds none: Odoo then
+        refused to finish ("Lot/Serial number is mandatory"). Such reservations are made again;
+        with all_parts, every part's (the upgrade, spec v0.8.1)."""
+        moves = self.move_raw_ids.filtered(lambda m: m.state not in ("done", "cancel"))
+        if all_parts:
+            stale = moves.move_line_ids
+        else:
+            stale = moves.filtered(lambda m: m.has_tracking != "none").move_line_ids.filtered(lambda line: not line.lot_id)
+        if stale:
+            # Unlinked, not unreserved: Odoo does not unreserve a move already marked picked.
+            moves = stale.move_id
+            stale.unlink()
+            moves.write({"picked": False})
+            moves._action_assign()
 
     def action_cancel(self):
         res = super().action_cancel()

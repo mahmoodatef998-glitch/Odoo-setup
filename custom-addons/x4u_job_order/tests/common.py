@@ -1,3 +1,5 @@
+from collections import defaultdict
+
 from odoo import Command
 from odoo.tests import Form, TransactionCase, new_test_user
 
@@ -193,14 +195,23 @@ class X4uJobOrderCommon(TransactionCase):
         with the serials given, or the first ones in stock (spec v0.8 N3)."""
         action = production.with_user(self.storekeeper).action_x4u_deliver_materials()
         wizard = self.env[action["res_model"]].with_user(self.storekeeper).browse(action["res_id"])
+        used = defaultdict(float)
+        taken = self.env["stock.lot"]
         for line in wizard.line_ids:
+            product = line.product_id
+            # Engines and alternators have one line per unit (spec v0.8.1).
+            per_unit = line.tracking == "serial" or line.x4u_role == "alternator"
             if quantities is not None:
-                line.quantity = quantities.get(line.product_id, 0.0)
+                want = quantities.get(product, 0.0)
+                line.quantity = (1.0 if want - used[product] >= 1 else 0.0) if per_unit else want
+                used[product] += line.quantity
             if line.tracking == "serial":
-                count = int(line.quantity if quantities is not None else line.needed)
-                chosen = (lots or {}).get(line.product_id) or line.available_lot_ids.sorted("name")[:count]
-                line.lot_ids = chosen
-                line.quantity = len(chosen) if quantities is None else line.quantity
+                if quantities is None or line.quantity:
+                    pool = ((lots or {}).get(product) or line.available_lot_ids) - taken
+                    line.lot_id = pool.sorted("name")[:1]
+                    taken |= line.lot_id
+                else:
+                    line.lot_id = False
         wizard.action_confirm()
 
     def _produce(self, production):

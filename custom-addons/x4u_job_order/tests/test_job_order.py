@@ -262,7 +262,7 @@ class TestJobOrder(X4uJobOrderCommon):
             self._stock(part, 1)
         _order, production = self._sell()
         with self.assertRaises(UserError):
-            self._deliver_materials(production, {self.engine: 2})
+            self._deliver_materials(production, {self.body_canopy: 2})
         self._deliver_materials(production, {self.engine: 1})
         self.assertEqual(production.x4u_job_state, "parts_ready")
         stock = self.warehouse.lot_stock_id

@@ -1,0 +1,66 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <!-- Spec v0.8.1 N4: alternator serials, written at the receipt when known -->
+    <record id="x4u_alternator_serial_view_list" model="ir.ui.view">
+        <field name="name">x4u.alternator.serial.list</field>
+        <field name="model">x4u.alternator.serial</field>
+        <field name="arch" type="xml">
+            <list string="Alternator Serials" editable="bottom">
+                <field name="name"/>
+                <field name="product_id" options="{'no_create': True}"/>
+                <field name="state" widget="badge" decoration-success="state == 'in_stock'" decoration-muted="state == 'fitted'"/>
+                <field name="picking_id"/>
+                <field name="production_id"/>
+                <field name="company_id" groups="base.group_multi_company" column_invisible="True"/>
+            </list>
+        </field>
+    </record>
+
+    <record id="x4u_alternator_serial_view_search" model="ir.ui.view">
+        <field name="name">x4u.alternator.serial.search</field>
+        <field name="model">x4u.alternator.serial</field>
+        <field name="arch" type="xml">
+            <search>
+                <field name="name"/>
+                <field name="product_id"/>
+                <field name="production_id"/>
+                <filter name="in_stock" string="In Stock" domain="[('state', '=', 'in_stock')]"/>
+                <filter name="fitted" string="Fitted" domain="[('state', '=', 'fitted')]"/>
+                <group expand="0" string="Group By">
+                    <filter name="group_product" string="Alternator" context="{'group_by': 'product_id'}"/>
+                </group>
+            </search>
+        </field>
+    </record>
+
+    <record id="action_x4u_alternator_serial" model="ir.actions.act_window">
+        <field name="name">Alternator Serials</field>
+        <field name="res_model">x4u.alternator.serial</field>
+        <field name="view_mode">list</field>
+        <field name="context">{'search_default_in_stock': 1}</field>
+        <field name="help" type="html">
+            <p class="o_view_nocontent_smiling_face">No alternator serial yet</p>
+            <p>Write them on the receipt (column Alternator Serials) when they are known; Deliver Materials then offers them in a list.</p>
+        </field>
+    </record>
+
+    <menuitem id="menu_x4u_alternator_serial" name="Alternator Serials" parent="stock.menu_stock_inventory_control"
+              action="action_x4u_alternator_serial" sequence="25" groups="stock.group_stock_user"/>
+
+    <!-- The receipt: the alternator serials, optional -->
+    <record id="view_picking_form_x4u_alternator_serials" model="ir.ui.view">
+        <field name="name">stock.picking.form.x4u.alternator.serials</field>
+        <field name="model">stock.picking</field>
+        <field name="inherit_id" ref="stock.view_picking_form"/>
+        <field name="arch" type="xml">
+            <xpath expr="//field[@name='move_ids_without_package']/list/field[@name='lot_ids']" position="after">
+                <field name="x4u_role" column_invisible="True"/>
+                <field name="x4u_alternator_serials" optional="show"
+                       column_invisible="parent.picking_type_code != 'incoming'"
+                       invisible="x4u_role != 'alternator'"
+                       readonly="state in ('done', 'cancel')"
+                       placeholder="Optional: A-77, A-78"/>
+            </xpath>
+        </field>
+    </record>
+</odoo>

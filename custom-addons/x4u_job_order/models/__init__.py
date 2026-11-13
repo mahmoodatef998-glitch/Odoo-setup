@@ -1,4 +1,5 @@
 from . import x4u_job_order_event
+from . import x4u_alternator_serial
 from . import mrp_production
 from . import product_template
 from . import stock_move

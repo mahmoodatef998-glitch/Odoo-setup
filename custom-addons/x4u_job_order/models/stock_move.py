@@ -1,5 +1,7 @@
 from odoo import _, api, fields, models
 
+from .x4u_alternator_serial import split_serials
+
 ROLE_CATEGORIES = (
     ("engine", "x4u_setup_base.categ_engines"),
     ("alternator", "x4u_setup_base.categ_alternators"),
@@ -30,6 +32,12 @@ class StockMove(models.Model):
     x4u_purchase_id = fields.Many2one("purchase.order", string="Purchase Order", compute="_compute_x4u_part")
     x4u_vendor_id = fields.Many2one("res.partner", string="Vendor", compute="_compute_x4u_part")
     x4u_expected_date = fields.Datetime(string="Expected", compute="_compute_x4u_part")
+    x4u_alternator_serials = fields.Char(
+        string="Alternator Serials",
+        copy=False,
+        help="Optional (spec v0.8.1 N4): the serials of the alternators received, separated by commas. "
+        "Deliver Materials then offers them in a list.",
+    )
     x4u_stock_on_hand = fields.Float(
         string="On Hand",
         compute="_compute_x4u_stock",
@@ -49,6 +57,11 @@ class StockMove(models.Model):
         return super(StockMove, self - self._x4u_job_order_parts())._action_assign(force_qty=force_qty)
 
     def _action_done(self, cancel_backorder=False):
+        # Spec v0.8.1 N4: the alternator serials written on a receipt (optional) go to the list
+        # that Deliver Materials offers.
+        Serial = self.env["x4u.alternator.serial"]
+        for move in self.filtered(lambda m: m.x4u_alternator_serials and m.picking_code == "incoming" and m.quantity):
+            Serial._x4u_register(move, split_serials(move.x4u_alternator_serials))
         moves = super()._action_done(cancel_backorder=cancel_backorder)
         # Spec v0.8 F4: stock came in or went out, so the flag of the open Job Orders follows it.
         changed = moves.filtered(

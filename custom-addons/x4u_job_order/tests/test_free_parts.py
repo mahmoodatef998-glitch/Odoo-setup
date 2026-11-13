@@ -72,21 +72,24 @@ class TestFreeParts(X4uJobOrderCommon):
         _order, production = self._sell()
         wizard = self._wizard(production)
         engine_line = wizard.line_ids.filtered(lambda line: line.x4u_role == "engine")
-        self.assertEqual(engine_line.quantity, 0, "nothing proposed: the Storekeeper picks the serial")
+        self.assertEqual(len(engine_line), 1, "one line per engine, with its list")
+        self.assertFalse(engine_line.lot_id, "nothing proposed: the Storekeeper picks the serial")
+        self.assertEqual(engine_line.quantity, 0)
         self.assertEqual(len(engine_line.available_lot_ids), 2)
-        engine_line.quantity = 1
-        with self.assertRaises(UserError):
-            wizard.action_confirm()
+        # Without its serial the engine stays in stock; the other parts go, the Job Order waits.
+        wizard.action_confirm()
         self.assertEqual(production.x4u_job_state, "parts_ready")
-        lot = engine_line.available_lot_ids.sorted("name")[-1]
-        engine_line.lot_ids = lot
-        wizard.line_ids.filtered(lambda line: line.x4u_role == "alternator").alternator_serial = "A-77"
+        stock = self.warehouse.lot_stock_id
+        self.assertEqual(self.engine.with_context(location=stock.id).qty_available, 2)
+        wizard = self._wizard(production)
+        self.assertEqual(wizard.line_ids.x4u_role, "engine", "only the engine is left")
+        lot = wizard.line_ids.available_lot_ids.sorted("name")[-1]
+        wizard.line_ids.lot_id = lot
         wizard.action_confirm()
         self.assertEqual(production.x4u_job_state, "material_delivered")
         card = production.x4u_generator_id
         self.assertEqual(card.x4u_engine_lot_id, lot)
         self.assertEqual(card.engine_serial, lot.name)
-        self.assertEqual(card.alternator_serial, "A-77")
         production.with_user(self.operation).action_x4u_finish()
         engine = production.move_raw_ids.filtered(lambda move: move.x4u_role == "engine")
         self.assertEqual(engine.move_line_ids.lot_id, lot, "the factory fits the engine delivered")
@@ -100,6 +103,65 @@ class TestFreeParts(X4uJobOrderCommon):
         self._deliver_materials(production)
         self.assertEqual(production.x4u_job_state, "material_delivered")
         self.assertFalse(production.x4u_generator_id.alternator_serial)
+
+    # T27 (v0.8.1 N4): alternator serials written at the receipt when known (optional), then
+    # picked from a list in Deliver Materials; the card gets it and it is no longer in stock
+    def test_alternator_serial_list(self):
+        receipt = self._receipt(self.alt_stamford, 2)
+        receipt.move_ids.quantity = 2
+        receipt.move_ids.x4u_alternator_serials = "A-77"
+        receipt.move_ids.picked = True
+        receipt.button_validate()
+        self.assertEqual(receipt.state, "done", "one of the two has no serial: the receipt goes on")
+        Serial = self.env["x4u.alternator.serial"]
+        serial = Serial.search([("product_id", "=", self.alt_stamford.id)])
+        self.assertEqual((serial.name, serial.state, serial.picking_id), ("A-77", "in_stock", receipt))
+        extra = self._receipt(self.alt_stamford, 1)
+        extra.move_ids.quantity = 1
+        extra.move_ids.x4u_alternator_serials = "A-80, A-81"
+        extra.move_ids.picked = True
+        with self.assertRaises(UserError):
+            extra.button_validate()
+        for part in (self.engine, self.body_canopy):
+            self._stock(part, 1)
+        _order, production = self._sell()
+        wizard = self._wizard(production)
+        alternator_line = wizard.line_ids.filtered(lambda line: line.x4u_role == "alternator")
+        self.assertEqual(alternator_line.available_alternator_ids, serial)
+        alternator_line.alternator_serial_id = serial
+        engine_line = wizard.line_ids.filtered(lambda line: line.x4u_role == "engine")
+        engine_line.lot_id = engine_line.available_lot_ids[:1]
+        wizard.action_confirm()
+        self.assertEqual(production.x4u_job_state, "material_delivered")
+        self.assertEqual(production.x4u_generator_id.alternator_serial, "A-77")
+        self.assertEqual((serial.state, serial.production_id), ("fitted", production))
+        self.assertFalse(Serial.search([("state", "=", "in_stock"), ("product_id", "=", self.alt_stamford.id)]))
+
+    # T28 (v0.8.1): a Job Order that kept a reservation from before the engine serials (MO012 on
+    # odoo4u_base: no serial, marked picked) still finishes, with the engine delivered to it
+    def test_finish_after_an_old_reservation(self):
+        for part in (self.engine, self.alt_stamford, self.body_canopy):
+            self._stock(part, 1)
+        _order, production = self._sell()
+        self._deliver_materials(production)
+        engine = production.move_raw_ids.filtered(lambda move: move.x4u_role == "engine")
+        delivered = engine.move_line_ids.lot_id
+        self.assertTrue(delivered)
+        engine.move_line_ids.unlink()
+        self.env["stock.move.line"].create(
+            {
+                "move_id": engine.id,
+                "product_id": self.engine.id,
+                "product_uom_id": self.engine.uom_id.id,
+                "location_id": engine.location_id.id,
+                "location_dest_id": engine.location_dest_id.id,
+                "quantity": 1,
+            }
+        )
+        engine.picked = True
+        production.with_user(self.operation).action_x4u_finish()
+        self.assertEqual(production.state, "done")
+        self.assertEqual(engine.move_line_ids.lot_id, delivered)
 
     # T24 (N6): the generator is worth the very engine fitted in it
     def test_generator_worth_its_own_engine(self):

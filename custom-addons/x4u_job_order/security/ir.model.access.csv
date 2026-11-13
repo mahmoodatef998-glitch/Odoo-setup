@@ -19,3 +19,6 @@ access_x4u_ready_order_user,x4u.ready.order user,model_x4u_ready_order,base.grou
 access_x4u_ready_order_mrp_manager,x4u.ready.order mrp manager,model_x4u_ready_order,mrp.group_mrp_manager,1,1,1,0
 access_x4u_ready_receipt_stock,x4u.ready.receipt stock user,model_x4u_ready_receipt,stock.group_stock_user,1,1,1,1
 access_x4u_ready_receipt_line_stock,x4u.ready.receipt.line stock user,model_x4u_ready_receipt_line,stock.group_stock_user,1,1,1,1
+access_x4u_alternator_serial_user,x4u.alternator.serial user,model_x4u_alternator_serial,base.group_user,1,0,0,0
+access_x4u_alternator_serial_stock,x4u.alternator.serial stock user,model_x4u_alternator_serial,stock.group_stock_user,1,1,1,0
+access_x4u_alternator_serial_stock_manager,x4u.alternator.serial stock manager,model_x4u_alternator_serial,stock.group_stock_manager,1,1,1,1
