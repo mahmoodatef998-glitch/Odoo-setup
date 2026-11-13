@@ -4,7 +4,7 @@
     "name": "4U Accounting",
     "summary": "Accounting the 4U way: menus, PDC cheques to vendors, equity accounts, Petty Cash, "
     "Receivables & Payables (due lists, aging, statements) and safe automatic reconciliation",
-    "version": "18.0.1.5.0",
+    "version": "18.0.1.6.1",
     "category": "Accounting/Accounting",
     # AGPL-3 because it depends on account_asset_management (AGPL-3).
     "license": "AGPL-3",
@@ -26,10 +26,19 @@
         "partner_statement",
         # Perpetual inventory: WIP and the applied overhead of a finished product (spec §9).
         "mrp_account",
+        # The cost of sales of a line invoiced before it is delivered (spec §9 S6).
+        "sale_stock",
         # The categories it values.
         "x4u_setup_base",
         # Freight, insurance, clearing and customs in the inventory value (spec §10).
         "stock_landed_costs",
+        # Phase 5: customers' PDC deposited at the bank (spec §12).
+        "account_check_deposit",
+        # Monthly closing: the Chief Accountant's Lock Dates, fiscal years (spec §13).
+        "account_lock_date_update",
+        "account_fiscal_year_auto_create",
+        # Management reports (spec §14); the OCA Balance Sheet template and its styles.
+        "mis_template_financial_report",
     ],
     "data": [
         "security/ir.model.access.csv",
@@ -37,6 +46,8 @@
         "data/landed_cost_data.xml",
         "data/landed_cost_product_data.xml",
         "data/ir_cron_data.xml",
+        "data/mis_report_data.xml",
+        "data/mis_report_instance_data.xml",
         "views/account_payment_views.xml",
         "wizard/x4u_pdc_bounce_views.xml",
         "views/receivable_payable_views.xml",

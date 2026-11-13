@@ -4,6 +4,12 @@ from odoo import _, models
 class StockMove(models.Model):
     _inherit = "stock.move"
 
+    def _action_done(self, cancel_backorder=False):
+        moves = super()._action_done(cancel_backorder=cancel_backorder)
+        # Spec §9 S6: the delivery of a line already invoiced brings its cost of sales.
+        moves.filtered(lambda move: move.state == "done").sale_line_id._x4u_settle_cogs()
+        return moves
+
     def _generate_valuation_lines_data(
         self, partner_id, qty, debit_value, credit_value, debit_account_id, credit_account_id, svl_id, description
     ):

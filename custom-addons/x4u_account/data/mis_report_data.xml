@@ -1,0 +1,510 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Spec x4u_account §14: the 4U groups on the l10n_ae codes. When the account tree changes,
+     change the codes here; the Accountant copies a report (Duplicate) to change it on screen. -->
+<odoo>
+    <record id="mis_report_x4u_pl" model="mis.report">
+        <field name="name">4U Management P&amp;L</field>
+        <field name="description">Revenue by line, gross margin, operating expenses by group, EBITDA, net profit</field>
+        <field name="style_id" ref="mis_template_financial_report.style_default"/>
+    </record>
+    <record id="mis_report_x4u_pl_kpi_rev_generators" model="mis.report.kpi">
+        <field name="report_id" ref="mis_report_x4u_pl"/>
+        <field name="sequence">10</field>
+        <field name="name">rev_generators</field>
+        <field name="description">Generator Sales</field>
+        <field name="expression">-balp[500001]</field>
+        <field name="type">num</field>
+        <field name="compare_method">diff</field>
+        <field name="accumulation_method">sum</field>
+        <field name="style_id" ref="mis_template_financial_report.style_details"/>
+        <field name="auto_expand_accounts" eval="True"/>
+        <field name="auto_expand_accounts_style_id" ref="mis_template_financial_report.style_details_double_indent"/>
+    </record>
+    <record id="mis_report_x4u_pl_kpi_rev_parts" model="mis.report.kpi">
+        <field name="report_id" ref="mis_report_x4u_pl"/>
+        <field name="sequence">20</field>
+        <field name="name">rev_parts</field>
+        <field name="description">Spare Parts Sales</field>
+        <field name="expression">-balp[500015]</field>
+        <field name="type">num</field>
+        <field name="compare_method">diff</field>
+        <field name="accumulation_method">sum</field>
+        <field name="style_id" ref="mis_template_financial_report.style_details"/>
+        <field name="auto_expand_accounts" eval="True"/>
+        <field name="auto_expand_accounts_style_id" ref="mis_template_financial_report.style_details_double_indent"/>
+    </record>
+    <record id="mis_report_x4u_pl_kpi_rev_services" model="mis.report.kpi">
+        <field name="report_id" ref="mis_report_x4u_pl"/>
+        <field name="sequence">30</field>
+        <field name="name">rev_services</field>
+        <field name="description">Service Income</field>
+        <field name="expression">-balp[500008]</field>
+        <field name="type">num</field>
+        <field name="compare_method">diff</field>
+        <field name="accumulation_method">sum</field>
+        <field name="style_id" ref="mis_template_financial_report.style_details"/>
+        <field name="auto_expand_accounts" eval="True"/>
+        <field name="auto_expand_accounts_style_id" ref="mis_template_financial_report.style_details_double_indent"/>
+    </record>
+    <record id="mis_report_x4u_pl_kpi_rev_other" model="mis.report.kpi">
+        <field name="report_id" ref="mis_report_x4u_pl"/>
+        <field name="sequence">40</field>
+        <field name="name">rev_other</field>
+        <field name="description">Other Operating Revenue</field>
+        <field name="expression">-balp[500002,500003,500004,500005,500006,500007]</field>
+        <field name="type">num</field>
+        <field name="compare_method">diff</field>
+        <field name="accumulation_method">sum</field>
+        <field name="style_id" ref="mis_template_financial_report.style_details"/>
+        <field name="auto_expand_accounts" eval="True"/>
+        <field name="auto_expand_accounts_style_id" ref="mis_template_financial_report.style_details_double_indent"/>
+    </record>
+    <record id="mis_report_x4u_pl_kpi_revenue" model="mis.report.kpi">
+        <field name="report_id" ref="mis_report_x4u_pl"/>
+        <field name="sequence">50</field>
+        <field name="name">revenue</field>
+        <field name="description">Revenue</field>
+        <field name="expression">rev_generators + rev_parts + rev_services + rev_other</field>
+        <field name="type">num</field>
+        <field name="compare_method">diff</field>
+        <field name="accumulation_method">sum</field>
+        <field name="style_id" ref="mis_template_financial_report.style_header"/>
+    </record>
+    <record id="mis_report_x4u_pl_kpi_cogs" model="mis.report.kpi">
+        <field name="report_id" ref="mis_report_x4u_pl"/>
+        <field name="sequence">60</field>
+        <field name="name">cogs</field>
+        <field name="description">Cost of Sales</field>
+        <field name="expression">balp[('account_type', '=', 'expense_direct_cost')]</field>
+        <field name="type">num</field>
+        <field name="compare_method">diff</field>
+        <field name="accumulation_method">sum</field>
+        <field name="style_id" ref="mis_template_financial_report.style_details"/>
+        <field name="auto_expand_accounts" eval="True"/>
+        <field name="auto_expand_accounts_style_id" ref="mis_template_financial_report.style_details_double_indent"/>
+    </record>
+    <record id="mis_report_x4u_pl_kpi_gross_profit" model="mis.report.kpi">
+        <field name="report_id" ref="mis_report_x4u_pl"/>
+        <field name="sequence">70</field>
+        <field name="name">gross_profit</field>
+        <field name="description">Gross Profit</field>
+        <field name="expression">revenue - cogs</field>
+        <field name="type">num</field>
+        <field name="compare_method">diff</field>
+        <field name="accumulation_method">sum</field>
+        <field name="style_id" ref="mis_template_financial_report.style_header"/>
+    </record>
+    <record id="mis_report_x4u_pl_kpi_gross_margin" model="mis.report.kpi">
+        <field name="report_id" ref="mis_report_x4u_pl"/>
+        <field name="sequence">80</field>
+        <field name="name">gross_margin</field>
+        <field name="description">Gross Margin %</field>
+        <field name="expression">gross_profit / revenue if revenue else AccountingNone</field>
+        <field name="type">pct</field>
+        <field name="compare_method">none</field>
+        <field name="accumulation_method">none</field>
+        <field name="style_id" ref="mis_template_financial_report.style_details"/>
+    </record>
+    <record id="mis_report_x4u_pl_kpi_staff" model="mis.report.kpi">
+        <field name="report_id" ref="mis_report_x4u_pl"/>
+        <field name="sequence">90</field>
+        <field name="name">staff</field>
+        <field name="description">Staff Costs</field>
+        <field name="expression">balp[400003,400004,400005,400006,400007,400008,400009,400010,400011,400012,400013,400014,400015]</field>
+        <field name="type">num</field>
+        <field name="compare_method">diff</field>
+        <field name="accumulation_method">sum</field>
+        <field name="style_id" ref="mis_template_financial_report.style_details"/>
+        <field name="auto_expand_accounts" eval="True"/>
+        <field name="auto_expand_accounts_style_id" ref="mis_template_financial_report.style_details_double_indent"/>
+    </record>
+    <record id="mis_report_x4u_pl_kpi_premises" model="mis.report.kpi">
+        <field name="report_id" ref="mis_report_x4u_pl"/>
+        <field name="sequence">100</field>
+        <field name="name">premises</field>
+        <field name="description">Premises, Utilities &amp; Maintenance</field>
+        <field name="expression">balp[400016,400017,400018,400019,400042,400043,400044]</field>
+        <field name="type">num</field>
+        <field name="compare_method">diff</field>
+        <field name="accumulation_method">sum</field>
+        <field name="style_id" ref="mis_template_financial_report.style_details"/>
+        <field name="auto_expand_accounts" eval="True"/>
+        <field name="auto_expand_accounts_style_id" ref="mis_template_financial_report.style_details_double_indent"/>
+    </record>
+    <record id="mis_report_x4u_pl_kpi_communication" model="mis.report.kpi">
+        <field name="report_id" ref="mis_report_x4u_pl"/>
+        <field name="sequence">110</field>
+        <field name="name">communication</field>
+        <field name="description">Communication</field>
+        <field name="expression">balp[400020,400021,400022,400023]</field>
+        <field name="type">num</field>
+        <field name="compare_method">diff</field>
+        <field name="accumulation_method">sum</field>
+        <field name="style_id" ref="mis_template_financial_report.style_details"/>
+        <field name="auto_expand_accounts" eval="True"/>
+        <field name="auto_expand_accounts_style_id" ref="mis_template_financial_report.style_details_double_indent"/>
+    </record>
+    <record id="mis_report_x4u_pl_kpi_travel" model="mis.report.kpi">
+        <field name="report_id" ref="mis_report_x4u_pl"/>
+        <field name="sequence">120</field>
+        <field name="name">travel</field>
+        <field name="description">Travel</field>
+        <field name="expression">balp[400024,400025,400026,400027]</field>
+        <field name="type">num</field>
+        <field name="compare_method">diff</field>
+        <field name="accumulation_method">sum</field>
+        <field name="style_id" ref="mis_template_financial_report.style_details"/>
+        <field name="auto_expand_accounts" eval="True"/>
+        <field name="auto_expand_accounts_style_id" ref="mis_template_financial_report.style_details_double_indent"/>
+    </record>
+    <record id="mis_report_x4u_pl_kpi_professional" model="mis.report.kpi">
+        <field name="report_id" ref="mis_report_x4u_pl"/>
+        <field name="sequence">130</field>
+        <field name="name">professional</field>
+        <field name="description">Professional Fees &amp; Licences</field>
+        <field name="expression">balp[400029,400030,400031,400032,400033,400067]</field>
+        <field name="type">num</field>
+        <field name="compare_method">diff</field>
+        <field name="accumulation_method">sum</field>
+        <field name="style_id" ref="mis_template_financial_report.style_details"/>
+        <field name="auto_expand_accounts" eval="True"/>
+        <field name="auto_expand_accounts_style_id" ref="mis_template_financial_report.style_details_double_indent"/>
+    </record>
+    <record id="mis_report_x4u_pl_kpi_marketing" model="mis.report.kpi">
+        <field name="report_id" ref="mis_report_x4u_pl"/>
+        <field name="sequence">140</field>
+        <field name="name">marketing</field>
+        <field name="description">Advertising</field>
+        <field name="expression">balp[400034]</field>
+        <field name="type">num</field>
+        <field name="compare_method">diff</field>
+        <field name="accumulation_method">sum</field>
+        <field name="style_id" ref="mis_template_financial_report.style_details"/>
+        <field name="auto_expand_accounts" eval="True"/>
+        <field name="auto_expand_accounts_style_id" ref="mis_template_financial_report.style_details_double_indent"/>
+    </record>
+    <record id="mis_report_x4u_pl_kpi_vehicles" model="mis.report.kpi">
+        <field name="report_id" ref="mis_report_x4u_pl"/>
+        <field name="sequence">150</field>
+        <field name="name">vehicles</field>
+        <field name="description">Vehicles &amp; Transport</field>
+        <field name="expression">balp[400048,400049]</field>
+        <field name="type">num</field>
+        <field name="compare_method">diff</field>
+        <field name="accumulation_method">sum</field>
+        <field name="style_id" ref="mis_template_financial_report.style_details"/>
+        <field name="auto_expand_accounts" eval="True"/>
+        <field name="auto_expand_accounts_style_id" ref="mis_template_financial_report.style_details_double_indent"/>
+    </record>
+    <record id="mis_report_x4u_pl_kpi_office" model="mis.report.kpi">
+        <field name="report_id" ref="mis_report_x4u_pl"/>
+        <field name="sequence">160</field>
+        <field name="name">office</field>
+        <field name="description">Office &amp; Administration</field>
+        <field name="expression">balp[400028,400040,400041,400045,400046,400047,400050]</field>
+        <field name="type">num</field>
+        <field name="compare_method">diff</field>
+        <field name="accumulation_method">sum</field>
+        <field name="style_id" ref="mis_template_financial_report.style_details"/>
+        <field name="auto_expand_accounts" eval="True"/>
+        <field name="auto_expand_accounts_style_id" ref="mis_template_financial_report.style_details_double_indent"/>
+    </record>
+    <record id="mis_report_x4u_pl_kpi_bank_charges" model="mis.report.kpi">
+        <field name="report_id" ref="mis_report_x4u_pl"/>
+        <field name="sequence">170</field>
+        <field name="name">bank_charges</field>
+        <field name="description">Bank Charges</field>
+        <field name="expression">balp[400051,400058,400059,400060,400061,400062]</field>
+        <field name="type">num</field>
+        <field name="compare_method">diff</field>
+        <field name="accumulation_method">sum</field>
+        <field name="style_id" ref="mis_template_financial_report.style_details"/>
+        <field name="auto_expand_accounts" eval="True"/>
+        <field name="auto_expand_accounts_style_id" ref="mis_template_financial_report.style_details_double_indent"/>
+    </record>
+    <record id="mis_report_x4u_pl_kpi_provisions" model="mis.report.kpi">
+        <field name="report_id" ref="mis_report_x4u_pl"/>
+        <field name="sequence">180</field>
+        <field name="name">provisions</field>
+        <field name="description">Provisions &amp; Write-offs</field>
+        <field name="expression">balp[400035,400036,400038,400039,400068]</field>
+        <field name="type">num</field>
+        <field name="compare_method">diff</field>
+        <field name="accumulation_method">sum</field>
+        <field name="style_id" ref="mis_template_financial_report.style_details"/>
+        <field name="auto_expand_accounts" eval="True"/>
+        <field name="auto_expand_accounts_style_id" ref="mis_template_financial_report.style_details_double_indent"/>
+    </record>
+    <record id="mis_report_x4u_pl_kpi_overhead_absorbed" model="mis.report.kpi">
+        <field name="report_id" ref="mis_report_x4u_pl"/>
+        <field name="sequence">190</field>
+        <field name="name">overhead_absorbed</field>
+        <field name="description">Overhead Absorbed into Generators</field>
+        <field name="expression">balp[400072]</field>
+        <field name="type">num</field>
+        <field name="compare_method">diff</field>
+        <field name="accumulation_method">sum</field>
+        <field name="style_id" ref="mis_template_financial_report.style_details"/>
+        <field name="auto_expand_accounts" eval="True"/>
+        <field name="auto_expand_accounts_style_id" ref="mis_template_financial_report.style_details_double_indent"/>
+    </record>
+    <record id="mis_report_x4u_pl_kpi_opex" model="mis.report.kpi">
+        <field name="report_id" ref="mis_report_x4u_pl"/>
+        <field name="sequence">200</field>
+        <field name="name">opex</field>
+        <field name="description">Operating Expenses</field>
+        <field name="expression">staff + premises + communication + travel + professional + marketing + vehicles + office + bank_charges + provisions + overhead_absorbed</field>
+        <field name="type">num</field>
+        <field name="compare_method">diff</field>
+        <field name="accumulation_method">sum</field>
+        <field name="style_id" ref="mis_template_financial_report.style_header"/>
+    </record>
+    <record id="mis_report_x4u_pl_kpi_ebitda" model="mis.report.kpi">
+        <field name="report_id" ref="mis_report_x4u_pl"/>
+        <field name="sequence">210</field>
+        <field name="name">ebitda</field>
+        <field name="description">EBITDA</field>
+        <field name="expression">gross_profit - opex</field>
+        <field name="type">num</field>
+        <field name="compare_method">diff</field>
+        <field name="accumulation_method">sum</field>
+        <field name="style_id" ref="mis_template_financial_report.style_header"/>
+    </record>
+    <record id="mis_report_x4u_pl_kpi_depreciation" model="mis.report.kpi">
+        <field name="report_id" ref="mis_report_x4u_pl"/>
+        <field name="sequence">220</field>
+        <field name="name">depreciation</field>
+        <field name="description">Depreciation &amp; Amortisation</field>
+        <field name="expression">balp[400037,400063,400064,400065,400066,400070]</field>
+        <field name="type">num</field>
+        <field name="compare_method">diff</field>
+        <field name="accumulation_method">sum</field>
+        <field name="style_id" ref="mis_template_financial_report.style_details"/>
+        <field name="auto_expand_accounts" eval="True"/>
+        <field name="auto_expand_accounts_style_id" ref="mis_template_financial_report.style_details_double_indent"/>
+    </record>
+    <record id="mis_report_x4u_pl_kpi_operating_profit" model="mis.report.kpi">
+        <field name="report_id" ref="mis_report_x4u_pl"/>
+        <field name="sequence">230</field>
+        <field name="name">operating_profit</field>
+        <field name="description">Operating Profit</field>
+        <field name="expression">ebitda - depreciation</field>
+        <field name="type">num</field>
+        <field name="compare_method">diff</field>
+        <field name="accumulation_method">sum</field>
+        <field name="style_id" ref="mis_template_financial_report.style_header"/>
+    </record>
+    <record id="mis_report_x4u_pl_kpi_other_income" model="mis.report.kpi">
+        <field name="report_id" ref="mis_report_x4u_pl"/>
+        <field name="sequence">240</field>
+        <field name="name">other_income</field>
+        <field name="description">Other Income</field>
+        <field name="expression">-balp[500009,500010,500011,500012,500013,500014]</field>
+        <field name="type">num</field>
+        <field name="compare_method">diff</field>
+        <field name="accumulation_method">sum</field>
+        <field name="style_id" ref="mis_template_financial_report.style_details"/>
+        <field name="auto_expand_accounts" eval="True"/>
+        <field name="auto_expand_accounts_style_id" ref="mis_template_financial_report.style_details_double_indent"/>
+    </record>
+    <record id="mis_report_x4u_pl_kpi_other_expenses" model="mis.report.kpi">
+        <field name="report_id" ref="mis_report_x4u_pl"/>
+        <field name="sequence">250</field>
+        <field name="name">other_expenses</field>
+        <field name="description">Other Expenses</field>
+        <field name="expression">balp[400052,400053,400054,400056,400057,400069,400071]</field>
+        <field name="type">num</field>
+        <field name="compare_method">diff</field>
+        <field name="accumulation_method">sum</field>
+        <field name="style_id" ref="mis_template_financial_report.style_details"/>
+        <field name="auto_expand_accounts" eval="True"/>
+        <field name="auto_expand_accounts_style_id" ref="mis_template_financial_report.style_details_double_indent"/>
+    </record>
+    <record id="mis_report_x4u_pl_kpi_profit_before_tax" model="mis.report.kpi">
+        <field name="report_id" ref="mis_report_x4u_pl"/>
+        <field name="sequence">260</field>
+        <field name="name">profit_before_tax</field>
+        <field name="description">Profit Before Tax</field>
+        <field name="expression">operating_profit + other_income - other_expenses</field>
+        <field name="type">num</field>
+        <field name="compare_method">diff</field>
+        <field name="accumulation_method">sum</field>
+        <field name="style_id" ref="mis_template_financial_report.style_header"/>
+    </record>
+    <record id="mis_report_x4u_pl_kpi_corporate_tax" model="mis.report.kpi">
+        <field name="report_id" ref="mis_report_x4u_pl"/>
+        <field name="sequence">270</field>
+        <field name="name">corporate_tax</field>
+        <field name="description">Corporate Tax</field>
+        <field name="expression">balp[400055]</field>
+        <field name="type">num</field>
+        <field name="compare_method">diff</field>
+        <field name="accumulation_method">sum</field>
+        <field name="style_id" ref="mis_template_financial_report.style_details"/>
+        <field name="auto_expand_accounts" eval="True"/>
+        <field name="auto_expand_accounts_style_id" ref="mis_template_financial_report.style_details_double_indent"/>
+    </record>
+    <record id="mis_report_x4u_pl_kpi_net_profit" model="mis.report.kpi">
+        <field name="report_id" ref="mis_report_x4u_pl"/>
+        <field name="sequence">280</field>
+        <field name="name">net_profit</field>
+        <field name="description">Net Profit</field>
+        <field name="expression">profit_before_tax - corporate_tax</field>
+        <field name="type">num</field>
+        <field name="compare_method">diff</field>
+        <field name="accumulation_method">sum</field>
+        <field name="style_id" ref="mis_template_financial_report.style_header"/>
+    </record>
+    <record id="mis_report_x4u_pl_kpi_net_margin" model="mis.report.kpi">
+        <field name="report_id" ref="mis_report_x4u_pl"/>
+        <field name="sequence">290</field>
+        <field name="name">net_margin</field>
+        <field name="description">Net Margin %</field>
+        <field name="expression">net_profit / revenue if revenue else AccountingNone</field>
+        <field name="type">pct</field>
+        <field name="compare_method">none</field>
+        <field name="accumulation_method">none</field>
+        <field name="style_id" ref="mis_template_financial_report.style_details"/>
+    </record>
+    <record id="mis_report_x4u_pl_kpi_not_mapped" model="mis.report.kpi">
+        <field name="report_id" ref="mis_report_x4u_pl"/>
+        <field name="sequence">300</field>
+        <field name="name">not_mapped</field>
+        <field name="description">Accounts Not in This Report (must be 0)</field>
+        <field name="expression">-balp[('account_type', 'in', ('income', 'income_other'))] - balp[('account_type', 'in', ('expense', 'expense_depreciation', 'expense_direct_cost'))] - net_profit</field>
+        <field name="type">num</field>
+        <field name="compare_method">diff</field>
+        <field name="accumulation_method">sum</field>
+        <field name="style_id" ref="mis_template_financial_report.style_details"/>
+    </record>
+    <record id="mis_report_x4u_cash" model="mis.report">
+        <field name="name">4U Cash &amp; Working Capital</field>
+        <field name="description">Cash, cheques in hand and issued, receivables, stock and payables at a date</field>
+        <field name="style_id" ref="mis_template_financial_report.style_default"/>
+    </record>
+    <record id="mis_report_x4u_cash_kpi_cash" model="mis.report.kpi">
+        <field name="report_id" ref="mis_report_x4u_cash"/>
+        <field name="sequence">10</field>
+        <field name="name">cash</field>
+        <field name="description">Cash &amp; Bank</field>
+        <field name="expression">bale[('account_type', '=', 'asset_cash')]</field>
+        <field name="type">num</field>
+        <field name="compare_method">diff</field>
+        <field name="accumulation_method">none</field>
+        <field name="style_id" ref="mis_template_financial_report.style_details"/>
+        <field name="auto_expand_accounts" eval="True"/>
+        <field name="auto_expand_accounts_style_id" ref="mis_template_financial_report.style_details_double_indent"/>
+    </record>
+    <record id="mis_report_x4u_cash_kpi_pdc_received" model="mis.report.kpi">
+        <field name="report_id" ref="mis_report_x4u_cash"/>
+        <field name="sequence">20</field>
+        <field name="name">pdc_received</field>
+        <field name="description">PDC Received (cheques in hand)</field>
+        <field name="expression">bale[102013]</field>
+        <field name="type">num</field>
+        <field name="compare_method">diff</field>
+        <field name="accumulation_method">none</field>
+        <field name="style_id" ref="mis_template_financial_report.style_details"/>
+    </record>
+    <record id="mis_report_x4u_cash_kpi_receivables" model="mis.report.kpi">
+        <field name="report_id" ref="mis_report_x4u_cash"/>
+        <field name="sequence">30</field>
+        <field name="name">receivables</field>
+        <field name="description">Trade Receivables</field>
+        <field name="expression">bale[('account_type', '=', 'asset_receivable')]</field>
+        <field name="type">num</field>
+        <field name="compare_method">diff</field>
+        <field name="accumulation_method">none</field>
+        <field name="style_id" ref="mis_template_financial_report.style_details"/>
+    </record>
+    <record id="mis_report_x4u_cash_kpi_inventory" model="mis.report.kpi">
+        <field name="report_id" ref="mis_report_x4u_cash"/>
+        <field name="sequence">40</field>
+        <field name="name">inventory</field>
+        <field name="description">Inventory &amp; Work in Progress</field>
+        <field name="expression">bale[103001,103002,103003,103004,103005]</field>
+        <field name="type">num</field>
+        <field name="compare_method">diff</field>
+        <field name="accumulation_method">none</field>
+        <field name="style_id" ref="mis_template_financial_report.style_details"/>
+        <field name="auto_expand_accounts" eval="True"/>
+        <field name="auto_expand_accounts_style_id" ref="mis_template_financial_report.style_details_double_indent"/>
+    </record>
+    <record id="mis_report_x4u_cash_kpi_current_assets" model="mis.report.kpi">
+        <field name="report_id" ref="mis_report_x4u_cash"/>
+        <field name="sequence">50</field>
+        <field name="name">current_assets</field>
+        <field name="description">Cash, Cheques, Receivables &amp; Stock</field>
+        <field name="expression">cash + pdc_received + receivables + inventory</field>
+        <field name="type">num</field>
+        <field name="compare_method">diff</field>
+        <field name="accumulation_method">none</field>
+        <field name="style_id" ref="mis_template_financial_report.style_header"/>
+    </record>
+    <record id="mis_report_x4u_cash_kpi_payables" model="mis.report.kpi">
+        <field name="report_id" ref="mis_report_x4u_cash"/>
+        <field name="sequence">60</field>
+        <field name="name">payables</field>
+        <field name="description">Trade Payables</field>
+        <field name="expression">-bale[('account_type', '=', 'liability_payable')]</field>
+        <field name="type">num</field>
+        <field name="compare_method">diff</field>
+        <field name="accumulation_method">none</field>
+        <field name="style_id" ref="mis_template_financial_report.style_details"/>
+    </record>
+    <record id="mis_report_x4u_cash_kpi_pdc_issued" model="mis.report.kpi">
+        <field name="report_id" ref="mis_report_x4u_cash"/>
+        <field name="sequence">70</field>
+        <field name="name">pdc_issued</field>
+        <field name="description">PDC Issued (not cleared yet)</field>
+        <field name="expression">-bale[201020]</field>
+        <field name="type">num</field>
+        <field name="compare_method">diff</field>
+        <field name="accumulation_method">none</field>
+        <field name="style_id" ref="mis_template_financial_report.style_details"/>
+    </record>
+    <record id="mis_report_x4u_cash_kpi_grni" model="mis.report.kpi">
+        <field name="report_id" ref="mis_report_x4u_cash"/>
+        <field name="sequence">80</field>
+        <field name="name">grni</field>
+        <field name="description">Goods Received Not Invoiced</field>
+        <field name="expression">-bale[201021]</field>
+        <field name="type">num</field>
+        <field name="compare_method">diff</field>
+        <field name="accumulation_method">none</field>
+        <field name="style_id" ref="mis_template_financial_report.style_details"/>
+    </record>
+    <record id="mis_report_x4u_cash_kpi_current_liabilities" model="mis.report.kpi">
+        <field name="report_id" ref="mis_report_x4u_cash"/>
+        <field name="sequence">90</field>
+        <field name="name">current_liabilities</field>
+        <field name="description">Payables &amp; Cheques Issued</field>
+        <field name="expression">payables + pdc_issued + grni</field>
+        <field name="type">num</field>
+        <field name="compare_method">diff</field>
+        <field name="accumulation_method">none</field>
+        <field name="style_id" ref="mis_template_financial_report.style_header"/>
+    </record>
+    <record id="mis_report_x4u_cash_kpi_working_capital" model="mis.report.kpi">
+        <field name="report_id" ref="mis_report_x4u_cash"/>
+        <field name="sequence">100</field>
+        <field name="name">working_capital</field>
+        <field name="description">Working Capital</field>
+        <field name="expression">current_assets - current_liabilities</field>
+        <field name="type">num</field>
+        <field name="compare_method">diff</field>
+        <field name="accumulation_method">none</field>
+        <field name="style_id" ref="mis_template_financial_report.style_header"/>
+    </record>
+    <record id="mis_report_x4u_cash_kpi_cash_after_pdc" model="mis.report.kpi">
+        <field name="report_id" ref="mis_report_x4u_cash"/>
+        <field name="sequence">110</field>
+        <field name="name">cash_after_pdc</field>
+        <field name="description">Cash After All PDCs Clear</field>
+        <field name="expression">cash + pdc_received - pdc_issued</field>
+        <field name="type">num</field>
+        <field name="compare_method">diff</field>
+        <field name="accumulation_method">none</field>
+        <field name="style_id" ref="mis_template_financial_report.style_header"/>
+    </record>
+</odoo>

@@ -61,6 +61,7 @@
 | 5 | **تكلفة المولد** (دليل الدورة A2) | ✅ 2026-10-27: قيمة المولد = القطع اللي اتصرفت + 20% (Settings › Manufacturing › 4U Job Orders). والقطع والمولدات بقت FIFO، وكل مولد بقيمته بالسيريال ([x4u_job_order v0.4](../specs/x4u_job_order.md) V5، V6) |
 | 6 | **التقييم** (دليل الدورة A1): Manual Periodic ولا Automated | ✅ 2026-11-07: **Automated (Perpetual) + Anglo-Saxon**، والـ 20% لحساب `400072 Applied Manufacturing Overhead` ([x4u_account v0.4](../specs/x4u_account.md) §9). 🔵 الأكواد مع المحاسب |
 | 7 | **القوايم والـ PDC للموردين** (2026-11-07) | ✅ [x4u_account v0.1](../specs/x4u_account.md): Assets جوه Accounting، ومفيش Products، و Sales Section، و Invoices، و DR، و PDC Cheques بحساب `201020 Post Dated Cheques Issued` (🔵 الكود مع المحاسب في الشجرة) |
+| 8 | **الرقابة والتقارير** (المرحلة 5، 2026-11-07) | ✅ [x4u_account v0.7](../specs/x4u_account.md) §12–§15: شيكات العملاء (PDC Received على 102013، الإيداع من تاريخ الشيك، والـ Bounce بيرجّع الفاتورة مفتوحة)، القفل الشهري (Sales و Purchase يوم 10 أوتوماتيك، والباقي للمدير المالي)، FY 2026/2027، تقارير MIS (P&L، Cash & Working Capital، Balance Sheet)، والربحية لكل Job Order. 🔵 مجموعات الـ P&L بتتغير مع الشجرة الجديدة |
 
 ## 5. الخطوات
 1. ✅ Excel للمراجعة: `private/accounting/ata-account-tree-mapping.xlsx` (شيت Odoo Chart، Account Groups، Focus Tree Mapping، Summary).

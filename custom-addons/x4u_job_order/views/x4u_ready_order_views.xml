@@ -1,0 +1,128 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <!-- Ready Job Orders (spec v0.7 G1-G6): generators bought complete -->
+    <record id="x4u_ready_order_view_form" model="ir.ui.view">
+        <field name="name">x4u.ready.order.form</field>
+        <field name="model">x4u.ready.order</field>
+        <field name="arch" type="xml">
+            <form string="Ready Job Order" create="0">
+                <header>
+                    <field name="state" widget="statusbar" statusbar_visible="waiting,in_stock,delivered"/>
+                </header>
+                <sheet>
+                    <div class="oe_button_box" name="button_box">
+                        <button name="action_open_purchase" type="object" class="oe_stat_button" icon="fa-shopping-cart"
+                                invisible="not purchase_order_id and not request_id">
+                            <field name="purchase_status" widget="statinfo" string="Purchase"/>
+                        </button>
+                        <button name="action_open_generator" type="object" class="oe_stat_button" icon="fa-bolt"
+                                string="Generator Card" invisible="not generator_id"/>
+                        <button name="action_open_profitability" type="object" class="oe_stat_button" icon="fa-line-chart"
+                                invisible="not analytic_account_id"
+                                groups="account.group_account_readonly,account.group_account_invoice">
+                            <field name="currency_id" invisible="1"/>
+                            <field name="margin" widget="statinfo" string="Margin"/>
+                        </button>
+                    </div>
+                    <div class="oe_title">
+                        <span class="badge text-bg-info">Ready</span>
+                        <h1><field name="name"/></h1>
+                    </div>
+                    <group>
+                        <group>
+                            <field name="product_id"/>
+                            <field name="customer_id"/>
+                            <field name="sale_order_id"/>
+                        </group>
+                        <group>
+                            <field name="lot_id"/>
+                            <field name="generator_id"/>
+                            <field name="purchase_order_id" invisible="not purchase_order_id"/>
+                            <field name="request_id" invisible="not request_id"/>
+                            <field name="analytic_account_id" invisible="1"/>
+                            <field name="company_id" groups="base.group_multi_company"/>
+                        </group>
+                    </group>
+                </sheet>
+                <chatter/>
+            </form>
+        </field>
+    </record>
+
+    <record id="x4u_ready_order_view_list" model="ir.ui.view">
+        <field name="name">x4u.ready.order.list</field>
+        <field name="model">x4u.ready.order</field>
+        <field name="arch" type="xml">
+            <list string="Ready Job Orders" create="0" decoration-muted="state in ('delivered', 'cancelled')">
+                <field name="name"/>
+                <field name="product_id"/>
+                <field name="customer_id"/>
+                <field name="sale_order_id"/>
+                <field name="purchase_status"/>
+                <field name="lot_id" optional="show"/>
+                <field name="state" widget="badge"
+                       decoration-warning="state == 'waiting'" decoration-success="state in ('in_stock', 'delivered')"/>
+            </list>
+        </field>
+    </record>
+
+    <record id="x4u_ready_order_view_search" model="ir.ui.view">
+        <field name="name">x4u.ready.order.search</field>
+        <field name="model">x4u.ready.order</field>
+        <field name="arch" type="xml">
+            <search string="Ready Job Orders">
+                <field name="name"/>
+                <field name="customer_id"/>
+                <field name="sale_order_id"/>
+                <field name="product_id"/>
+                <filter name="open" string="Open" domain="[('state', 'in', ('waiting', 'in_stock'))]"/>
+                <filter name="waiting" string="Waiting Purchase" domain="[('state', '=', 'waiting')]"/>
+                <filter name="in_stock" string="In Stock" domain="[('state', '=', 'in_stock')]"/>
+                <group>
+                    <filter name="group_state" string="Status" context="{'group_by': 'state'}"/>
+                    <filter name="group_customer" string="Customer" context="{'group_by': 'customer_id'}"/>
+                </group>
+            </search>
+        </field>
+    </record>
+
+    <record id="action_x4u_ready_order" model="ir.actions.act_window">
+        <field name="name">Ready Job Orders</field>
+        <field name="res_model">x4u.ready.order</field>
+        <field name="view_mode">list,form</field>
+        <field name="search_view_id" ref="x4u_ready_order_view_search"/>
+        <field name="context">{'search_default_open': 1}</field>
+        <field name="help" type="html">
+            <p class="o_view_nocontent_smiling_face">No ready generator ordered yet</p>
+            <p>On the quotation, set <b>Supply</b> to <b>Buy Ready</b> on the generator line: at Confirm, the
+                complete generator is requested from Purchasing instead of its parts.</p>
+        </field>
+    </record>
+
+    <menuitem id="menu_x4u_ready_order" name="Ready Job Orders" parent="mrp.menu_mrp_manufacturing"
+              action="action_x4u_ready_order" sequence="2"/>
+    <menuitem id="menu_x4u_ready_order_purchase" name="Ready Job Orders" parent="purchase.menu_procurement_management"
+              action="action_x4u_ready_order" sequence="13" groups="group_x4u_job_order_viewer,purchase.group_purchase_user"/>
+    <menuitem id="menu_x4u_ready_order_inventory" name="Ready Job Orders" parent="stock.menu_stock_warehouse_mgmt"
+              action="action_x4u_ready_order" sequence="6" groups="group_x4u_job_order_viewer,stock.group_stock_user"/>
+
+    <!-- The quotation: Supply on the generator line, and the Ready Job Orders of the order -->
+    <record id="view_order_form_x4u_ready" model="ir.ui.view">
+        <field name="name">sale.order.form.x4u.ready</field>
+        <field name="model">sale.order</field>
+        <field name="inherit_id" ref="sale.view_order_form"/>
+        <field name="arch" type="xml">
+            <xpath expr="//div[@name='button_box']" position="inside">
+                <button name="action_x4u_open_ready_orders" type="object" class="oe_stat_button" icon="fa-cubes"
+                        invisible="x4u_ready_order_count == 0">
+                    <field name="x4u_ready_order_count" widget="statinfo" string="Ready Job Orders"/>
+                </button>
+            </xpath>
+            <xpath expr="//field[@name='order_line']/list/field[@name='product_template_id']" position="after">
+                <field name="x4u_is_generator" column_invisible="1"/>
+                <field name="x4u_supply" optional="show" invisible="not x4u_is_generator"
+                       readonly="state not in ('draft', 'sent')"/>
+            </xpath>
+        </field>
+    </record>
+</odoo>

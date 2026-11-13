@@ -8,6 +8,7 @@
         <field name="arch" type="xml">
             <xpath expr="//group[@name='rating']" position="inside">
                 <field name="x4u_enclosure"/>
+                <field name="x4u_supplier_serial"/>
             </xpath>
         </field>
     </record>

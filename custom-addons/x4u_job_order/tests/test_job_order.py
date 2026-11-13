@@ -328,3 +328,96 @@ class TestJobOrder(X4uJobOrderCommon):
         self.assertTrue(
             any("Delivered before the final invoice was paid" in (body or "") for body in order.message_ids.mapped("body"))
         )
+
+    # T19 (spec v0.5 A1-A3): each Job Order has its analytic account; its invoice and its cost of
+    # sales post there, and the margin shows on the Job Order
+    def test_job_order_profitability(self):
+        self.template.categ_id = self.env.ref("x4u_setup_base.categ_generators")
+        self.template.list_price = 10000.0
+        stock = self.warehouse.lot_stock_id
+        for part, price in ((self.engine, 1000.0), (self.alt_stamford, 500.0), (self.body_canopy, 300.0)):
+            part.standard_price = price
+            self.env["stock.quant"].with_context(inventory_mode=True).create(
+                {"product_id": part.id, "location_id": stock.id, "inventory_quantity": 1}
+            ).action_apply_inventory()
+        # The company currency: AED is only active where the UAE chart is (as in x4u_sale's tests).
+        pricelist = self.env["product.pricelist"].create(
+            {"name": "X4U Test Profitability", "currency_id": self.env.company.currency_id.id}
+        )
+        order, production = self._sell(pricelist_id=pricelist.id)
+        account = production.x4u_analytic_account_id
+        self.assertTrue(account)
+        self.assertEqual(account.plan_id, self.env.ref("x4u_job_order.analytic_plan_job_orders"))
+        self.assertEqual(account.code, production.name)
+        self.assertEqual(account.partner_id, self.customer)
+        self.assertEqual(order.order_line.analytic_distribution, {str(account.id): 100.0})
+        self.assertTrue(self.env.user.has_group("analytic.group_analytic_accounting"))
+
+        self._deliver_materials(production)
+        production.with_user(self.operation).action_x4u_finish()
+        self._deliver(order)
+        invoice = order._create_invoices()
+        invoice.action_post()
+        self.assertEqual(invoice.invoice_line_ids.analytic_distribution, {str(account.id): 100.0})
+        lines = self.env["account.analytic.line"].search(
+            [("account_id", "=", account.id), ("general_account_id.internal_group", "in", ("income", "expense"))]
+        )
+        revenue = sum(lines.filtered(lambda line: line.amount > 0).mapped("amount"))
+        self.assertEqual(revenue, 10000.0)
+        categ = self.template.categ_id.with_company(production.company_id)
+        if production.company_id.anglo_saxon_accounting and categ.property_valuation == "real_time":
+            # Perpetual + Anglo-Saxon (x4u_account §9): the cost of sales is the generator's value.
+            cost = sum(lines.filtered(lambda line: line.amount < 0).mapped("amount"))
+            self.assertAlmostEqual(cost, -1800.0 * 1.2)
+            self.assertAlmostEqual(production.x4u_job_margin, 10000.0 - 2160.0)
+        else:
+            self.assertAlmostEqual(production.x4u_job_margin, 10000.0)
+        action = production.action_x4u_open_profitability()
+        self.assertEqual(action["domain"][0], ("account_id", "=", account.id))
+
+    # T20: the 4U order of things - the tax invoice before the generator is made and delivered.
+    # The cost of sales must still be the generator's value, and Goods Delivered Not Invoiced close.
+    def test_invoice_before_delivery_cost_of_sales(self):
+        self.template.categ_id = self.env.ref("x4u_setup_base.categ_generators")
+        self.template.list_price = 10000.0
+        categ = self.template.categ_id.with_company(self.env.company)
+        if not (self.env.company.anglo_saxon_accounting and categ.property_valuation == "real_time"):
+            self.skipTest("perpetual valuation comes with x4u_account")
+        stock = self.warehouse.lot_stock_id
+        for part, price in ((self.engine, 1000.0), (self.alt_stamford, 500.0), (self.body_canopy, 300.0)):
+            part.standard_price = price
+            self.env["stock.quant"].with_context(inventory_mode=True).create(
+                {"product_id": part.id, "location_id": stock.id, "inventory_quantity": 1}
+            ).action_apply_inventory()
+        pricelist = self.env["product.pricelist"].create(
+            {"name": "X4U Test Invoice First", "currency_id": self.env.company.currency_id.id}
+        )
+        order, production = self._sell(pricelist_id=pricelist.id)
+        invoice = order._create_invoices()
+        invoice.action_post()
+        self._deliver_materials(production)
+        production.with_user(self.operation).action_x4u_finish()
+        self._deliver(order)
+
+        output = categ.property_stock_account_output_categ_id
+        expense = categ.property_account_expense_categ_id
+        Line = self.env["account.move.line"]
+        domain = [("product_id", "=", self.variant.id), ("parent_state", "=", "posted")]
+        cogs = sum(Line.search(domain + [("account_id", "=", expense.id)]).mapped("balance"))
+        gdni = sum(Line.search(domain + [("account_id", "=", output.id)]).mapped("balance"))
+        self.assertAlmostEqual(cogs, 2160.0, msg="cost of sales = parts 1800 + 20%")
+        self.assertAlmostEqual(gdni, 0.0, msg="Goods Delivered Not Invoiced closes")
+        self.assertAlmostEqual(production.x4u_job_margin, 10000.0 - 2160.0, msg="the Job Order's margin sees the cost")
+
+    def test_two_generators_share_the_line(self):
+        order = self.env["sale.order"].create(
+            {
+                "partner_id": self.customer.id,
+                "warehouse_id": self.warehouse.id,
+                "order_line": [Command.create({"product_id": self.variant.id, "product_uom_qty": 2})],
+            }
+        )
+        order.action_confirm()
+        accounts = order.mrp_production_ids.x4u_analytic_account_id
+        self.assertEqual(len(accounts), 2)
+        self.assertEqual(order.order_line.analytic_distribution, {str(a.id): 50.0 for a in accounts})

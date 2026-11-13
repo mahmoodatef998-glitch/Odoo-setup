@@ -14,6 +14,9 @@
                 <button name="action_x4u_finish" type="object" string="Finish Job Order" class="oe_highlight"
                         groups="mrp.group_mrp_user"
                         invisible="not x4u_is_job_order or x4u_job_state != 'material_delivered'"/>
+                <button name="action_x4u_reserved_parts" type="object" string="Who Holds the Parts"
+                        groups="mrp.group_mrp_user,stock.group_stock_user"
+                        invisible="not x4u_is_job_order or x4u_material_flag != 'missing'"/>
             </xpath>
             <xpath expr="(//header/button[@name='button_mark_done'])[1]" position="attributes">
                 <attribute name="invisible" add="x4u_is_job_order" separator=" or "/>
@@ -45,11 +48,18 @@
                 </button>
                 <button name="action_x4u_open_generator" type="object" class="oe_stat_button" icon="fa-bolt"
                         string="Generator Card" invisible="not x4u_generator_id"/>
+                <button name="action_x4u_open_profitability" type="object" class="oe_stat_button" icon="fa-line-chart"
+                        invisible="not x4u_analytic_account_id"
+                        groups="account.group_account_readonly,account.group_account_invoice">
+                    <field name="x4u_currency_id" invisible="1"/>
+                    <field name="x4u_job_margin" widget="statinfo" string="Margin"/>
+                </button>
             </xpath>
             <xpath expr="//div[hasclass('oe_title')]" position="inside">
                 <field name="x4u_is_job_order" invisible="1"/>
                 <field name="x4u_sale_order_id" invisible="1"/>
                 <field name="x4u_generator_id" invisible="1"/>
+                <field name="x4u_analytic_account_id" invisible="1"/>
                 <field name="x4u_job_state" widget="badge" invisible="not x4u_is_job_order"
                        decoration-info="x4u_job_state in ('waiting_parts', 'parts_ready')"
                        decoration-warning="x4u_job_state == 'material_delivered'"

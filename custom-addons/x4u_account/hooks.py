@@ -1,4 +1,9 @@
-from odoo import Command
+import calendar
+from datetime import date
+
+from dateutil.relativedelta import relativedelta
+
+from odoo import Command, fields
 
 # Equity, after the Focus tree (Capital In Paid, Partner Paid, Reserves & Surplus, Profit/Loss).
 # 999999 "Undistributed Profits/Losses" stays the current year's profit (spec §3). The codes
@@ -91,6 +96,11 @@ CATEGORY_ACCOUNTS = {
 
 MASS_RECONCILE_NAME = "4U: payments with invoices by reference"
 
+# Spec §12: customers' post-dated cheques wait in 102013 (l10n_ae) until they are deposited.
+PDC_RECEIVED_ACCOUNT = ("102013", "Post Dated Cheques Received")
+# After the real bank journals (sequence 10), so Odoo never proposes it as "the" bank.
+PDC_RECEIVED_JOURNAL = ("CHK", "PDC Received", 90)
+
 
 def post_init_hook(env):
     x4u_setup(env)
@@ -110,11 +120,60 @@ def x4u_setup(env):
         _perpetual_inventory(env, company)
         _landed_costs(env, company)
         _asset_profiles(env, company)
+        _pdc_received(env, company)
+        _fiscal_years(env, company)
     env["res.config.settings"].create(STATEMENT_SETTINGS).execute()
     # The OCA job that posts the depreciation lines that are due (it ships inactive).
     cron = env.ref("account_asset_management.ir_cron_assets_generator", raise_if_not_found=False)
     if cron and not cron.active:
         cron.sudo().active = True
+
+
+def _pdc_received(env, company):
+    """Spec §12 K1: the PDC Received journal. A customer's cheque is a payment in this journal; it
+    waits in 102013 until a Check Deposit moves it to the bank's Outstanding Receipts."""
+    code, name = PDC_RECEIVED_ACCOUNT
+    account = _account(env, company, code) or env["account.account"].sudo().with_company(company).create(
+        {"code": code, "name": name, "account_type": "asset_current"}
+    )
+    # The deposit reconciles each cheque out of it, so the balance is the cheques in hand.
+    if not account.reconcile:
+        account.reconcile = True
+    company = company.sudo()
+    journal = company.x4u_pdc_received_journal_id
+    if not journal:
+        Journal = env["account.journal"].sudo()
+        journal_code, journal_name, sequence = PDC_RECEIVED_JOURNAL
+        journal = Journal.search([("code", "=", journal_code), *Journal._check_company_domain(company)], limit=1)
+        if not journal:
+            journal = Journal.create(
+                {"name": journal_name, "code": journal_code, "type": "bank", "sequence": sequence, "company_id": company.id}
+            )
+        company.x4u_pdc_received_journal_id = journal
+    manual = journal.inbound_payment_method_line_ids.filtered(lambda line: line.code == "manual")[:1]
+    if manual and not manual.payment_account_id:
+        manual.payment_account_id = account
+    # Cheques in hand are not paid out: only the deposit takes them out.
+    if not env["account.payment"].sudo().search_count([("journal_id", "=", journal.id), ("payment_type", "=", "outbound")]):
+        journal.outbound_payment_method_line_ids.unlink()
+
+
+def _fiscal_years(env, company):
+    """Spec §13 L3: this fiscal year and the next one (January-December by default; the company's
+    Fiscal Year Last Day decides). OCA account_fiscal_year_auto_create adds the following ones."""
+    FiscalYear = env["account.fiscal.year"].sudo()
+    last_month = int(company.fiscalyear_last_month)
+    today = fields.Date.context_today(company)
+    for year in (today.year, today.year + 1):
+        last_day = min(company.fiscalyear_last_day, calendar.monthrange(year, last_month)[1])
+        date_to = date(year, last_month, last_day)
+        date_from = date_to - relativedelta(years=1) + relativedelta(days=1)
+        if FiscalYear.search_count(
+            [("company_id", "=", company.id), ("date_from", "<=", date_to), ("date_to", ">=", date_from)]
+        ):
+            continue
+        name = "FY %s" % year if date_from.year == year else "FY %s-%s" % (date_from.year, year)
+        FiscalYear.create({"name": name, "company_id": company.id, "date_from": date_from, "date_to": date_to})
 
 
 def _asset_profiles(env, company):
@@ -368,6 +427,8 @@ def uninstall_hook(env):
             "parent_id": env.ref("account.menu_finance_entries").id,
             "sequence": 50,
         },
+        "account_check_deposit.menu_check_deposit_tree": {"name": "Checks Deposits"},
+        "account_lock_date_update.account_update_lock_date_menu": {"groups_id": [Command.clear()]},
     }
     for xmlid, values in menus.items():
         menu = env.ref(xmlid, raise_if_not_found=False)

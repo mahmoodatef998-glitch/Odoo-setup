@@ -11,4 +11,17 @@
         <field name="nextcall" eval="(DateTime.now() + timedelta(days=1)).strftime('%Y-%m-%d 22:00:00')"/>
         <field name="active" eval="True"/>
     </record>
+
+    <!-- Spec §13 L1: from the 10th, Sales and Purchase are locked up to the end of last month.
+         Daily, so a day the server is off is caught the next day; it only moves the dates forward. -->
+    <record id="ir_cron_x4u_soft_lock" model="ir.cron">
+        <field name="name">4U: Lock last month for invoices and bills (from the 10th)</field>
+        <field name="model_id" ref="base.model_res_company"/>
+        <field name="state">code</field>
+        <field name="code">model._x4u_cron_soft_lock()</field>
+        <field name="interval_number">1</field>
+        <field name="interval_type">days</field>
+        <field name="nextcall" eval="(DateTime.now() + timedelta(days=1)).strftime('%Y-%m-%d 21:30:00')"/>
+        <field name="active" eval="True"/>
+    </record>
 </odoo>

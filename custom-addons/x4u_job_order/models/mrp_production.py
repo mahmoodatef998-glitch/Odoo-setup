@@ -27,6 +27,9 @@ STAGES = [
 ]
 STAGE_KEYS = [stage[0] for stage in STAGES]
 PART_ROLES = ("engine", "alternator", "body")
+# Spec v0.5 A3: the margin counts P&L accounts only. With Anglo-Saxon, Odoo also puts the analytic
+# on the cost of sales' balance-sheet side (Goods Delivered Not Invoiced), which would cancel it.
+PROFIT_DOMAIN = [("general_account_id.internal_group", "in", ("income", "expense"))]
 
 
 class MrpProduction(models.Model):
@@ -34,6 +37,16 @@ class MrpProduction(models.Model):
 
     x4u_is_job_order = fields.Boolean(
         string="Is Job Order", compute="_compute_x4u_is_job_order", store=True, index=True
+    )
+    # Spec v0.5 A1: the Job Order's own analytic account, so its revenue, cost of sales and
+    # direct costs give its margin (x4u_account spec §15).
+    x4u_analytic_account_id = fields.Many2one(
+        "account.analytic.account", string="Job Analytic Account", copy=False, readonly=True, index="btree_not_null"
+    )
+    x4u_currency_id = fields.Many2one(related="company_id.currency_id", string="Company Currency")
+    x4u_job_margin = fields.Monetary(
+        string="Job Margin", currency_field="x4u_currency_id", compute="_compute_x4u_job_margin",
+        help="Revenue less cost of sales and direct costs posted on this Job Order's analytic account.",
     )
     x4u_job_state = fields.Selection(
         JOB_STATES,
@@ -299,7 +312,82 @@ class MrpProduction(models.Model):
         productions = super().create(vals_list)
         for production in productions.filtered("x4u_is_job_order"):
             production._x4u_log("job_order_created", document=production)
+        productions._x4u_job_analytic()
         return productions
+
+    # ------------------------------------------------------------------
+    # Profitability (spec v0.5 A1-A4)
+    # ------------------------------------------------------------------
+    def _x4u_job_analytic(self, backfill=False):
+        """Each Job Order gets its analytic account (code = its number, name = the customer), and the
+        sales line it comes from carries it: the invoice line, and with Anglo-Saxon the cost of sales
+        line, get it from there. A backorder keeps its Job Order's number, so it keeps the account."""
+        jobs = self.filtered(lambda p: p.x4u_is_job_order and p.state != "cancel")
+        if not jobs:
+            return
+        plan = self.env.ref("x4u_job_order.analytic_plan_job_orders", raise_if_not_found=False)
+        if not plan:
+            return
+        Account = self.env["account.analytic.account"].sudo()
+        for production in jobs.sudo():
+            partner = production.x4u_customer_id.commercial_partner_id
+            account = production.x4u_analytic_account_id
+            if not account:
+                account = Account.search(
+                    [("plan_id", "=", plan.id), ("code", "=", production.name),
+                     ("company_id", "in", (production.company_id.id, False))],
+                    limit=1,
+                ) or Account.create(
+                    {
+                        "name": partner.name or production.product_id.display_name,
+                        "code": production.name,
+                        "plan_id": plan.id,
+                        "company_id": production.company_id.id,
+                        "partner_id": partner.id,
+                    }
+                )
+                production.x4u_analytic_account_id = account
+            if partner and not account.partner_id:
+                account.write({"partner_id": partner.id, "name": partner.name})
+        lines = self.env["sale.order.line"]
+        for production in jobs:
+            lines |= production._x4u_sale_line()
+        lines._x4u_set_job_distribution(plan, backfill=backfill)
+
+    def _x4u_sale_line(self):
+        """The sales line this Job Order makes the generator for. Odoo fills `sale_line_id` only on
+        some MOs; a make-to-order MO is found from its generator's move to the customer."""
+        self.ensure_one()
+        if self.sale_line_id:
+            return self.sale_line_id
+        moves = self.move_finished_ids.filtered(lambda move: move.product_id == self.product_id)
+        for _depth in range(4):
+            moves = moves.move_dest_ids
+            if not moves:
+                break
+            if moves.sale_line_id:
+                return moves.sale_line_id[:1]
+        return self.x4u_sale_order_id.order_line.filtered(
+            lambda line: line.product_id == self.product_id and not line.display_type
+        )[:1]
+
+    def _compute_x4u_job_margin(self):
+        accounts = self.x4u_analytic_account_id
+        margins = {}
+        if accounts:
+            for account, amount in self.env["account.analytic.line"].sudo()._read_group(
+                [("account_id", "in", accounts.ids), *PROFIT_DOMAIN], ["account_id"], ["amount:sum"]
+            ):
+                margins[account.id] = amount
+        for production in self:
+            production.x4u_job_margin = margins.get(production.x4u_analytic_account_id.id, 0.0)
+
+    def action_x4u_open_profitability(self):
+        self.ensure_one()
+        action = self.env["ir.actions.actions"]._for_xml_id("x4u_job_order.action_x4u_job_profitability")
+        action["domain"] = [("account_id", "=", self.x4u_analytic_account_id.id), *PROFIT_DOMAIN]
+        action["display_name"] = _("Profitability of %s", self.name)
+        return action
 
     def action_confirm(self):
         res = super().action_confirm()
@@ -433,6 +521,24 @@ class MrpProduction(models.Model):
         return {
             "type": "ir.actions.act_window",
             "name": _("Deliver Materials · %s", self.name),
+            "res_model": wizard._name,
+            "res_id": wizard.id,
+            "view_mode": "form",
+            "target": "new",
+        }
+
+    def action_x4u_reserved_parts(self):
+        """Reserved for Other Orders (spec v0.6 R1): who holds the parts this Job Order is short of."""
+        self.ensure_one()
+        lines = self.env["x4u.job.order.reserved.line"]._x4u_lines_for(self)
+        if not lines and not self.env["x4u.job.order.reserved"].new({"production_id": self.id})._x4u_short_moves():
+            raise UserError(_("%s is not missing any part.", self.name))
+        wizard = self.env["x4u.job.order.reserved"].create(
+            {"production_id": self.id, "line_ids": [Command.create(values) for values in lines]}
+        )
+        return {
+            "type": "ir.actions.act_window",
+            "name": _("Reserved for Other Orders · %s", self.name),
             "res_model": wizard._name,
             "res_id": wizard.id,
             "view_mode": "form",

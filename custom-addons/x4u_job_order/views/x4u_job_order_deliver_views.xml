@@ -26,6 +26,9 @@
                 </field>
                 <footer>
                     <button name="action_confirm" type="object" string="Confirm" class="btn-primary" data-hotkey="q"/>
+                    <field name="x4u_has_shortage" invisible="1"/>
+                    <button name="action_x4u_reserved_parts" type="object" string="Reserved for Other Orders"
+                            class="btn-secondary" invisible="not x4u_has_shortage" data-hotkey="r"/>
                     <button string="Discard" class="btn-secondary" special="cancel" data-hotkey="x"/>
                 </footer>
             </form>

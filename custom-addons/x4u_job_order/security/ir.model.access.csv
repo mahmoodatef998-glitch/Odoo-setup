@@ -15,3 +15,9 @@ access_qc_trigger_x4u_mrp_user,qc.trigger mrp user (Finish Job Order),quality_co
 access_qc_trigger_category_line_x4u_mrp_user,qc.trigger.product_category_line mrp user (Finish Job Order),quality_control_oca.model_qc_trigger_product_category_line,mrp.group_mrp_user,1,0,0,0
 access_qc_trigger_template_line_x4u_mrp_user,qc.trigger.product_template_line mrp user (Finish Job Order),quality_control_oca.model_qc_trigger_product_template_line,mrp.group_mrp_user,1,0,0,0
 access_qc_trigger_product_line_x4u_mrp_user,qc.trigger.product_line mrp user (Finish Job Order),quality_control_oca.model_qc_trigger_product_line,mrp.group_mrp_user,1,0,0,0
+access_x4u_job_order_reserved_stock,x4u.job.order.reserved stock user,model_x4u_job_order_reserved,stock.group_stock_user,1,1,1,1
+access_x4u_job_order_reserved_line_stock,x4u.job.order.reserved.line stock user,model_x4u_job_order_reserved_line,stock.group_stock_user,1,1,1,1
+access_x4u_job_order_reserved_mrp,x4u.job.order.reserved mrp user,model_x4u_job_order_reserved,mrp.group_mrp_user,1,1,1,1
+access_x4u_job_order_reserved_line_mrp,x4u.job.order.reserved.line mrp user,model_x4u_job_order_reserved_line,mrp.group_mrp_user,1,1,1,1
+access_x4u_ready_order_user,x4u.ready.order user,model_x4u_ready_order,base.group_user,1,0,0,0
+access_x4u_ready_order_mrp_manager,x4u.ready.order mrp manager,model_x4u_ready_order,mrp.group_mrp_manager,1,1,1,0

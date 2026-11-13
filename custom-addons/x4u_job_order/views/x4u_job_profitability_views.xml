@@ -1,0 +1,80 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <!-- Spec v0.5 A3: Job Profitability = the analytic lines of the Job Orders plan.
+         Revenue (+), cost of sales and direct costs (-); the total is the margin. -->
+    <record id="x4u_job_profitability_view_pivot" model="ir.ui.view">
+        <field name="name">account.analytic.line.pivot.x4u.job</field>
+        <field name="model">account.analytic.line</field>
+        <field name="priority">100</field>
+        <field name="arch" type="xml">
+            <pivot string="Job Profitability" sample="1">
+                <field name="account_id" type="row"/>
+                <field name="general_account_id" type="row"/>
+                <field name="amount" type="measure"/>
+            </pivot>
+        </field>
+    </record>
+
+    <record id="x4u_job_profitability_view_list" model="ir.ui.view">
+        <field name="name">account.analytic.line.list.x4u.job</field>
+        <field name="model">account.analytic.line</field>
+        <field name="priority">100</field>
+        <field name="arch" type="xml">
+            <list string="Job Profitability" create="0">
+                <field name="date"/>
+                <field name="account_id" string="Job Order"/>
+                <field name="general_account_id"/>
+                <field name="name"/>
+                <field name="partner_id" optional="show"/>
+                <field name="product_id" optional="show"/>
+                <field name="currency_id" column_invisible="1"/>
+                <field name="amount" sum="Margin"/>
+            </list>
+        </field>
+    </record>
+
+    <record id="x4u_job_profitability_view_search" model="ir.ui.view">
+        <field name="name">account.analytic.line.search.x4u.job</field>
+        <field name="model">account.analytic.line</field>
+        <field name="priority">100</field>
+        <field name="arch" type="xml">
+            <search string="Job Profitability">
+                <field name="account_id" string="Job Order"/>
+                <field name="partner_id"/>
+                <field name="general_account_id"/>
+                <filter name="revenue" string="Revenue" domain="[('amount', '&gt;', 0)]"/>
+                <filter name="costs" string="Costs" domain="[('amount', '&lt;', 0)]"/>
+                <separator/>
+                <filter name="date" string="Date" date="date"/>
+                <group>
+                    <filter name="group_job" string="Job Order" context="{'group_by': 'account_id'}"/>
+                    <filter name="group_customer" string="Customer" context="{'group_by': 'partner_id'}"/>
+                    <filter name="group_account" string="Account" context="{'group_by': 'general_account_id'}"/>
+                    <filter name="group_month" string="Month" context="{'group_by': 'date:month'}"/>
+                </group>
+            </search>
+        </field>
+    </record>
+
+    <record id="action_x4u_job_profitability" model="ir.actions.act_window">
+        <field name="name">Job Profitability</field>
+        <field name="res_model">account.analytic.line</field>
+        <field name="view_mode">pivot,list,graph</field>
+        <!-- P&L accounts only: the balance-sheet side of the cost of sales carries the analytic too. -->
+        <field name="domain" eval="[('account_id.plan_id', '=', ref('x4u_job_order.analytic_plan_job_orders')),
+            ('general_account_id.internal_group', 'in', ('income', 'expense'))]"/>
+        <field name="context">{'create': False}</field>
+        <field name="search_view_id" ref="x4u_job_profitability_view_search"/>
+        <field name="view_ids" eval="[Command.clear(),
+            Command.create({'view_mode': 'pivot', 'view_id': ref('x4u_job_profitability_view_pivot')}),
+            Command.create({'view_mode': 'list', 'view_id': ref('x4u_job_profitability_view_list')})]"/>
+        <field name="help" type="html">
+            <p class="o_view_nocontent_smiling_face">No Job Order revenue or cost yet</p>
+            <p>Each Job Order has its analytic account. Its invoice, its cost of sales and the bills
+                for its direct costs (transport, crane, installation) post here.</p>
+        </field>
+    </record>
+
+    <menuitem id="menu_x4u_job_profitability" parent="account.menu_finance_reports" action="action_x4u_job_profitability"
+              sequence="5" groups="account.group_account_readonly,account.group_account_invoice"/>
+</odoo>

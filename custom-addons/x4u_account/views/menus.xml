@@ -55,4 +55,16 @@
               action="account_financial_report.action_aged_partner_balance_wizard" sequence="60"/>
     <menuitem id="menu_x4u_open_items" name="Open Items" parent="menu_x4u_receivable_payable"
               action="account_financial_report.action_open_items_wizard" sequence="70"/>
+
+    <!-- v1.6 (2026-11-07), Phase 5 -->
+    <!-- Customers › PDC Received and Cheque Deposits (spec §12). -->
+    <menuitem id="menu_x4u_pdc_received" parent="account.menu_finance_receivables" action="x4u_pdc_received_action"
+              sequence="19" groups="account.group_account_invoice,account.group_account_readonly"/>
+    <record id="account_check_deposit.menu_check_deposit_tree" model="ir.ui.menu">
+        <field name="name">Cheque Deposits</field>
+    </record>
+    <!-- Accounting › Lock Dates: the Chief Accountant only (spec §13 L2). -->
+    <record id="account_lock_date_update.account_update_lock_date_menu" model="ir.ui.menu">
+        <field name="groups_id" eval="[Command.set([ref('account.group_account_manager')])]"/>
+    </record>
 </odoo>

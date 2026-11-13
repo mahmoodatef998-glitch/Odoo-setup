@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Spec v0.5 A1: one analytic account per Job Order, under Odoo's Project plan so the amounts
+     stay in the analytic line's main column (no extra plan column in the reports). -->
+<odoo noupdate="1">
+    <record id="analytic_plan_job_orders" model="account.analytic.plan">
+        <field name="name">Job Orders</field>
+        <field name="parent_id" ref="analytic.analytic_plan_projects"/>
+        <field name="description">One account per generator Job Order (MO001...): revenue, cost of sales, direct costs, margin.</field>
+    </record>
+</odoo>

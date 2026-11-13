@@ -1,0 +1,174 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Spec §14: the reports ready to open (Accounting › Reporting › MIS Reporting › MIS Reports).
+     noupdate: the Accountant may change the columns; an upgrade keeps them. -->
+<odoo noupdate="1">
+    <!-- P&L: this month, last month, year to date, last year -->
+    <record id="mis_instance_x4u_pl" model="mis.report.instance">
+        <field name="name">4U Management P&amp;L</field>
+        <field name="report_id" ref="mis_report_x4u_pl"/>
+        <field name="comparison_mode" eval="True"/>
+        <field name="display_columns_description" eval="True"/>
+    </record>
+    <record id="mis_instance_x4u_pl_month" model="mis.report.instance.period">
+        <field name="name">This Month</field>
+        <field name="report_instance_id" ref="mis_instance_x4u_pl"/>
+        <field name="mode">relative</field>
+        <field name="type">m</field>
+        <field name="offset">0</field>
+        <field name="sequence">10</field>
+    </record>
+    <record id="mis_instance_x4u_pl_last_month" model="mis.report.instance.period">
+        <field name="name">Last Month</field>
+        <field name="report_instance_id" ref="mis_instance_x4u_pl"/>
+        <field name="mode">relative</field>
+        <field name="type">m</field>
+        <field name="offset">-1</field>
+        <field name="sequence">20</field>
+    </record>
+    <record id="mis_instance_x4u_pl_ytd" model="mis.report.instance.period">
+        <field name="name">Year to Date</field>
+        <field name="report_instance_id" ref="mis_instance_x4u_pl"/>
+        <field name="mode">relative</field>
+        <field name="type">m</field>
+        <field name="offset">0</field>
+        <field name="is_ytd" eval="True"/>
+        <field name="sequence">30</field>
+    </record>
+    <record id="mis_instance_x4u_pl_last_year" model="mis.report.instance.period">
+        <field name="name">Last Year</field>
+        <field name="report_instance_id" ref="mis_instance_x4u_pl"/>
+        <field name="mode">relative</field>
+        <field name="type">y</field>
+        <field name="offset">-1</field>
+        <field name="sequence">40</field>
+    </record>
+
+    <!-- P&L month by month: the last 6 months and their total -->
+    <record id="mis_instance_x4u_pl_6m" model="mis.report.instance">
+        <field name="name">4U P&amp;L - Last 6 Months</field>
+        <field name="report_id" ref="mis_report_x4u_pl"/>
+        <field name="comparison_mode" eval="True"/>
+        <field name="display_columns_description" eval="True"/>
+    </record>
+    <record id="mis_instance_x4u_pl_6m_m5" model="mis.report.instance.period">
+        <field name="name">M-5</field>
+        <field name="report_instance_id" ref="mis_instance_x4u_pl_6m"/>
+        <field name="mode">relative</field>
+        <field name="type">m</field>
+        <field name="offset">-5</field>
+        <field name="sequence">10</field>
+    </record>
+    <record id="mis_instance_x4u_pl_6m_m4" model="mis.report.instance.period">
+        <field name="name">M-4</field>
+        <field name="report_instance_id" ref="mis_instance_x4u_pl_6m"/>
+        <field name="mode">relative</field>
+        <field name="type">m</field>
+        <field name="offset">-4</field>
+        <field name="sequence">20</field>
+    </record>
+    <record id="mis_instance_x4u_pl_6m_m3" model="mis.report.instance.period">
+        <field name="name">M-3</field>
+        <field name="report_instance_id" ref="mis_instance_x4u_pl_6m"/>
+        <field name="mode">relative</field>
+        <field name="type">m</field>
+        <field name="offset">-3</field>
+        <field name="sequence">30</field>
+    </record>
+    <record id="mis_instance_x4u_pl_6m_m2" model="mis.report.instance.period">
+        <field name="name">M-2</field>
+        <field name="report_instance_id" ref="mis_instance_x4u_pl_6m"/>
+        <field name="mode">relative</field>
+        <field name="type">m</field>
+        <field name="offset">-2</field>
+        <field name="sequence">40</field>
+    </record>
+    <record id="mis_instance_x4u_pl_6m_m1" model="mis.report.instance.period">
+        <field name="name">Last Month</field>
+        <field name="report_instance_id" ref="mis_instance_x4u_pl_6m"/>
+        <field name="mode">relative</field>
+        <field name="type">m</field>
+        <field name="offset">-1</field>
+        <field name="sequence">50</field>
+    </record>
+    <record id="mis_instance_x4u_pl_6m_m0" model="mis.report.instance.period">
+        <field name="name">This Month</field>
+        <field name="report_instance_id" ref="mis_instance_x4u_pl_6m"/>
+        <field name="mode">relative</field>
+        <field name="type">m</field>
+        <field name="offset">0</field>
+        <field name="sequence">60</field>
+    </record>
+    <record id="mis_instance_x4u_pl_6m_total" model="mis.report.instance.period">
+        <field name="name">6 Months</field>
+        <field name="report_instance_id" ref="mis_instance_x4u_pl_6m"/>
+        <field name="mode">relative</field>
+        <field name="type">m</field>
+        <field name="offset">-5</field>
+        <field name="duration">6</field>
+        <field name="sequence">70</field>
+    </record>
+
+    <!-- Cash & working capital: today, end of last month, end of last year -->
+    <record id="mis_instance_x4u_cash" model="mis.report.instance">
+        <field name="name">4U Cash &amp; Working Capital</field>
+        <field name="report_id" ref="mis_report_x4u_cash"/>
+        <field name="comparison_mode" eval="True"/>
+        <field name="display_columns_description" eval="True"/>
+    </record>
+    <record id="mis_instance_x4u_cash_today" model="mis.report.instance.period">
+        <field name="name">Today</field>
+        <field name="report_instance_id" ref="mis_instance_x4u_cash"/>
+        <field name="mode">relative</field>
+        <field name="type">d</field>
+        <field name="offset">0</field>
+        <field name="sequence">10</field>
+    </record>
+    <record id="mis_instance_x4u_cash_last_month" model="mis.report.instance.period">
+        <field name="name">End of Last Month</field>
+        <field name="report_instance_id" ref="mis_instance_x4u_cash"/>
+        <field name="mode">relative</field>
+        <field name="type">m</field>
+        <field name="offset">-1</field>
+        <field name="sequence">20</field>
+    </record>
+    <record id="mis_instance_x4u_cash_last_year" model="mis.report.instance.period">
+        <field name="name">End of Last Year</field>
+        <field name="report_instance_id" ref="mis_instance_x4u_cash"/>
+        <field name="mode">relative</field>
+        <field name="type">y</field>
+        <field name="offset">-1</field>
+        <field name="sequence">30</field>
+    </record>
+
+    <!-- Balance sheet (OCA template: assets, liabilities, equity, this year's profit) -->
+    <record id="mis_instance_x4u_bs" model="mis.report.instance">
+        <field name="name">4U Balance Sheet</field>
+        <field name="report_id" ref="mis_template_financial_report.report_bs"/>
+        <field name="comparison_mode" eval="True"/>
+        <field name="display_columns_description" eval="True"/>
+    </record>
+    <record id="mis_instance_x4u_bs_today" model="mis.report.instance.period">
+        <field name="name">Today</field>
+        <field name="report_instance_id" ref="mis_instance_x4u_bs"/>
+        <field name="mode">relative</field>
+        <field name="type">d</field>
+        <field name="offset">0</field>
+        <field name="sequence">10</field>
+    </record>
+    <record id="mis_instance_x4u_bs_last_month" model="mis.report.instance.period">
+        <field name="name">End of Last Month</field>
+        <field name="report_instance_id" ref="mis_instance_x4u_bs"/>
+        <field name="mode">relative</field>
+        <field name="type">m</field>
+        <field name="offset">-1</field>
+        <field name="sequence">20</field>
+    </record>
+    <record id="mis_instance_x4u_bs_last_year" model="mis.report.instance.period">
+        <field name="name">End of Last Year</field>
+        <field name="report_instance_id" ref="mis_instance_x4u_bs"/>
+        <field name="mode">relative</field>
+        <field name="type">y</field>
+        <field name="offset">-1</field>
+        <field name="sequence">30</field>
+    </record>
+</odoo>

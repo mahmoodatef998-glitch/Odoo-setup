@@ -13,6 +13,23 @@ class X4uJobOrderDeliver(models.TransientModel):
 
     production_id = fields.Many2one("mrp.production", string="Job Order", required=True, readonly=True)
     line_ids = fields.One2many("x4u.job.order.deliver.line", "wizard_id", string="Parts")
+    x4u_has_shortage = fields.Boolean(compute="_compute_x4u_has_shortage")
+
+    @api.depends("line_ids")
+    def _compute_x4u_has_shortage(self):
+        for wizard in self:
+            wizard.x4u_has_shortage = any(
+                float_compare(
+                    line.move_id._x4u_deliverable_qty(), line.move_id.product_uom_qty,
+                    precision_rounding=line.move_id.product_uom.rounding,
+                ) < 0
+                for line in wizard.line_ids
+            )
+
+    def action_x4u_reserved_parts(self):
+        """Spec v0.6 R1: the stock is there but reserved for other Job Orders - see who holds it."""
+        self.ensure_one()
+        return self.production_id.action_x4u_reserved_parts()
 
     def action_confirm(self):
         self.ensure_one()
@@ -28,12 +45,23 @@ class X4uJobOrderDeliver(models.TransientModel):
                     _("- %(part)s: only %(there)g in stock", part=move.product_id.display_name, there=move._x4u_deliverable_qty())
                 )
         if problems:
-            raise UserError(_("Check these quantities:\n%s", "\n".join(problems)))
+            raise UserError(
+                _(
+                    "Check these quantities:\n%s\n\nThe rest may be reserved for other Job Orders: "
+                    "press Reserved for Other Orders to see who holds it.",
+                    "\n".join(problems),
+                )
+            )
         to_deliver = self.line_ids.filtered(
             lambda line: not float_is_zero(line.quantity, precision_rounding=line.move_id.product_uom.rounding)
         )
         if not to_deliver:
-            raise UserError(_("Enter the quantity to deliver for at least one part."))
+            raise UserError(
+                _(
+                    "Enter the quantity to deliver for at least one part. Nothing free in stock? "
+                    "Press Reserved for Other Orders to see who holds it, or to buy new parts."
+                )
+            )
         for line in to_deliver:
             line.move_id.quantity = line.quantity
             line.move_id.picked = True

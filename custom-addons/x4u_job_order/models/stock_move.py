@@ -1,4 +1,4 @@
-from odoo import api, fields, models
+from odoo import _, api, fields, models
 
 ROLE_CATEGORIES = (
     ("engine", "x4u_setup_base.categ_engines"),
@@ -45,9 +45,76 @@ class StockMove(models.Model):
 
     def _action_assign(self, force_qty=False):
         res = super()._action_assign(force_qty=force_qty)
+        # Spec v0.6 R4: a part reserved from stock no longer needs buying.
+        self._x4u_close_covered_requests()
         # A part reserved later (receipt, Check Availability) makes its Job Order Parts Ready.
         self.env["mrp.production"].sudo()._x4u_from_moves(self)._x4u_check_parts_ready()
         return res
+
+    def _x4u_request_lines(self):
+        return self.env["purchase.request.line"].sudo().search([("move_dest_ids", "in", self.ids)])
+
+    def _x4u_close_covered_requests(self):
+        """Spec v0.6 R4: a Job Order part that got its stock (reserved or delivered) closes its
+        material request line, unless Purchasing already put it on an RFQ / PO, so nobody buys it
+        twice. OCA rejects a request when all its lines are closed."""
+        covered = self.filtered(lambda move: move.state in ("assigned", "done"))
+        if not covered:
+            return
+        jobs = self.env["mrp.production"].sudo()._x4u_from_moves(covered)
+        if not jobs:
+            return
+        lines = covered._x4u_request_lines().filtered(lambda line: not line.cancelled and not line.purchase_lines)
+        if not lines:
+            return
+        lines.do_cancel()
+        for production in jobs:
+            closed = lines.filtered(lambda line, p=production: line.move_dest_ids & p._x4u_component_moves())
+            if closed:
+                production.message_post(
+                    body=_(
+                        "Taken from stock, so not bought: %(parts)s (%(requests)s).",
+                        parts=", ".join(closed.product_id.mapped("display_name")),
+                        requests=", ".join(closed.request_id.mapped("name")),
+                    )
+                )
+
+    def _x4u_reopen_requests(self):
+        """Spec v0.6 R2-R3: these Job Order parts must be bought again (they were given to another
+        order, or someone chose Buy New Parts). The closed request line opens again; a part that
+        never had one gets a new request, approved like at the Job Order's confirmation."""
+        reopened = self.env["purchase.request.line"]
+        to_request = self.browse()
+        for move in self.filtered(lambda m: m.state not in ("assigned", "done", "cancel")):
+            lines = move._x4u_request_lines()
+            open_lines = lines.filtered(lambda line: not line.cancelled)
+            if open_lines:
+                continue
+            if lines:
+                reopened |= lines[:1]
+            else:
+                to_request |= move
+        if reopened:
+            reopened.do_uncancel()
+            reopened.request_id.filtered(lambda request: request.state == "rejected").write({"state": "approved"})
+        Procurement = self.env["procurement.group"].Procurement
+        procurements = []
+        for move in to_request:
+            values = move._prepare_procurement_values()
+            values["move_dest_ids"] = move
+            missing = move.product_uom_qty - move.quantity
+            procurements.append(
+                Procurement(
+                    move.product_id, missing, move.product_uom, move.location_id, move.reference,
+                    move.origin or move.reference, move.company_id, values,
+                )
+            )
+        if procurements:
+            self.env["procurement.group"].sudo().run(procurements)
+            to_request._x4u_request_lines().request_id.filtered(
+                lambda request: request.state in ("draft", "to_approve")
+            ).button_approved()
+        return reopened.request_id | to_request._x4u_request_lines().request_id
 
     def _x4u_deliverable_qty(self):
         """What can go to the factory now for this Pick Components move: what is reserved
@@ -121,7 +188,7 @@ class StockMove(models.Model):
                 status = "received"
             elif po_lines:
                 status = "ordered" if any(line.order_id.state in ("purchase", "done") for line in po_lines) else "rfq"
-            elif RequestLine.search_count([("move_dest_ids", "in", source.ids)]):
+            elif RequestLine.search_count([("move_dest_ids", "in", source.ids), ("cancelled", "=", False)]):
                 status = "requested"
             elif all(m.state in ("assigned", "partially_available") for m in source):
                 status = "from_stock"
