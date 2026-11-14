@@ -9,10 +9,26 @@
         <field name="arch" type="xml">
             <!-- Spec v0.7: the Salesperson sends the PO and the first payment, the Accountant checks
                  the PO, records the payment and confirms (O2-O5); a PI per payment (O6). -->
-            <xpath expr="//button[@id='create_invoice']" position="before">
+            <!-- The quotation goes to the customer first (Send by Email, Preview, Print), as many times as
+                 it changes; Send to Accountant comes once the customer agreed and paid: after the
+                 sending buttons, blue only once the quotation was sent (the user, 2026-11-14). -->
+            <xpath expr="//button[@name='action_preview_sale_order']" position="before">
+                <button name="action_x4u_send_to_accountant" type="object" string="Send to Accountant"
+                        groups="sales_team.group_sale_salesman"
+                        invisible="state != 'draft' or x4u_po_check in ('to_check', 'match')"/>
                 <button name="action_x4u_send_to_accountant" type="object" string="Send to Accountant" class="btn-primary"
                         groups="sales_team.group_sale_salesman"
-                        invisible="state not in ('draft', 'sent') or x4u_po_check in ('to_check', 'match')"/>
+                        invisible="state != 'sent' or x4u_po_check in ('to_check', 'match')"/>
+            </xpath>
+            <!-- Odoo's own "Send PRO-FORMA Invoice" sends the quotation as a pro-forma; the 4U PI is the
+                 Accountant's, for each payment (v0.7 O6): the Salesperson does not see it (2026-11-14). -->
+            <xpath expr="//button[@id='send_proforma_primary']" position="attributes">
+                <attribute name="groups">account.group_account_invoice</attribute>
+            </xpath>
+            <xpath expr="//button[@id='send_proforma']" position="attributes">
+                <attribute name="groups">account.group_account_invoice</attribute>
+            </xpath>
+            <xpath expr="//button[@id='create_invoice']" position="before">
                 <button name="action_x4u_po_match" type="object" string="PO Matches Quotation" class="btn-primary"
                         groups="account.group_account_invoice"
                         invisible="state == 'cancel' or x4u_po_check != 'to_check'"/>
