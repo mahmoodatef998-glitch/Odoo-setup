@@ -118,6 +118,22 @@ class TestSalePayments(TransactionCase):
     def _todo(self, order, activity_type):
         return order.activity_ids.filtered(lambda activity: activity.activity_type_id == activity_type)
 
+    # A new quotation saved from the form, like in the browser (2026-11-14: the schedule lines were
+    # saved twice without their percentage, "a mandatory field is not set")
+    def test_new_quotation_from_the_form(self):
+        with Form(self.env["sale.order"].with_user(self.salesperson)) as form:
+            form.partner_id = self.customer
+            form.pricelist_id = self.pricelist
+            form.payment_term_id = self.term
+            with form.order_line.new() as line:
+                line.product_id = self.product
+                line.price_unit = 50000.0
+        order = form.record
+        self.assertEqual(order.x4u_schedule_ids.mapped("percent"), [30.0, 30.0, 40.0])
+        accountant_form = Form(order.with_user(self.accountant))
+        accountant_form.save()
+        self.assertEqual(len(order.x4u_schedule_ids), 3)
+
     # O2: the quotation goes to the Accountant only with the customer PO and the first payment
     def test_send_to_accountant(self):
         order = self._quote()
@@ -321,7 +337,9 @@ class TestSalePayments(TransactionCase):
         order = self._sell()
         second = order.x4u_schedule_ids[1]
         due = fields.Date.add(fields.Date.today(), days=14)
-        order.with_user(self.accountant).write({"x4u_schedule_due_ids": [Command.update(second.id, {"date_due": due})]})
+        action = order.with_user(self.accountant).action_x4u_due_dates()
+        self.assertEqual(action["domain"], [("order_id", "=", order.id)])
+        second.with_user(self.accountant).write({"date_due": due})
         todo = order.activity_ids.filtered(lambda a: "Follow up" in (a.summary or ""))
         self.assertEqual((todo.user_id, todo.date_deadline), (self.accountant, due))
         self.assertIn("payment 2/3", todo.summary)

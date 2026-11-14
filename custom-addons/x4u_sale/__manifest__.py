@@ -3,7 +3,7 @@
     "summary": "The Salesperson sends the customer PO and the first payment receipt, the Accountant checks "
     "them and confirms; payment schedule from the terms or Custom; a PI for each payment received "
     "(S012-PI1, PI2...), one tax invoice for the whole order applies them",
-    "version": "18.0.2.2.2",
+    "version": "18.0.2.2.3",
     "category": "Sales/Sales",
     "license": "LGPL-3",
     "author": "4U Power Generation FZC",

@@ -107,20 +107,10 @@
                     <div class="text-muted" invisible="x4u_schedule_custom">
                         The schedule comes from the payment terms. Choose Custom in Payment Terms to write your own.
                     </div>
-                    <!-- S12: the Accountant's due dates; a to-do on each date until that payment comes in. -->
-                    <group string="Due Dates (Accountant)" groups="account.group_account_invoice" invisible="state != 'sale'">
-                        <field name="x4u_schedule_due_ids" nolabel="1" colspan="2">
-                            <list editable="bottom" create="0" delete="0">
-                                <field name="percent" readonly="1"/>
-                                <field name="trigger" readonly="1"/>
-                                <field name="currency_id" column_invisible="True"/>
-                                <field name="amount_total" readonly="1"/>
-                                <field name="state" widget="badge" readonly="1"
-                                       decoration-success="state == 'paid'" decoration-warning="state == 'partial'"/>
-                                <field name="date_due" readonly="state == 'paid'"/>
-                            </list>
-                        </field>
-                    </group>
+                    <!-- S12: the Accountant's due dates, in a list of their own (a second list of these
+                         lines on the form broke saving a new quotation, 2026-11-14). -->
+                    <button name="action_x4u_due_dates" type="object" string="Set Due Dates" class="btn-link"
+                            icon="fa-calendar" groups="account.group_account_invoice" invisible="state != 'sale'"/>
                     <div class="text-danger" invisible="not x4u_schedule_custom or x4u_schedule_percent == 100">
                         Total <field name="x4u_schedule_percent" class="oe_inline"/>%: the payments must add up to 100%.
                     </div>

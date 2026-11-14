@@ -1,5 +1,23 @@
 <?xml version="1.0" encoding="utf-8"?>
 <odoo>
+    <!-- S12: the Accountant's due dates of the payments of an order (Set Due Dates on the order) -->
+    <record id="x4u_sale_schedule_due_view_list" model="ir.ui.view">
+        <field name="name">x4u.sale.schedule.due.list</field>
+        <field name="model">x4u.sale.schedule</field>
+        <field name="arch" type="xml">
+            <list string="Due Dates" editable="bottom" create="0" delete="0">
+                <field name="percent" readonly="1"/>
+                <field name="trigger" readonly="1"/>
+                <field name="currency_id" column_invisible="True"/>
+                <field name="amount_total" readonly="1"/>
+                <field name="amount_paid" readonly="1"/>
+                <field name="state" widget="badge" readonly="1"
+                       decoration-success="state == 'paid'" decoration-warning="state == 'partial'"/>
+                <field name="date_due" readonly="state == 'paid'"/>
+            </list>
+        </field>
+    </record>
+
     <!-- Spec v0.7 O6: a PI for each payment received, the Accountant's -->
     <record id="x4u_sale_proforma_view_list" model="ir.ui.view">
         <field name="name">x4u.sale.proforma.list</field>

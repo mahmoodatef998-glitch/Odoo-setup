@@ -6,3 +6,6 @@ access_x4u_sale_schedule_readonly,x4u.sale.schedule readonly,model_x4u_sale_sche
 access_x4u_sale_schedule_accountant,x4u.sale.schedule accountant,model_x4u_sale_schedule,account.group_account_invoice,1,1,0,0
 access_x4u_sale_po_mismatch_accountant,x4u.sale.po.mismatch accountant,model_x4u_sale_po_mismatch,account.group_account_invoice,1,1,1,0
 access_sale_advance_payment_inv_accountant,sale.advance.payment.inv accountant,sale.model_sale_advance_payment_inv,account.group_account_invoice,1,1,1,0
+access_sale_order_template_x4u_accountant,sale.order.template accountant (opens the orders it checks),sale_management.model_sale_order_template,account.group_account_invoice,1,0,0,0
+access_sale_order_template_line_x4u_accountant,sale.order.template.line accountant,sale_management.model_sale_order_template_line,account.group_account_invoice,1,0,0,0
+access_sale_order_template_option_x4u_accountant,sale.order.template.option accountant,sale_management.model_sale_order_template_option,account.group_account_invoice,1,0,0,0

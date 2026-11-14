@@ -55,8 +55,6 @@ class SaleOrder(models.Model):
     )
     # §6 S2 / S3: the payments agreed in the quotation, from the terms or Custom.
     x4u_schedule_ids = fields.One2many("x4u.sale.schedule", "order_id", string="Payment Schedule", copy=True)
-    # S12: the same lines for the Accountant, who sets their due dates (and nothing else).
-    x4u_schedule_due_ids = fields.One2many("x4u.sale.schedule", "order_id", string="Payment Due Dates")
     x4u_schedule_custom = fields.Boolean(related="payment_term_id.x4u_custom")
     x4u_schedule_percent = fields.Float(string="Total %", compute="_compute_x4u_schedule_percent")
     x4u_pay_before_delivery = fields.Boolean(compute="_compute_x4u_pay_before_delivery")
@@ -496,6 +494,22 @@ class SaleOrder(models.Model):
             "view_mode": "form",
             "views": [(False, "form")],
             "target": "current",
+        }
+
+    def action_x4u_due_dates(self):
+        """S12: the Accountant sets a due date on each payment of the schedule (a list of its own,
+        not a second list on the order form: that one broke saving a new quotation)."""
+        self.ensure_one()
+        self._x4u_check_accountant()
+        return {
+            "type": "ir.actions.act_window",
+            "name": _("Due Dates · %s", self.name),
+            "res_model": "x4u.sale.schedule",
+            "view_mode": "list",
+            "views": [(self.env.ref("x4u_sale.x4u_sale_schedule_due_view_list").id, "list")],
+            "domain": [("order_id", "=", self.id)],
+            "context": {"create": False, "delete": False},
+            "target": "new",
         }
 
     def action_x4u_view_proformas(self):
