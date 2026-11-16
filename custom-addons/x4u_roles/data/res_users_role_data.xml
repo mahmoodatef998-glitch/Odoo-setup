@@ -46,6 +46,7 @@
             ref('hr.group_hr_manager'),
             ref('hr_holidays.group_hr_holidays_manager'),
             ref('payroll.group_payroll_manager'),
+            ref('x4u_job_order.group_x4u_edit_serials'),
         ])]"/>
     </record>
     <record id="role_storekeeper" model="res.users.role">
@@ -62,8 +63,12 @@
     <record id="role_production" model="res.users.role">
         <field name="name">Operation Manager</field>
         <field name="sequence">60</field>
-        <field name="comment">Finish Job Order: the generator enters stock as a finished good.</field>
-        <field name="implied_ids" eval="[Command.set([ref('base.group_user'), ref('mrp.group_mrp_user')])]"/>
+        <field name="comment">Finish Job Order, Use CKD, and changes serials after the receipt (x4u_job_order spec v0.9).</field>
+        <field name="implied_ids" eval="[Command.set([
+            ref('base.group_user'),
+            ref('mrp.group_mrp_user'),
+            ref('x4u_job_order.group_x4u_edit_serials'),
+        ])]"/>
     </record>
     <record id="role_quality_inspector" model="res.users.role">
         <field name="name">Quality Inspector</field>
@@ -106,6 +111,7 @@
             ref('hr.group_hr_manager'),
             ref('hr_holidays.group_hr_holidays_manager'),
             ref('payroll.group_payroll_manager'),
+            ref('x4u_job_order.group_x4u_edit_serials'),
         ])]"/>
     </record>
 </odoo>

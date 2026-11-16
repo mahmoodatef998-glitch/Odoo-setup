@@ -103,7 +103,7 @@ class TestSetupBase(TransactionCase):
     def test_categories_units_attributes(self):
         ref = self.env.ref
         components = ref("x4u_setup_base.categ_components")
-        for xmlid in ("categ_engines", "categ_alternators", "categ_bodies"):
+        for xmlid in ("categ_engines", "categ_alternators", "categ_bodies", "categ_ckd"):
             self.assertEqual(ref("x4u_setup_base." + xmlid).parent_id, components)
         roll = ref("x4u_setup_base.uom_roll_91m")
         self.assertEqual(roll._compute_quantity(1.0, ref("uom.product_uom_meter")), 91.0)

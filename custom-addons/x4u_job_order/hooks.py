@@ -1,4 +1,6 @@
-COSTED_CATEGORIES = ("categ_generators", "categ_components", "categ_engines", "categ_alternators", "categ_bodies")
+COSTED_CATEGORIES = (
+    "categ_generators", "categ_components", "categ_engines", "categ_alternators", "categ_bodies", "categ_ckd",
+)
 
 
 def set_costing(env):

@@ -59,7 +59,7 @@ class StockPicking(models.Model):
                     if production.product_qty == 1:
                         # Spec v0.8 N5: the card of a one-generator Job Order gets its engine now.
                         engine = moves.filtered(
-                            lambda m, p=production: m.x4u_role == "engine" and m.move_dest_ids.raw_material_production_id == p
+                            lambda m, p=production: m.x4u_role in ("engine", "ckd") and m.move_dest_ids.raw_material_production_id == p
                         ).move_line_ids.lot_id
                         if engine:
                             production._x4u_card_engine(engine)

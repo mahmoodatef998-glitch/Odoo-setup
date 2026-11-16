@@ -17,6 +17,7 @@
   - G6: ليه **Analytic Account** في plan "Job Orders" على سطر البيع، فالربح بيطلع زي المجمّع (الإيراد ناقص تكلفة الشراء)، وزرار Margin على الأمر. القوايم: Manufacturing و Purchase و Inventory ← **Ready Job Orders**، وزرار على أمر البيع.
 - v0.8 (2026-11-13، ✅ اتوافق عليه وشغال على `odoo4u_base`، 18.0.1.8.0): **سيريال لكل محرك** و**القطع حرة من غير حجز** (طلب المستخدم: "كل engine داخل لازم يكون تحت serial number"، و"الأولويات بتتغير ... مش عاوز أكون مقيد"). التفاصيل في §0.8 تحت. بيغيّر J10 / S3 (للمحرك)، و P3، و V2، و V3، وبيشيل R1–R3.
 - v0.8.1 (2026-11-13، 18.0.1.8.1، طلب المستخدم بعد ما MO012 مااتقفلش: "Lot/Serial number is mandatory for product valuated by lot"): (1) الحجز القديم اللي في المصنع من قبل السيريال اتشال، والأمر بياخد المحرك اللي اتصرفله بسيرياله (upgrade، وكمان Finish Job Order بيصلّحه لوحده). (2) **قايمة منسدلة**: في Deliver Materials سطر لكل محرك ولكل alternator، وكل سطر فيه قايمة. (3) سيريال الـ Alternator **اختياري وقت الاستلام** (المستخدم اختار ده)، وبيظهر في القايمة. التفاصيل في N3 و N4.
+- v0.9 (2026-11-16، ✅ اتوافق عليه وشغال على `odoo4u_base`، 18.0.1.9.0): **CKD** (المحرك والـ alternator متركبين على سيريال واحد)، و**تعديل السيريال** للـ Administrator والمدير العام والـ Operation Manager بس، و**رقم الـ PI على الـ Job Order**. ومفيش "Trading فقط": الـ Job Order فاضل. التفاصيل في §0.9.
 - المرجع: blueprint §7، و [إعداد المبيعات](x4u_setup_sales.md).
 - العلامات: ✅ متفق عليه · 🟡 مستني إجابتك
 
@@ -116,6 +117,60 @@ S015 Confirm ← 5 Job Orders: MO020 … MO024 (كل واحد مولد واحد�
 | T25 | 5 أوامر ومحرك واحد في المخزن: طلب المواد فيه 4 محركات بس، و 5 alternators (F3) |
 | T26 | استلام مولد جاهز من غير Engine Serial بيترفض، وبيه الـ Ready Job Order والكارت بياخدوه (N7) |
 | T27 | استلام 2 alternator بسيريال واحد بيعدّي، وسيريالات أكتر من الكمية بتترفض. في Deliver Materials القايمة فيها السيريال، وبعد الصرف بيبقى Fitted وعلى الكارت (v0.8.1 N4) |
+
+## 0.9 v0.9 — CKD وتعديل السيريال ✅
+طلب المستخدم 2026-11-16. المولد بيتجمّع من **Engine + Alternator + Canopy Body**، كل واحد بسيرياله، أو من **CKD + Canopy Body**. الـ CKD هو المحرك والـ alternator متركبين مع بعض، وجاي على سيريال واحد هو سيريال المحرك. أنهي واحد يتركّب بيتحدد **يدوي** في كل أمر.
+ومفيش "Trading فقط": الـ Job Order فاضل بخطواته البسيطة (Waiting Parts ← Parts Ready ← Material Delivered ← Finished ← Delivered)، والـ Ready Product فاضل للمولد اللي بيتشرى كامل.
+
+### 0.9.1 الدورة (مثال: S020، مولد 1500 kVA)
+```
+S020 Confirm (المحاسب، بعد الدفعة الأولى S020-PI1) ← MO030، وعليه PI: S020-PI1
+  ← الأمر بيتفتح من الـ BoM: Engine + Alternator + Canopy Body
+  ← هنركّب CKD؟ الـ Operation Manager يفتح MO030 ← Use CKD ← يختار "CKD 1500 kVA"
+       ← سطر Engine وسطر Alternator بيتشالوا، وسطر CKD بيتحط مكانهم، والـ Body فاضل
+       ← طلب المواد: المحرك والـ alternator بتوع الأمر بيتقفلوا (لو لسه مادخلوش RFQ)، والـ CKD بيدخل لو مش متغطي (F3)
+  ← الاستلام: سيريال الـ CKD (= سيريال المحرك) إلزامي، مثلًا E-5001
+  ← المخزن: Deliver Materials ← CKD Serial من القايمة = E-5001 (إلزامي) + الـ Body ← Material Delivered
+       ← كارت المولد MO030: Engine Serial = E-5001
+  ← Finish Job Order ← قيمة المولد = سعر الـ CKD ده + الـ Body + 20%
+```
+
+### 0.9.2 الـ CKD
+| # | القاعدة | الحالة |
+|---|---|---|
+| C1 | category جديدة **CKD** (تحت Generator Components): **Serial** و **Valuation by Serial** و FIFO زي المحركات (N1)، ونفس الحسابات (مخزون 103001، مبيعات 500015، تكلفة 400001). أي منتج يتحط فيها بيبقى Serial لوحده | ✅ 2026-11-16 |
+| C2 | **الاستلام**: الـ Storekeeper أو الـ Purchasing Officer يكتب سيريال كل CKD (هو سيريال المحرك اللي عليه)، إلزامي زي المحرك (N2). مفيش سيريال alternator منفصل للـ CKD | ✅ المستخدم |
+| C3 | **Use CKD** على الـ Job Order (الـ Operation Manager والمدير العام)، طول ما الأمر Waiting Parts أو Parts Ready: تختار منتج الـ CKD من قايمة (وجنبه الموجود في المخزن)، وسطر Engine وسطر Alternator بيتبدّلوا بسطر CKD. و **Use Engine + Alternator** بيرجّع سطور الـ BoM. يدوي في كل أمر، ومفيش حاجة بتتغير لوحدها | ✅ المستخدم ("خلي الموضوع يدوي") |
+| C4 | **الشراء وقت التبديل**: سطور المحرك والـ alternator بتوع الأمر ده في طلب المواد بتتقفل لو لسه مادخلتش RFQ (زي R4)، والـ CKD بيدخل طلب المواد لو مش متغطي (F3). ولو المحرك كان اتطلب في RFQ أو PO، بيفضل، وبيوصل المخزن حر لأي أمر تاني (F1)، والـ chatter بيكتب كده | ✅ 2026-11-16 |
+| C5 | **Deliver Materials**: سطر لكل CKD، وفيه **CKD Serial** قايمة منسدلة بالـ CKD اللي في WH/Stock من نفس المنتج، **إلزامي** زي المحرك (N3) | ✅ 2026-11-16 |
+| C6 | **كارت المولد**: Engine Serial = سيريال الـ CKD (لينك)، والـ Alternator Serial فاضي لأنه جوه الـ CKD. وقيمة المولد = سعر الـ CKD ده بالظبط + باقي القطع + 20% (N6). و **Finish Job Order** بيقفل على طول من غير تحذير Odoo إن القطع مختلفة عن الـ BoM، لأن الـ CKD متحط بقصد | ✅ 2026-11-16 |
+
+### 0.9.3 تعديل السيريال
+| # | القاعدة | الحالة |
+|---|---|---|
+| E1 | **اللي يعدّل سيريال بعد الاستلام**: الـ **Administrator** والـ **General Manager** والـ **Operation Manager** بس (group جديد **Edit Serials**). من Inventory › Products › **Lots/Serial Numbers** (محرك، CKD، مولد) ومن **Alternator Serials**. الـ Storekeeper والـ Purchasing بيكتبوا السيريال وقت الاستلام ويصلّحوه قبل الـ Validate، لكن بعده لأ | ✅ المستخدم |
+| E2 | **سجل**: أي تعديل بيتكتب في الـ chatter بتاع السيريال: القديم ← الجديد، ومين، وإمتى | ✅ 2026-11-16 |
+| E3 | كارت المولد (Serial No، Engine Serial، Alternator Serial) والـ Ready Job Order بيمشوا على السيريال الجديد لوحدهم | ✅ 2026-11-16 |
+| E4 | Odoo بيرفض سيريال متكرر لنفس المنتج | ✅ 2026-11-16 |
+
+### 0.9.4 رقم الـ PI على الـ Job Order
+| # | القاعدة | الحالة |
+|---|---|---|
+| P1 | الـ Job Order بيبين **PI** (أرقام الـ PI بتاعة أمر البيع، مثلًا `S020-PI1`) جنب الـ Sales Order، في الـ form والـ list، وتقدر تدوّر بيه | ✅ 2026-11-16 |
+
+### 0.9.5 الـ upgrade
+- backup لـ `odoo4u_base` الأول، وبعدين upgrade لـ `x4u_setup_base` و `x4u_job_order` و `x4u_account` و `x4u_roles` و `x4u_sale`، بعد تجربة على نسخة.
+- category CKD بتتعمل بحساباتها، والـ group Edit Serials بيتضاف لأدوار Administrator و General Manager و Operation Manager.
+- مفيش بيانات بتتغير: الأوامر المفتوحة فاضلة Engine + Alternator + Body.
+
+### 0.9.6 Tests
+| # | الاختبار |
+|---|---|
+| T29 | استلام CKD من غير سيريال بيترفض، وبيه بيعدّي ومتقيّم بسيرياله |
+| T30 | Use CKD: سطر المحرك والـ alternator بيتبدّلوا بالـ CKD، وسطورهم في طلب المواد بتتقفل، والـ CKD بيتطلب لو مش متغطي. و Use Engine + Alternator بيرجّعهم. وبعد Deliver Materials الزرارين بيختفوا |
+| T31 | Deliver Materials من غير CKD Serial بيترفض، وبيه الكارت بياخده، وقيمة المولد = الـ CKD + الـ Body + 20% |
+| T32 | الـ Storekeeper والـ Purchasing مايقدروش يعدّلوا سيريال، والـ Operation Manager والمدير العام يقدروا، والـ chatter فيه القديم والجديد، والكارت بياخد الجديد (محرك و alternator) |
+| T33 | الـ Job Order بيبين رقم الـ PI |
 
 ---
 

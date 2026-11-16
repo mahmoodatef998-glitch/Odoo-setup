@@ -14,6 +14,12 @@
                 <button name="action_x4u_finish" type="object" string="Finish Job Order" class="oe_highlight"
                         groups="mrp.group_mrp_user"
                         invisible="not x4u_is_job_order or x4u_job_state != 'material_delivered'"/>
+                <!-- Spec v0.9 C3: CKD (engine + alternator on one serial) or the two parts, by hand -->
+                <button name="action_x4u_use_ckd" type="object" string="Use CKD" groups="mrp.group_mrp_user"
+                        invisible="not x4u_can_switch_parts or x4u_uses_ckd"/>
+                <button name="action_x4u_use_parts" type="object" string="Use Engine + Alternator" groups="mrp.group_mrp_user"
+                        invisible="not x4u_can_switch_parts or not x4u_uses_ckd"
+                        confirm="Put the engine and the alternator of the bill of materials back instead of the CKD?"/>
             </xpath>
             <xpath expr="(//header/button[@name='button_mark_done'])[1]" position="attributes">
                 <attribute name="invisible" add="x4u_is_job_order" separator=" or "/>
@@ -57,6 +63,8 @@
                 <field name="x4u_sale_order_id" invisible="1"/>
                 <field name="x4u_generator_id" invisible="1"/>
                 <field name="x4u_analytic_account_id" invisible="1"/>
+                <field name="x4u_can_switch_parts" invisible="1"/>
+                <field name="x4u_uses_ckd" invisible="1"/>
                 <field name="x4u_job_state" widget="badge" invisible="not x4u_is_job_order"
                        decoration-info="x4u_job_state in ('waiting_parts', 'parts_ready')"
                        decoration-warning="x4u_job_state == 'material_delivered'"
@@ -66,6 +74,10 @@
                        decoration-success="x4u_material_flag == 'ready'"/>
                 <field name="x4u_delay_stage" widget="badge" decoration-danger="1"
                        invisible="not x4u_delay_stage"/>
+            </xpath>
+            <!-- Spec v0.9 P1: the PI numbers of the sales order, on top of the form -->
+            <xpath expr="//group[@name='group_extra_info']" position="inside">
+                <field name="x4u_proforma_names" invisible="not x4u_proforma_names"/>
             </xpath>
             <!-- What the warehouse holds of each component, seen while the quantities are entered -->
             <xpath expr="//field[@name='move_raw_ids']/list/field[@name='product_uom_qty'][@widget='mrp_should_consume']" position="after">
@@ -128,6 +140,7 @@
             <list string="Job Orders" decoration-danger="x4u_delay_stage" create="0">
                 <field name="name" string="Job Order"/>
                 <field name="x4u_sale_order_id"/>
+                <field name="x4u_proforma_names" optional="show"/>
                 <field name="x4u_customer_id"/>
                 <field name="product_id" string="Model"/>
                 <field name="x4u_job_state" widget="badge"
@@ -140,6 +153,7 @@
                 <field name="x4u_engine_status"/>
                 <field name="x4u_alternator_status"/>
                 <field name="x4u_body_status"/>
+                <field name="x4u_ckd_status" optional="show"/>
                 <field name="date_deadline" optional="show"/>
                 <field name="x4u_delay_stage" optional="show"/>
                 <field name="x4u_delay_days" optional="hide"/>
@@ -170,6 +184,7 @@
                             <div>Engine: <field name="x4u_engine_status"/></div>
                             <div>Alternator: <field name="x4u_alternator_status"/></div>
                             <div>Body: <field name="x4u_body_status"/></div>
+                            <div invisible="not x4u_ckd_status">CKD: <field name="x4u_ckd_status"/></div>
                         </div>
                         <div class="text-danger" invisible="not x4u_delay_stage">
                             Delay at <field name="x4u_delay_stage"/> (<field name="x4u_delay_days"/> d)
@@ -188,6 +203,7 @@
             <search string="Job Orders">
                 <field name="name" string="Job Order"/>
                 <field name="x4u_sale_order_id"/>
+                <field name="x4u_proforma_names"/>
                 <field name="x4u_customer_id"/>
                 <field name="product_id" string="Model"/>
                 <filter name="waiting_parts" string="Waiting Parts" domain="[('x4u_job_state', '=', 'waiting_parts')]"/>

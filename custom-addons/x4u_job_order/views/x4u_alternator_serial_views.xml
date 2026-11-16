@@ -5,7 +5,7 @@
         <field name="name">x4u.alternator.serial.list</field>
         <field name="model">x4u.alternator.serial</field>
         <field name="arch" type="xml">
-            <list string="Alternator Serials" editable="bottom">
+            <list string="Alternator Serials">
                 <field name="name"/>
                 <field name="product_id" options="{'no_create': True}"/>
                 <field name="state" widget="badge" decoration-success="state == 'in_stock'" decoration-muted="state == 'fitted'"/>
@@ -13,6 +13,34 @@
                 <field name="production_id"/>
                 <field name="company_id" groups="base.group_multi_company" column_invisible="True"/>
             </list>
+        </field>
+    </record>
+
+    <!-- Spec v0.9 E1-E2: the serial changes by the Administrator, the GM or the Operation Manager
+         only, and each change stays in the chatter. -->
+    <record id="x4u_alternator_serial_view_form" model="ir.ui.view">
+        <field name="name">x4u.alternator.serial.form</field>
+        <field name="model">x4u.alternator.serial</field>
+        <field name="arch" type="xml">
+            <form string="Alternator Serial">
+                <sheet>
+                    <div class="oe_title">
+                        <h1><field name="name" placeholder="e.g. A-77"/></h1>
+                    </div>
+                    <group>
+                        <group>
+                            <field name="product_id" options="{'no_create': True}"/>
+                            <field name="state" widget="badge" decoration-success="state == 'in_stock'" decoration-muted="state == 'fitted'"/>
+                        </group>
+                        <group>
+                            <field name="picking_id"/>
+                            <field name="production_id"/>
+                            <field name="company_id" groups="base.group_multi_company"/>
+                        </group>
+                    </group>
+                </sheet>
+                <chatter/>
+            </form>
         </field>
     </record>
 
@@ -36,7 +64,7 @@
     <record id="action_x4u_alternator_serial" model="ir.actions.act_window">
         <field name="name">Alternator Serials</field>
         <field name="res_model">x4u.alternator.serial</field>
-        <field name="view_mode">list</field>
+        <field name="view_mode">list,form</field>
         <field name="context">{'search_default_in_stock': 1}</field>
         <field name="help" type="html">
             <p class="o_view_nocontent_smiling_face">No alternator serial yet</p>

@@ -9,7 +9,7 @@
             <form string="Deliver Materials">
                 <field name="production_id" invisible="1"/>
                 <p class="text-muted">
-                    The quantities leave WH/Stock for the factory. Pick each engine's serial from the list;
+                    The quantities leave WH/Stock for the factory. Pick each engine's or CKD's serial from the list;
                     the alternator's when it has one. A part left at 0 waits for the next delivery.
                 </p>
                 <field name="line_ids">
@@ -25,7 +25,7 @@
                         <field name="lot_id" options="{'no_create': True, 'no_open': True}"
                                domain="[('id', 'in', available_lot_ids)]"
                                invisible="tracking != 'serial'"
-                               placeholder="Pick the engine"/>
+                               placeholder="Pick the serial"/>
                         <field name="alternator_serial_id" options="{'no_open': True}"
                                domain="[('id', 'in', available_alternator_ids)]"
                                context="{'default_product_id': product_id}"
@@ -37,6 +37,32 @@
                 </field>
                 <footer>
                     <button name="action_confirm" type="object" string="Confirm" class="btn-primary" data-hotkey="q"/>
+                    <button string="Discard" class="btn-secondary" special="cancel" data-hotkey="x"/>
+                </footer>
+            </form>
+        </field>
+    </record>
+
+    <!-- Use CKD (spec v0.9 C3): a CKD instead of the engine and the alternator of one Job Order -->
+    <record id="x4u_job_order_ckd_view_form" model="ir.ui.view">
+        <field name="name">x4u.job.order.ckd.form</field>
+        <field name="model">x4u.job.order.ckd</field>
+        <field name="arch" type="xml">
+            <form string="Use CKD">
+                <field name="production_id" invisible="1"/>
+                <field name="allowed_product_ids" invisible="1"/>
+                <p class="text-muted">
+                    The CKD (engine and alternator on one serial) takes the place of the engine and the alternator;
+                    the body stays. The material request follows: the engine and the alternator leave it unless they
+                    are already on an RFQ, and the CKD is requested if the stock does not cover it.
+                </p>
+                <group>
+                    <field name="product_id" options="{'no_create': True}"/>
+                    <field name="on_hand" invisible="not product_id"/>
+                    <field name="free_qty" invisible="not product_id"/>
+                </group>
+                <footer>
+                    <button name="action_confirm" type="object" string="Use CKD" class="btn-primary" data-hotkey="q"/>
                     <button string="Discard" class="btn-secondary" special="cancel" data-hotkey="x"/>
                 </footer>
             </form>

@@ -7,6 +7,17 @@
         <field name="category_id" ref="base.module_category_hidden"/>
         <field name="comment">Opens the Job Orders, their parts and timeline, without changing them.</field>
     </record>
+    <!-- Spec v0.9 E1: changing a serial after the receipt (engine, CKD, generator, alternator).
+         x4u_roles gives it to the General Manager and the Operation Manager; every administrator
+         has it. -->
+    <record id="group_x4u_edit_serials" model="res.groups">
+        <field name="name">Edit Serials</field>
+        <field name="category_id" ref="base.module_category_hidden"/>
+        <field name="comment">Changes a serial number after the receipt; each change is kept in the serial's chatter.</field>
+    </record>
+    <record id="base.group_system" model="res.groups">
+        <field name="implied_ids" eval="[Command.link(ref('group_x4u_edit_serials'))]"/>
+    </record>
 
     <data noupdate="1">
         <record id="x4u_job_order_event_company_rule" model="ir.rule">

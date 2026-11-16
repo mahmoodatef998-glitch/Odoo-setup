@@ -3,11 +3,13 @@ from . import x4u_alternator_serial
 from . import mrp_production
 from . import product_template
 from . import stock_move
+from . import stock_lot
 from . import stock_picking
 from . import stock_rule
 from . import purchase_order
 from . import sale_order
 from . import x4u_generator
+from . import x4u_job_order_ckd
 from . import x4u_job_order_deliver
 from . import x4u_ready_order
 from . import x4u_ready_receipt

@@ -75,6 +75,8 @@ VALUED_CATEGORIES = {
     "x4u_setup_base.categ_engines": "103001",
     "x4u_setup_base.categ_alternators": "103001",
     "x4u_setup_base.categ_bodies": "103001",
+    # x4u_job_order spec v0.9 C1: an engine + alternator on one serial, a part like the engine.
+    "x4u_setup_base.categ_ckd": "103001",
     "x4u_setup_base.categ_generators": "103002",
     "x4u_setup_base.categ_spare_parts": "103003",
 }
@@ -88,6 +90,7 @@ CATEGORY_ACCOUNTS = {
     "x4u_setup_base.categ_engines": ("500015", "400001"),
     "x4u_setup_base.categ_alternators": ("500015", "400001"),
     "x4u_setup_base.categ_bodies": ("500015", "400001"),
+    "x4u_setup_base.categ_ckd": ("500015", "400001"),
     "x4u_setup_base.categ_spare_parts": ("500015", "400001"),
     "x4u_setup_base.categ_services": ("500008", "400001"),
     # Rent, utilities...: an operating expense, not a cost of sales; each product can be more precise.

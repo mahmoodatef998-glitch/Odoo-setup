@@ -4,6 +4,7 @@ from odoo import Command, _, api, fields, models
 from odoo.exceptions import UserError
 from odoo.tools import float_compare
 
+from .stock_move import part_role
 from .x4u_job_order_event import SINGLE_EVENTS
 
 JOB_STATES = [
@@ -26,7 +27,9 @@ STAGES = [
     ("dispatch", "Dispatch", ("finished",), "delivered"),
 ]
 STAGE_KEYS = [stage[0] for stage in STAGES]
-PART_ROLES = ("engine", "alternator", "body")
+PART_ROLES = ("engine", "alternator", "body", "ckd")
+# Spec v0.9 C3: a CKD takes the place of these two parts.
+CKD_REPLACES = ("engine", "alternator")
 # Spec v0.5 A3: the margin counts P&L accounts only. With Anglo-Saxon, Odoo also puts the analytic
 # on the cost of sales' balance-sheet side (Goods Delivered Not Invoiced), which would cancel it.
 PROFIT_DOMAIN = [("general_account_id.internal_group", "in", ("income", "expense"))]
@@ -69,6 +72,15 @@ class MrpProduction(models.Model):
     x4u_engine_status = fields.Char(compute="_compute_x4u_parts", string="Engine")
     x4u_alternator_status = fields.Char(compute="_compute_x4u_parts", string="Alternator")
     x4u_body_status = fields.Char(compute="_compute_x4u_parts", string="Body")
+    x4u_ckd_status = fields.Char(compute="_compute_x4u_parts", string="CKD")
+    # Spec v0.9 C3: a CKD (engine + alternator on one serial) instead of the engine and the alternator.
+    x4u_uses_ckd = fields.Boolean(compute="_compute_x4u_switch", string="Uses CKD")
+    x4u_can_switch_parts = fields.Boolean(compute="_compute_x4u_switch")
+    # Spec v0.9 P1: the PI numbers of the sales order, to find the Job Order by them.
+    x4u_proforma_names = fields.Char(
+        string="PI", compute="_compute_x4u_proforma_names", store=True, index="trigram",
+        help="The proforma invoices (PI) of the sales order, one per payment received.",
+    )
     x4u_days_purchasing = fields.Float(compute="_compute_x4u_durations", store=True, aggregator="avg", string="Purchasing (days)")
     x4u_days_approval = fields.Float(compute="_compute_x4u_durations", store=True, aggregator="avg", string="Approval (days)")
     x4u_days_supplier = fields.Float(compute="_compute_x4u_durations", store=True, aggregator="avg", string="Supplier delivery (days)")
@@ -116,6 +128,35 @@ class MrpProduction(models.Model):
         # sale_line_id is there from creation; the group's sale only after confirmation.
         for production in self:
             production.x4u_sale_order_id = production.sale_line_id.order_id or production.procurement_group_id.sale_id
+
+    @api.depends("x4u_sale_order_id.x4u_proforma_ids.name", "x4u_sale_order_id.x4u_proforma_ids.state")
+    def _compute_x4u_proforma_names(self):
+        for production in self:
+            proformas = production.x4u_sale_order_id.sudo().x4u_proforma_ids.filtered(lambda pi: pi.state != "cancel")
+            production.x4u_proforma_names = ", ".join(proformas.sorted("id").mapped("name")) or False
+
+    @api.depends("x4u_job_state", "move_raw_ids.state", "move_raw_ids.product_id", "move_raw_ids.move_orig_ids.state")
+    def _compute_x4u_switch(self):
+        for production in self:
+            raw = production.move_raw_ids.filtered(lambda m: m.state != "cancel")
+            production.x4u_uses_ckd = any(move.x4u_role == "ckd" for move in raw)
+            production.x4u_can_switch_parts = bool(
+                production.x4u_is_job_order
+                and production.x4u_job_state in ("waiting_parts", "parts_ready")
+                and not production._x4u_switch_blocked()
+            )
+
+    def _x4u_switch_moves(self):
+        """The raw moves Use CKD / Use Engine + Alternator replaces, and their Pick Components."""
+        self.ensure_one()
+        roles = ("ckd",) if self.x4u_uses_ckd else CKD_REPLACES
+        raw = self.move_raw_ids.filtered(lambda m: m.state != "cancel" and m.x4u_role in roles)
+        return raw, raw.move_orig_ids.filtered(lambda m: m.state != "cancel")
+
+    def _x4u_switch_blocked(self):
+        """Nothing of the parts to replace is delivered to the factory yet (spec v0.9 C3)."""
+        raw, picks = self._x4u_switch_moves()
+        return any(move.state == "done" or move.picked or move.quantity for move in raw | picks)
 
     def _compute_x4u_documents(self):
         for production in self:
@@ -501,13 +542,14 @@ class MrpProduction(models.Model):
         return res
 
     def _x4u_card_engine(self, lots=None):
-        """Spec v0.8 N5: the generator card links the engine fitted in it. At Deliver Materials
-        for a Job Order of one generator; when it is made, from the engine it consumed."""
+        """Spec v0.8 N5: the generator card links the engine fitted in it, or the CKD (its serial is
+        the engine's, v0.9 C6). At Deliver Materials for a Job Order of one generator; when it is
+        made, from the engine it consumed."""
         for production in self:
             card = production.lot_producing_id.sudo().x4u_generator_id
             engine = lots
             if engine is None:
-                moves = production.move_raw_ids.filtered(lambda m: m.x4u_role == "engine" and m.state == "done")
+                moves = production.move_raw_ids.filtered(lambda m: m.x4u_role in ("engine", "ckd") and m.state == "done")
                 engine = moves.move_line_ids.lot_id
             if card and len(engine) == 1:
                 card.write({"x4u_engine_lot_id": engine.id, "engine_serial": engine.name})
@@ -568,12 +610,104 @@ class MrpProduction(models.Model):
             "target": "new",
         }
 
+    # ------------------------------------------------------------------
+    # CKD or engine + alternator (spec v0.9 C3-C4), chosen by hand on each Job Order
+    # ------------------------------------------------------------------
+    def _x4u_check_switch(self):
+        self.ensure_one()
+        if not self.env.user.has_group("mrp.group_mrp_user"):
+            raise UserError(_("Only the Operation Manager or the General Manager changes the parts of a Job Order."))
+        if not self.x4u_can_switch_parts:
+            raise UserError(
+                _("%s: the parts change only before Deliver Materials (Waiting Parts or Parts Ready).", self.name)
+            )
+
+    def action_x4u_use_ckd(self):
+        """Operation Manager: pick the CKD that replaces the engine and the alternator."""
+        self.ensure_one()
+        self._x4u_check_switch()
+        # A new screen: saved once the CKD is chosen (it is required).
+        return {
+            "type": "ir.actions.act_window",
+            "name": _("Use CKD · %s", self.name),
+            "res_model": "x4u.job.order.ckd",
+            "view_mode": "form",
+            "target": "new",
+            "context": {"default_production_id": self.id},
+        }
+
+    def action_x4u_use_parts(self):
+        """Operation Manager: back to the engine and the alternator of the bill of materials."""
+        self.ensure_one()
+        self._x4u_check_switch()
+        self._x4u_switch_parts()
+        return True
+
+    def _x4u_switch_parts(self, ckd=None):
+        """The CKD replaces the engine and the alternator (or the other way, without `ckd`). The
+        new parts are requested like at the confirmation (only what the stock does not cover, F3);
+        the old ones leave their material request unless Purchasing already put them on an RFQ,
+        in which case they come in free in stock for any other Job Order (F1)."""
+        self.ensure_one()
+        production = self.sudo()
+        if ckd and not part_role(self.env, ckd) == "ckd":
+            raise UserError(_("%s is not a CKD (category CKD).", ckd.display_name))
+        raw, picks = production._x4u_switch_moves()
+        Move = self.env["stock.move"].sudo()
+        if ckd:
+            values = [production._get_move_raw_values(ckd, production.product_qty, ckd.uom_id)]
+        else:
+            values = [
+                vals
+                for vals in production._get_moves_raw_values()
+                if part_role(self.env, self.env["product.product"].browse(vals["product_id"])) in CKD_REPLACES
+            ]
+            if not values:
+                raise UserError(_("The bill of materials of %s has no engine or alternator.", production.product_id.display_name))
+        # Added and confirmed before the old parts are cancelled: Odoo cancels a manufacturing order
+        # whose components are all cancelled.
+        new_moves = Move.create(values)
+        production._autoconfirm_production()
+        lines = picks._x4u_request_lines().filtered(lambda line: not line.cancelled)
+        ordered = lines.filtered("purchase_lines")
+        (lines - ordered).do_cancel()
+        removed = raw.product_id
+        pickings = picks.picking_id
+        (raw | picks)._action_cancel()
+        (raw | picks).unlink()
+        # A Pick Components backorder that held only these parts is left empty.
+        pickings.filtered(lambda picking: not picking.move_ids).unlink()
+        requests = production._x4u_purchase_requests()
+        requests.filtered(lambda r: r.state in ("draft", "to_approve")).button_approved()
+        for request in requests:
+            production._x4u_log("material_request", document=request, date=request.create_date)
+        body = _(
+            "Parts: %(new)s instead of %(old)s.",
+            new=", ".join(new_moves.product_id.mapped("display_name")),
+            old=", ".join(removed.mapped("display_name")) or "-",
+        )
+        if lines - ordered:
+            body += " " + _("Closed in the material request: %s.", ", ".join((lines - ordered).request_id.mapped("name")))
+        if ordered:
+            body += " " + _(
+                "Already ordered (%s): they come in free in stock for another Job Order.",
+                ", ".join(ordered.purchase_lines.order_id.mapped("name")),
+            )
+        production.message_post(body=body)
+        if new_moves.move_orig_ids._x4u_request_lines():
+            production._x4u_notify("purchase", _("Order the material for %s", production.name))
+        production._x4u_refresh_parts()
+
     def action_x4u_finish(self):
         """Operation Manager: the generator is made and goes to stock as a finished good."""
         self.ensure_one()
         if self.x4u_job_state != "material_delivered":
             raise UserError(_("%s is finished after the Storekeeper delivers all its materials.", self.name))
         self._x4u_reserve_delivered_parts()
+        if self.x4u_uses_ckd:
+            # Spec v0.9 C3: the CKD replaced the engine and the alternator of the bill of materials on
+            # purpose; Odoo's "consumption differs from the BoM" warning would only stop the finish.
+            return self.with_context(skip_consumption=True).button_mark_done()
         return self.button_mark_done()
 
     def _x4u_reserve_delivered_parts(self, all_parts=False):

@@ -6,14 +6,26 @@ ROLE_CATEGORIES = (
     ("engine", "x4u_setup_base.categ_engines"),
     ("alternator", "x4u_setup_base.categ_alternators"),
     ("body", "x4u_setup_base.categ_bodies"),
+    # Spec v0.9 C1: an engine and its alternator coupled, on one serial (the engine's).
+    ("ckd", "x4u_setup_base.categ_ckd"),
 )
+
+
+def part_role(env, product):
+    """engine / alternator / body / ckd from the product's category (or one under it)."""
+    path = product.categ_id.parent_path or ""
+    for role, xmlid in ROLE_CATEGORIES:
+        categ = env.ref(xmlid, raise_if_not_found=False)
+        if categ and path.startswith(categ.parent_path):
+            return role
+    return False
 
 
 class StockMove(models.Model):
     _inherit = "stock.move"
 
     x4u_role = fields.Selection(
-        [("engine", "Engine"), ("alternator", "Alternator"), ("body", "Body")],
+        [("engine", "Engine"), ("alternator", "Alternator"), ("body", "Body"), ("ckd", "CKD")],
         string="Part",
         compute="_compute_x4u_role",
     )
@@ -129,10 +141,8 @@ class StockMove(models.Model):
 
     @api.depends("product_id.categ_id")
     def _compute_x4u_role(self):
-        roots = [(role, self.env.ref(xmlid, raise_if_not_found=False)) for role, xmlid in ROLE_CATEGORIES]
         for move in self:
-            path = move.product_id.categ_id.parent_path or ""
-            move.x4u_role = next((role for role, categ in roots if categ and path.startswith(categ.parent_path)), False)
+            move.x4u_role = part_role(self.env, move.product_id)
 
     @api.depends("product_id", "product_uom", "raw_material_production_id.picking_type_id")
     def _compute_x4u_stock(self):

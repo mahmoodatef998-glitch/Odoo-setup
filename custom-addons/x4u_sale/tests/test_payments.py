@@ -130,6 +130,8 @@ class TestSalePayments(TransactionCase):
                 line.price_unit = 50000.0
         order = form.record
         self.assertEqual(order.x4u_schedule_ids.mapped("percent"), [30.0, 30.0, 40.0])
+        # v0.7.1 O11: who made the quotation, filled by itself.
+        self.assertEqual(order.user_id, self.salesperson)
         accountant_form = Form(order.with_user(self.accountant))
         accountant_form.save()
         self.assertEqual(len(order.x4u_schedule_ids), 3)
@@ -226,6 +228,9 @@ class TestSalePayments(TransactionCase):
         self.assertIn(b"This is not a tax invoice", html)
         self.assertIn(b"Remaining", html)
         self.assertIn(second.name.encode(), html)
+        # v0.7.1 O12: the Salesperson is printed on the PI.
+        self.assertIn(b"Salesperson", html)
+        self.assertIn(order.user_id.name.encode(), html)
         self.assertFalse(order.invoice_ids)
 
     # S3: Custom: the Salesperson writes the schedule (100% in all), frozen once sent

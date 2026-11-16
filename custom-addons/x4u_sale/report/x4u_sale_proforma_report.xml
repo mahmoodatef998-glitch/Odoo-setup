@@ -40,6 +40,11 @@
                         <strong>LPO Date</strong>
                         <div t-field="order.x4u_lpo_date"/>
                     </div>
+                    <!-- Spec v0.7.1 O12: who made the order. -->
+                    <div class="col-3 mt-2" t-if="order.user_id">
+                        <strong>Salesperson</strong>
+                        <div t-field="order.user_id"/>
+                    </div>
                 </div>
                 <table class="table table-sm o_main_table">
                     <thead>

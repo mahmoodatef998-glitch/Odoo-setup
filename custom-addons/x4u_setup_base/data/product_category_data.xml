@@ -22,6 +22,12 @@
             <field name="name">Genset Bodies</field>
             <field name="parent_id" ref="categ_components"/>
         </record>
+        <!-- x4u_job_order spec v0.9 C1: an engine and its alternator coupled, on one serial (the
+             engine's); a Job Order uses it in their place with a body. -->
+        <record id="categ_ckd" model="product.category">
+            <field name="name">CKD</field>
+            <field name="parent_id" ref="categ_components"/>
+        </record>
         <record id="categ_spare_parts" model="product.category">
             <field name="name">Spare Parts</field>
             <field name="parent_id" ref="product.product_category_all"/>

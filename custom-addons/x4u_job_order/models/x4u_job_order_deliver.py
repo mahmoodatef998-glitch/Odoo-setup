@@ -12,7 +12,8 @@ class X4uJobOrderDeliver(models.TransientModel):
 
     Spec v0.8: the parts are free in stock (F2), each engine goes with the serial the Storekeeper
     picks from a list (N3), and each alternator with its serial when it has one (v0.8.1 N4).
-    Engines and alternators have one line per unit, so each line has its own list."""
+    Engines and alternators have one line per unit, so each line has its own list. A CKD goes like
+    an engine, with its serial (v0.9 C5)."""
 
     _name = "x4u.job.order.deliver"
     _description = "Deliver Materials"
@@ -42,7 +43,7 @@ class X4uJobOrderDeliver(models.TransientModel):
         problems = []
         lots = self.line_ids.lot_id
         if len(lots) < len(self.line_ids.filtered("lot_id")):
-            problems.append(_("- The same engine serial is chosen twice."))
+            problems.append(_("- The same serial is chosen twice."))
         alternators = self.line_ids.alternator_serial_id
         if len(alternators) < len(self.line_ids.filtered("alternator_serial_id")):
             problems.append(_("- The same alternator serial is chosen twice."))
@@ -74,7 +75,7 @@ class X4uJobOrderDeliver(models.TransientModel):
             lambda line: not float_is_zero(line.quantity, precision_rounding=line.move_id.product_uom.rounding)
         )
         if not to_deliver:
-            raise UserError(_("Enter the quantity to deliver for at least one part, and pick the serial of each engine."))
+            raise UserError(_("Enter the quantity to deliver for at least one part, and pick the serial of each engine or CKD."))
         for move in to_deliver.move_id:
             to_deliver.filtered(lambda l, m=move: l.move_id == m)._x4u_take_from_stock()
         # A part not delivered now waits on a backorder of the same Job Order.
@@ -105,8 +106,8 @@ class X4uJobOrderDeliverLine(models.TransientModel):
     needed = fields.Float(string="Needed", digits="Product Unit of Measure", readonly=True)
     on_hand = fields.Float(compute="_compute_stock", string="On Hand", digits="Product Unit of Measure")
     quantity = fields.Float(string="To Deliver", digits="Product Unit of Measure")
-    available_lot_ids = fields.Many2many("stock.lot", compute="_compute_stock", string="Engines in Stock")
-    lot_id = fields.Many2one("stock.lot", string="Engine Serial")
+    available_lot_ids = fields.Many2many("stock.lot", compute="_compute_stock", string="Serials in Stock")
+    lot_id = fields.Many2one("stock.lot", string="Serial", help="The engine or CKD serial, from the ones in WH/Stock.")
     available_alternator_ids = fields.Many2many(
         "x4u.alternator.serial", compute="_compute_stock", string="Alternators in Stock"
     )

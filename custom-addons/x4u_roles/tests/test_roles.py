@@ -1,7 +1,9 @@
 from odoo import Command
-from odoo.exceptions import AccessError
+from odoo.exceptions import AccessError, UserError
 from odoo.tests import TransactionCase, new_test_user, tagged
 
+# x4u_job_order spec v0.9 E1: changes a serial after the receipt.
+EDIT_SERIALS = "x4u_job_order.group_x4u_edit_serials"
 MANAGERS = {
     "sales_team.group_sale_manager",
     "purchase.group_purchase_manager",
@@ -45,15 +47,16 @@ ROLES = {
             "sales_team.group_sale_salesman",
             "mrp.group_mrp_user",
             "stock.group_stock_manager",
+            EDIT_SERIALS,
         },
     ),
-    "role_general_manager": (MANAGERS, {"base.group_system"}),
+    "role_general_manager": (MANAGERS | {EDIT_SERIALS}, {"base.group_system"}),
     "role_storekeeper": (
         {"stock.group_stock_user", "x4u_job_order.group_x4u_job_order_viewer"},
-        {"stock.group_stock_manager", "sales_team.group_sale_salesman", "mrp.group_mrp_user"},
+        {"stock.group_stock_manager", "sales_team.group_sale_salesman", "mrp.group_mrp_user", EDIT_SERIALS},
     ),
-    # Operation Manager (spec v0.4): finishes the Job Orders.
-    "role_production": ({"mrp.group_mrp_user"}, {"mrp.group_mrp_manager", "purchase.group_purchase_user"}),
+    # Operation Manager (spec v0.4): finishes the Job Orders; v0.9: Use CKD, changes serials.
+    "role_production": ({"mrp.group_mrp_user", EDIT_SERIALS}, {"mrp.group_mrp_manager", "purchase.group_purchase_user"}),
     "role_quality_inspector": (
         {"quality_control_oca.group_quality_control_user", "x4u_job_order.group_x4u_job_order_viewer"},
         {"quality_control_oca.group_quality_control_manager", "sales_team.group_sale_salesman", "mrp.group_mrp_user"},
@@ -68,7 +71,7 @@ ROLES = {
         },
         {"purchase.group_purchase_user", "sales_team.group_sale_salesman", "hr.group_hr_manager"},
     ),
-    "role_administrator": (MANAGERS | {"base.group_system"}, set()),
+    "role_administrator": (MANAGERS | {"base.group_system", EDIT_SERIALS}, set()),
 }
 
 
@@ -157,3 +160,24 @@ class TestRoles(TransactionCase):
         quant = self.env["stock.quant"].search([("product_id", "=", engine.id), ("location_id", "=", warehouse.lot_stock_id.id)])
         with self.assertRaises(AccessError):
             quant.with_user(buyer).with_context(inventory_mode=True).action_apply_inventory()
+
+    # x4u_job_order spec v0.9 E1-E2 (T32): after the receipt, only the Administrator, the GM and the
+    # Operation Manager change a serial, and the chatter keeps the old one
+    def test_who_changes_a_serial(self):
+        engine = self.env["product.product"].create(
+            {"name": "X4U Test Role Engine 2", "is_storable": True, "categ_id": self.env.ref("x4u_setup_base.categ_engines").id}
+        )
+        lot = self.env["stock.lot"].create({"name": "X4U-ROLE-E-2", "product_id": engine.id, "company_id": self.env.company.id})
+        for role in ("role_storekeeper", "role_purchasing_officer"):
+            with self.assertRaises(UserError, msg="%s changes no serial" % role):
+                lot.with_user(self._user(role)).name = "X4U-ROLE-E-2B"
+        self.assertEqual(lot.name, "X4U-ROLE-E-2")
+        names = ["X4U-ROLE-E-2"]
+        for role in ("role_production", "role_general_manager", "role_administrator"):
+            names.append("X4U-ROLE-E-2-%s" % role)
+            lot.with_user(self._user(role)).name = names[-1]
+            self.assertEqual(lot.name, names[-1])
+            # The chatter tracking is written when the transaction commits.
+            self.env.cr.precommit.run()
+        tracked = lot.message_ids.tracking_value_ids.filtered(lambda value: value.field_id.name == "name")
+        self.assertEqual(sorted(tracked.mapped("old_value_char")), sorted(names[:-1]))

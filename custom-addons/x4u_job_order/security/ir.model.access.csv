@@ -22,3 +22,4 @@ access_x4u_ready_receipt_line_stock,x4u.ready.receipt.line stock user,model_x4u_
 access_x4u_alternator_serial_user,x4u.alternator.serial user,model_x4u_alternator_serial,base.group_user,1,0,0,0
 access_x4u_alternator_serial_stock,x4u.alternator.serial stock user,model_x4u_alternator_serial,stock.group_stock_user,1,1,1,0
 access_x4u_alternator_serial_stock_manager,x4u.alternator.serial stock manager,model_x4u_alternator_serial,stock.group_stock_manager,1,1,1,1
+access_x4u_job_order_ckd_mrp_user,x4u.job.order.ckd mrp user (Use CKD),model_x4u_job_order_ckd,mrp.group_mrp_user,1,1,1,1

@@ -68,6 +68,11 @@
                     <field name="x4u_advance_count" widget="statinfo" string="Payments"/>
                 </button>
             </xpath>
+            <!-- Spec v0.7.1 O11: who made the quotation, at the top next to the customer (Odoo fills it
+                 with the user who creates it; it can be changed). -->
+            <xpath expr="//group[@name='partner_details']/field[@name='partner_id']" position="after">
+                <xpath expr="//page[@name='other_information']//field[@name='user_id']" position="move"/>
+            </xpath>
             <xpath expr="//group[@name='order_details']/field[@name='payment_term_id']" position="attributes">
                 <attribute name="readonly">locked or x4u_amount_advance or x4u_po_check in ('to_check', 'match')</attribute>
             </xpath>
