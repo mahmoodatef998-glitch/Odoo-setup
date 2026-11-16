@@ -76,7 +76,10 @@ class TestFreeParts(X4uJobOrderCommon):
         self.assertFalse(engine_line.lot_id, "nothing proposed: the Storekeeper picks the serial")
         self.assertEqual(engine_line.quantity, 0)
         self.assertEqual(len(engine_line.available_lot_ids), 2)
-        # Without its serial the engine stays in stock; the other parts go, the Job Order waits.
+        # Without its serial the engine stays in stock; the other parts go (the body by its serial,
+        # v0.10 B2), the Job Order waits.
+        body_line = wizard.line_ids.filtered(lambda line: line.x4u_role == "body")
+        body_line.lot_id = body_line.available_lot_ids[:1]
         wizard.action_confirm()
         self.assertEqual(production.x4u_job_state, "parts_ready")
         stock = self.warehouse.lot_stock_id
@@ -129,8 +132,8 @@ class TestFreeParts(X4uJobOrderCommon):
         alternator_line = wizard.line_ids.filtered(lambda line: line.x4u_role == "alternator")
         self.assertEqual(alternator_line.available_alternator_ids, serial)
         alternator_line.alternator_serial_id = serial
-        engine_line = wizard.line_ids.filtered(lambda line: line.x4u_role == "engine")
-        engine_line.lot_id = engine_line.available_lot_ids[:1]
+        for line in wizard.line_ids.filtered(lambda line: line.x4u_role in ("engine", "body")):
+            line.lot_id = line.available_lot_ids[:1]
         wizard.action_confirm()
         self.assertEqual(production.x4u_job_state, "material_delivered")
         self.assertEqual(production.x4u_generator_id.alternator_serial, "A-77")

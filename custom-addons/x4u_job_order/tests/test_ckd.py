@@ -125,7 +125,9 @@ class TestCkd(X4uJobOrderCommon):
         ckd_line = wizard.line_ids.filtered(lambda line: line.x4u_role == "ckd")
         self.assertEqual(len(ckd_line), 1)
         self.assertEqual(len(ckd_line.available_lot_ids), 2)
-        # Without its serial the CKD stays in stock, and the Job Order waits for it.
+        # Without its serial the CKD stays in stock, and the Job Order waits for it; the body goes.
+        body_line = wizard.line_ids.filtered(lambda line: line.x4u_role == "body")
+        body_line.lot_id = body_line.available_lot_ids[:1]
         wizard.action_confirm()
         self.assertEqual(production.x4u_job_state, "parts_ready")
         dear = self._lots(self.ckd).filtered(lambda lot: lot.avg_cost == 1700.0)
@@ -134,6 +136,7 @@ class TestCkd(X4uJobOrderCommon):
         card = production.x4u_generator_id
         self.assertEqual((card.x4u_engine_lot_id, card.engine_serial), (dear, dear.name))
         self.assertFalse(card.alternator_serial)
+        self.assertEqual(self.env["mrp.production"].search([("x4u_serial_search", "=", dear.name)]), production, "S1")
         production.with_user(self.operation).action_x4u_finish()
         self.assertEqual(production.state, "done", "no BoM consumption warning: the CKD is on purpose")
         finished = production.move_finished_ids.filtered(lambda m: m.product_id == production.product_id)
@@ -154,8 +157,8 @@ class TestCkd(X4uJobOrderCommon):
         action = production.with_user(self.storekeeper).action_x4u_deliver_materials()
         wizard = self.env[action["res_model"]].with_user(self.storekeeper).browse(action["res_id"])
         wizard.line_ids.filtered(lambda line: line.x4u_role == "alternator").alternator_serial_id = alternator
-        engine_line = wizard.line_ids.filtered(lambda line: line.x4u_role == "engine")
-        engine_line.lot_id = engine_line.available_lot_ids[:1]
+        for line in wizard.line_ids.filtered(lambda line: line.x4u_role in ("engine", "body")):
+            line.lot_id = line.available_lot_ids[:1]
         wizard.action_confirm()
         card = production.x4u_generator_id
         engine = card.x4u_engine_lot_id
@@ -176,3 +179,66 @@ class TestCkd(X4uJobOrderCommon):
         self.assertEqual(production.x4u_proforma_names, "%s-PI1" % order.name)
         found = self.env["mrp.production"].search([("x4u_proforma_names", "ilike", "%s-PI1" % order.name)])
         self.assertEqual(found, production)
+
+    # T34 (v0.10 B1-B3): the body goes by its serial too: in at the receipt, out at Deliver Materials,
+    # on the card, and the generator is worth that very body
+    def test_body_goes_by_serial(self):
+        self.assertEqual(self.body_canopy.tracking, "serial")
+        self.assertTrue(self.body_canopy.lot_valuated)
+        receipt = self._receipt(self.body_canopy, 1)
+        receipt.move_ids.quantity = 1
+        receipt.move_ids.picked = True
+        with self.assertRaises(UserError):
+            receipt.button_validate()
+        receipt.move_ids.move_line_ids.lot_name = "X4U-BODY-1"
+        receipt.button_validate()
+        self.template.categ_id = self.env.ref("x4u_setup_base.categ_generators")
+        self._stock(self.body_canopy, 1, price=350.0)
+        self._stock(self.engine, 1, price=1000.0)
+        self._stock(self.alt_stamford, 1, price=500.0)
+        _order, production = self._sell()
+        # Without its serial the body stays in stock, the Job Order waits for it.
+        self._deliver_materials(production, {self.engine: 1, self.alt_stamford: 1})
+        self.assertEqual(production.x4u_job_state, "parts_ready")
+        dear = self._lots(self.body_canopy).filtered(lambda lot: lot.avg_cost == 350.0)
+        self.assertEqual(len(dear), 1)
+        self._deliver_materials(production, lots={self.body_canopy: dear})
+        self.assertEqual(production.x4u_job_state, "material_delivered")
+        card = production.x4u_generator_id
+        self.assertEqual((card.x4u_body_lot_id, card.x4u_body_serial), (dear, dear.name))
+        dear.with_user(self.operation).name = "X4U-BODY-2B"
+        self.assertEqual(card.x4u_body_serial, "X4U-BODY-2B", "the card follows the new serial (E3)")
+        production.with_user(self.operation).action_x4u_finish()
+        finished = production.move_finished_ids.filtered(lambda m: m.product_id == production.product_id)
+        self.assertAlmostEqual(sum(finished.stock_valuation_layer_ids.mapped("value")), (1000.0 + 500.0 + 350.0) * 1.2)
+
+    # T35-T36 (v0.10 S1-S2): the Job Order and its generator card are found by any serial of the
+    # generator or of its parts, and the card by the PI
+    def test_find_by_any_serial(self):
+        receipt = self._receipt(self.alt_stamford, 1)
+        receipt.move_ids.quantity = 1
+        receipt.move_ids.x4u_alternator_serials = "A-55"
+        receipt.move_ids.picked = True
+        receipt.button_validate()
+        for part in (self.engine, self.body_canopy):
+            self._stock(part, 1)
+        order, production = self._sell()
+        action = production.with_user(self.storekeeper).action_x4u_deliver_materials()
+        wizard = self.env[action["res_model"]].with_user(self.storekeeper).browse(action["res_id"])
+        for line in wizard.line_ids:
+            if line.x4u_role == "alternator":
+                line.alternator_serial_id = line.available_alternator_ids[:1]
+            elif line.tracking == "serial":
+                line.lot_id = line.available_lot_ids[:1]
+        wizard.action_confirm()
+        card = production.x4u_generator_id
+        engine, body = card.x4u_engine_lot_id, card.x4u_body_lot_id
+        self.assertTrue(engine and body)
+        Production = self.env["mrp.production"].with_user(self.salesman)
+        Card = self.env["x4u.generator"].with_user(self.salesman)
+        for serial in (production.lot_producing_id.name, engine.name, body.name, "A-55"):
+            self.assertEqual(Production.search([("x4u_serial_search", "ilike", serial)]), production, serial)
+            self.assertEqual(Card.search([("x4u_serial_search", "ilike", serial)]), card, serial)
+        self.assertFalse(Production.search([("x4u_serial_search", "ilike", "X4U-NO-SUCH-SERIAL")]))
+        self.env["x4u.sale.proforma"].create({"order_id": order.id, "amount_payment": 1000.0})
+        self.assertEqual(Card.search([("x4u_proforma_search", "ilike", "%s-PI1" % order.name)]), card)

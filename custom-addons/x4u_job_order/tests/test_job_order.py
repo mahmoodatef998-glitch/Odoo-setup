@@ -261,8 +261,7 @@ class TestJobOrder(X4uJobOrderCommon):
         for part in (self.engine, self.alt_stamford, self.body_canopy):
             self._stock(part, 1)
         _order, production = self._sell()
-        with self.assertRaises(UserError):
-            self._deliver_materials(production, {self.body_canopy: 2})
+        # Engine, alternator and body go one line per unit (v0.8.1, v0.10 B2): never more than needed.
         self._deliver_materials(production, {self.engine: 1})
         self.assertEqual(production.x4u_job_state, "parts_ready")
         stock = self.warehouse.lot_stock_id

@@ -75,7 +75,7 @@ class X4uJobOrderDeliver(models.TransientModel):
             lambda line: not float_is_zero(line.quantity, precision_rounding=line.move_id.product_uom.rounding)
         )
         if not to_deliver:
-            raise UserError(_("Enter the quantity to deliver for at least one part, and pick the serial of each engine or CKD."))
+            raise UserError(_("Enter the quantity to deliver for at least one part, and pick the serial of each engine, CKD or body."))
         for move in to_deliver.move_id:
             to_deliver.filtered(lambda l, m=move: l.move_id == m)._x4u_take_from_stock()
         # A part not delivered now waits on a backorder of the same Job Order.

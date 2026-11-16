@@ -17,6 +17,22 @@
             <xpath expr="//field[@name='engine_serial']" position="after">
                 <field name="x4u_engine_linked" invisible="1"/>
                 <field name="x4u_engine_lot_id" invisible="not x4u_engine_lot_id" groups="stock.group_stock_user"/>
+                <!-- Spec v0.10 B3: the body fitted, by its serial -->
+                <field name="x4u_body_serial" invisible="not x4u_body_serial"/>
+                <field name="x4u_body_lot_id" invisible="not x4u_body_lot_id" groups="stock.group_stock_user"/>
+            </xpath>
+        </field>
+    </record>
+
+    <!-- Spec v0.10 S2: a card by any serial on it, or by the PI of its sales order -->
+    <record id="x4u_generator_view_search_x4u_job_order" model="ir.ui.view">
+        <field name="name">x4u.generator.search.x4u.job.order</field>
+        <field name="model">x4u.generator</field>
+        <field name="inherit_id" ref="x4u_generator.x4u_generator_view_search"/>
+        <field name="arch" type="xml">
+            <xpath expr="//field[@name='name']" position="after">
+                <field name="x4u_serial_search"/>
+                <field name="x4u_proforma_search"/>
             </xpath>
         </field>
     </record>

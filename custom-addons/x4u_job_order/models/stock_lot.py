@@ -34,7 +34,11 @@ class StockLot(models.Model):
         return res
 
     def _x4u_follow_serial(self):
-        """Spec v0.9 E3: the generator card's Engine Serial follows its engine or CKD (the card's own
-        Serial No and the Ready Job Order link the serial, so they follow by themselves)."""
-        for card in self.env["x4u.generator"].sudo().search([("x4u_engine_lot_id", "in", self.ids)]):
+        """Spec v0.9 E3: the generator card's Engine Serial and Body Serial follow their engine (or
+        CKD) and body (the card's own Serial No and the Ready Job Order link the serial, so they
+        follow by themselves)."""
+        Card = self.env["x4u.generator"].sudo()
+        for card in Card.search([("x4u_engine_lot_id", "in", self.ids)]):
             card.engine_serial = card.x4u_engine_lot_id.name
+        for card in Card.search([("x4u_body_lot_id", "in", self.ids)]):
+            card.x4u_body_serial = card.x4u_body_lot_id.name

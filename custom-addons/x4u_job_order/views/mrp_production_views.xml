@@ -202,6 +202,8 @@
         <field name="arch" type="xml">
             <search string="Job Orders">
                 <field name="name" string="Job Order"/>
+                <!-- Spec v0.10 S1: by any serial of the generator or of its parts -->
+                <field name="x4u_serial_search"/>
                 <field name="x4u_sale_order_id"/>
                 <field name="x4u_proforma_names"/>
                 <field name="x4u_customer_id"/>

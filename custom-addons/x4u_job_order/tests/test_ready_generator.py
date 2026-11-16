@@ -45,6 +45,20 @@ class TestReadyGenerator(X4uJobOrderCommon):
         self.assertEqual(po.state, "purchase")
         return po
 
+    # T37 (v0.10 P2, S3): the Ready Job Order shows the PI, and is found by it and by its serials
+    def test_ready_order_found_by_pi_and_serial(self):
+        order = self._sell_ready()
+        ready = order.x4u_ready_order_ids
+        Ready = self.env["x4u.ready.order"]
+        self.env["x4u.sale.proforma"].create({"order_id": order.id, "amount_payment": 1000.0})
+        self.assertEqual(ready.proforma_names, "%s-PI1" % order.name)
+        self.assertEqual(Ready.search([("proforma_names", "ilike", "%s-PI1" % order.name)]), ready)
+        po = self._buy(order)
+        self._validate(po.picking_ids)
+        self.assertEqual(ready.state, "in_stock")
+        self.assertEqual(Ready.search([("serial_search", "ilike", "X4U-E-%s" % ready.name)]), ready, "the engine serial")
+        self.assertEqual(Ready.search([("serial_search", "=", ready.lot_id.name)]), ready, "the generator serial")
+
     # G1-G2: Buy Ready opens one request for the complete generator, no Job Order with parts
     def test_buy_ready_opens_one_request(self):
         order = self._sell_ready()

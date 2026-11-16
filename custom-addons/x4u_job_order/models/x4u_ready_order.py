@@ -1,6 +1,8 @@
 from odoo import _, api, fields, models
+from odoo.osv import expression
 
 from .mrp_production import PROFIT_DOMAIN
+from .serial_search import serial_domain
 
 READY_STATES = [
     ("waiting", "Waiting Purchase"),
@@ -38,6 +40,15 @@ class X4uReadyOrder(models.Model):
     alternator_serial = fields.Char(string="Alternator Serial", readonly=True, copy=False, tracking=True)
     supplier_serial = fields.Char(string="Supplier Serial No", readonly=True, copy=False, tracking=True)
     generator_id = fields.Many2one("x4u.generator", string="Generator Card", compute="_compute_generator")
+    # Spec v0.10 P2 / S3: the PI numbers of the sales order, and one search box for its serials.
+    proforma_names = fields.Char(
+        string="PI", compute="_compute_proforma_names", store=True, index="trigram",
+        help="The proforma invoices (PI) of the sales order, one per payment received.",
+    )
+    serial_search = fields.Char(
+        string="Serial", compute="_compute_serial_search", search="_search_serial",
+        help="The generator's serial, or the engine, alternator or supplier serial written at the receipt.",
+    )
     analytic_account_id = fields.Many2one("account.analytic.account", string="Analytic Account", readonly=True, copy=False)
     currency_id = fields.Many2one(related="company_id.currency_id")
     margin = fields.Monetary(string="Margin", compute="_compute_margin")
@@ -70,6 +81,24 @@ class X4uReadyOrder(models.Model):
                     "partner_id": partner.id,
                 }
             )
+
+    @api.depends("sale_order_id.x4u_proforma_ids.name", "sale_order_id.x4u_proforma_ids.state")
+    def _compute_proforma_names(self):
+        for order in self:
+            proformas = order.sale_order_id.sudo().x4u_proforma_ids.filtered(lambda pi: pi.state != "cancel")
+            order.proforma_names = ", ".join(proformas.sorted("id").mapped("name")) or False
+
+    def _compute_serial_search(self):
+        self.serial_search = False
+
+    def _search_serial(self, operator, value):
+        return serial_domain(self._x4u_ids_by_serial, operator, value)
+
+    @api.model
+    def _x4u_ids_by_serial(self, operator, value):
+        lots = self.env["stock.lot"].sudo().search([("name", operator, value)])
+        texts = [[(name, operator, value)] for name in ("name", "engine_serial", "alternator_serial", "supplier_serial")]
+        return self.sudo().search(expression.OR(texts + [[("lot_id", "in", lots.ids)]])).ids
 
     def _compute_generator(self):
         for order in self:

@@ -57,12 +57,11 @@ class StockPicking(models.Model):
                 # Material Delivered once every part is delivered; a part delivered alone waits.
                 for production in Production._x4u_from_moves(moves.move_dest_ids):
                     if production.product_qty == 1:
-                        # Spec v0.8 N5: the card of a one-generator Job Order gets its engine now.
-                        engine = moves.filtered(
-                            lambda m, p=production: m.x4u_role in ("engine", "ckd") and m.move_dest_ids.raw_material_production_id == p
-                        ).move_line_ids.lot_id
-                        if engine:
-                            production._x4u_card_engine(engine)
+                        # Spec v0.8 N5 / v0.10 B3: the card of a one-generator Job Order gets its engine
+                        # (or CKD) and its body now, by their serials.
+                        production._x4u_card_parts(
+                            moves.filtered(lambda m, p=production: m.move_dest_ids.raw_material_production_id == p)
+                        )
                     if production.x4u_job_state not in ("waiting_parts", "parts_ready"):
                         continue
                     if all(move.state == "done" for move in production._x4u_component_moves()):

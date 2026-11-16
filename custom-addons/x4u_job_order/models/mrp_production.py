@@ -4,6 +4,7 @@ from odoo import Command, _, api, fields, models
 from odoo.exceptions import UserError
 from odoo.tools import float_compare
 
+from .serial_search import serial_domain
 from .stock_move import part_role
 from .x4u_job_order_event import SINGLE_EVENTS
 
@@ -76,6 +77,12 @@ class MrpProduction(models.Model):
     # Spec v0.9 C3: a CKD (engine + alternator on one serial) instead of the engine and the alternator.
     x4u_uses_ckd = fields.Boolean(compute="_compute_x4u_switch", string="Uses CKD")
     x4u_can_switch_parts = fields.Boolean(compute="_compute_x4u_switch")
+    # Spec v0.10 S1: one search box finds the Job Order by any serial of it or of its parts.
+    x4u_serial_search = fields.Char(
+        string="Serial", compute="_compute_x4u_serial_search", search="_search_x4u_serial",
+        help="The generator's serial, or the serial of the engine, CKD, body or alternator delivered for it.",
+    )
+    x4u_alternator_serial_ids = fields.One2many("x4u.alternator.serial", "production_id", string="Alternator Serials")
     # Spec v0.9 P1: the PI numbers of the sales order, to find the Job Order by them.
     x4u_proforma_names = fields.Char(
         string="PI", compute="_compute_x4u_proforma_names", store=True, index="trigram",
@@ -128,6 +135,22 @@ class MrpProduction(models.Model):
         # sale_line_id is there from creation; the group's sale only after confirmation.
         for production in self:
             production.x4u_sale_order_id = production.sale_line_id.order_id or production.procurement_group_id.sale_id
+
+    def _compute_x4u_serial_search(self):
+        self.x4u_serial_search = False
+
+    def _search_x4u_serial(self, operator, value):
+        return serial_domain(self._x4u_ids_by_serial, operator, value)
+
+    @api.model
+    def _x4u_ids_by_serial(self, operator, value):
+        """Read with sudo: Sales and Purchasing look Job Orders up without stock rights."""
+        lots = self.env["stock.lot"].sudo().search([("name", operator, value)])
+        productions = self.sudo().search([("lot_producing_id", "in", lots.ids)])
+        moves = self.env["stock.move.line"].sudo().search([("lot_id", "in", lots.ids)]).move_id
+        productions |= moves.raw_material_production_id | moves.move_dest_ids.raw_material_production_id
+        productions |= self.env["x4u.alternator.serial"].sudo().search([("name", operator, value)]).production_id
+        return productions.ids
 
     @api.depends("x4u_sale_order_id.x4u_proforma_ids.name", "x4u_sale_order_id.x4u_proforma_ids.state")
     def _compute_x4u_proforma_names(self):
@@ -537,22 +560,29 @@ class MrpProduction(models.Model):
         for production in finished:
             production._x4u_set_state("finished")
             production._x4u_log("finished", document=production, date=production.date_finished)
-        finished._x4u_card_engine()
+        finished._x4u_card_parts()
         finished._x4u_ask_final_invoice()
         return res
 
-    def _x4u_card_engine(self, lots=None):
+    def _x4u_card_parts(self, moves=None):
         """Spec v0.8 N5: the generator card links the engine fitted in it, or the CKD (its serial is
-        the engine's, v0.9 C6). At Deliver Materials for a Job Order of one generator; when it is
-        made, from the engine it consumed."""
+        the engine's, v0.9 C6), and the body (v0.10 B3), by their serials. At Deliver Materials for a
+        Job Order of one generator (the Pick Components moves just done); when it is made, from what
+        it consumed."""
         for production in self:
             card = production.lot_producing_id.sudo().x4u_generator_id
-            engine = lots
-            if engine is None:
-                moves = production.move_raw_ids.filtered(lambda m: m.x4u_role in ("engine", "ckd") and m.state == "done")
-                engine = moves.move_line_ids.lot_id
-            if card and len(engine) == 1:
-                card.write({"x4u_engine_lot_id": engine.id, "engine_serial": engine.name})
+            if not card:
+                continue
+            source = moves if moves is not None else production.move_raw_ids.filtered(lambda m: m.state == "done")
+            vals = {}
+            engine = source.filtered(lambda m: m.x4u_role in ("engine", "ckd")).move_line_ids.lot_id
+            if len(engine) == 1:
+                vals.update(x4u_engine_lot_id=engine.id, engine_serial=engine.name)
+            body = source.filtered(lambda m: m.x4u_role == "body").move_line_ids.lot_id
+            if len(body) == 1:
+                vals.update(x4u_body_lot_id=body.id, x4u_body_serial=body.name)
+            if vals:
+                card.write(vals)
 
     def _x4u_ask_final_invoice(self):
         """x4u_sale spec §6 S10: every generator of an order paid before delivery is ready,

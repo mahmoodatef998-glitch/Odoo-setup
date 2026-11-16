@@ -33,6 +33,7 @@
                             <field name="product_id"/>
                             <field name="customer_id"/>
                             <field name="sale_order_id"/>
+                            <field name="proforma_names" invisible="not proforma_names"/>
                         </group>
                         <group>
                             <field name="lot_id"/>
@@ -61,6 +62,7 @@
                 <field name="product_id"/>
                 <field name="customer_id"/>
                 <field name="sale_order_id"/>
+                <field name="proforma_names" optional="show"/>
                 <field name="purchase_status"/>
                 <field name="lot_id" optional="show"/>
                 <field name="state" widget="badge"
@@ -75,6 +77,9 @@
         <field name="arch" type="xml">
             <search string="Ready Job Orders">
                 <field name="name"/>
+                <!-- Spec v0.10 S3 / P2 -->
+                <field name="serial_search"/>
+                <field name="proforma_names"/>
                 <field name="customer_id"/>
                 <field name="sale_order_id"/>
                 <field name="product_id"/>

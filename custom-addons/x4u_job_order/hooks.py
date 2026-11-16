@@ -26,41 +26,49 @@ def setup_job_analytic(env):
     jobs._x4u_job_analytic(backfill=True)
 
 
+# Spec v0.8 N1 / v0.9 C1 / v0.10 B1: the parts tracked and valued by their serial; prefix of the
+# serials given to the ones already in stock when the product has no internal reference.
+SERIAL_PARTS = (("categ_engines", "ENG"), ("categ_ckd", "CKD"), ("categ_bodies", "BODY"))
+
+
 def setup_engine_serials(env):
-    """Spec v0.8 N1: every engine is tracked and valued by its serial. Engines already in stock
-    without one get a serial first (<code>-001, -002...) by a stock count, then Odoo re-values
-    them per serial."""
-    engines = env.ref("x4u_setup_base.categ_engines", raise_if_not_found=False)
-    if not engines:
-        return
-    templates = env["product.template"].with_context(active_test=False).search(
-        [("categ_id", "child_of", engines.id), ("is_storable", "=", True), ("tracking", "!=", "serial")]
-    )
+    """Spec v0.8 N1 / v0.10 B4: every engine, CKD and genset body is tracked and valued by its
+    serial. Those already in stock without one (in WH/Stock or delivered to the factory) get a serial
+    first (<code>-001, -002...) by a stock count, then Odoo re-values them per serial."""
     Quant = env["stock.quant"]
     Lot = env["stock.lot"]
-    for template in templates:
-        template.write({"tracking": "serial", "lot_valuated": False})
-        for product in template.product_variant_ids:
-            loose = Quant.search(
-                [("product_id", "=", product.id), ("location_id.usage", "=", "internal"), ("lot_id", "=", False), ("quantity", ">", 0)]
-            )
-            if not loose:
-                continue
-            code = product.default_code or "ENG%s" % product.id
-            counted = Quant
-            number = 0
-            for quant in loose:
-                units = int(quant.quantity)
-                quant.with_context(inventory_mode=True).write({"inventory_quantity": quant.quantity - units})
-                counted |= quant
-                for _unit in range(units):
-                    number += 1
-                    lot = Lot.create({"name": "%s-%03d" % (code, number), "product_id": product.id, "company_id": quant.company_id.id})
-                    counted |= Quant.with_context(inventory_mode=True).create(
-                        {"product_id": product.id, "location_id": quant.location_id.id, "lot_id": lot.id, "inventory_quantity": 1}
-                    )
-            counted._apply_inventory()
-    templates.write({"lot_valuated": True})
+    for xmlid, prefix in SERIAL_PARTS:
+        category = env.ref("x4u_setup_base." + xmlid, raise_if_not_found=False)
+        if not category:
+            continue
+        templates = env["product.template"].with_context(active_test=False).search(
+            [("categ_id", "child_of", category.id), ("is_storable", "=", True), ("tracking", "!=", "serial")]
+        )
+        for template in templates:
+            template.write({"tracking": "serial", "lot_valuated": False})
+            for product in template.product_variant_ids:
+                loose = Quant.search(
+                    [("product_id", "=", product.id), ("location_id.usage", "=", "internal"), ("lot_id", "=", False), ("quantity", ">", 0)]
+                )
+                if not loose:
+                    continue
+                code = product.default_code or "%s%s" % (prefix, product.id)
+                counted = Quant
+                number = 0
+                for quant in loose:
+                    units = int(quant.quantity)
+                    quant.with_context(inventory_mode=True).write({"inventory_quantity": quant.quantity - units})
+                    counted |= quant
+                    for _unit in range(units):
+                        number += 1
+                        while Lot.search_count([("product_id", "=", product.id), ("name", "=", "%s-%03d" % (code, number))]):
+                            number += 1
+                        lot = Lot.create({"name": "%s-%03d" % (code, number), "product_id": product.id, "company_id": quant.company_id.id})
+                        counted |= Quant.with_context(inventory_mode=True).create(
+                            {"product_id": product.id, "location_id": quant.location_id.id, "lot_id": lot.id, "inventory_quantity": 1}
+                        )
+                counted._apply_inventory()
+        templates.write({"lot_valuated": True})
 
 
 def post_init_hook(env):
