@@ -77,6 +77,8 @@ class MrpProduction(models.Model):
     # Spec v0.9 C3: a CKD (engine + alternator on one serial) instead of the engine and the alternator.
     x4u_uses_ckd = fields.Boolean(compute="_compute_x4u_switch", string="Uses CKD")
     x4u_can_switch_parts = fields.Boolean(compute="_compute_x4u_switch")
+    # Spec v0.11 D1: the other generators of the same order waiting for their parts.
+    x4u_order_open_jobs = fields.Integer(compute="_compute_x4u_order_open_jobs")
     # Spec v0.10 S1: one search box finds the Job Order by any serial of it or of its parts.
     x4u_serial_search = fields.Char(
         string="Serial", compute="_compute_x4u_serial_search", search="_search_x4u_serial",
@@ -728,17 +730,131 @@ class MrpProduction(models.Model):
             production._x4u_notify("purchase", _("Order the material for %s", production.name))
         production._x4u_refresh_parts()
 
-    def action_x4u_finish(self):
-        """Operation Manager: the generator is made and goes to stock as a finished good."""
+    def _x4u_check_finish(self):
         self.ensure_one()
         if self.x4u_job_state != "material_delivered":
             raise UserError(_("%s is finished after the Storekeeper delivers all its materials.", self.name))
+
+    def action_x4u_finish(self):
+        """Operation Manager: the generator is made and goes to stock as a finished good. For one
+        generator with parts by serial, the serials fitted are confirmed first (spec v0.11 D2)."""
+        self.ensure_one()
+        self._x4u_check_finish()
+        serial_parts = self.move_raw_ids.filtered(
+            lambda m: m.state not in ("done", "cancel") and m.x4u_role in ("engine", "ckd", "alternator", "body")
+        )
+        if self.product_qty == 1 and serial_parts:
+            return self.env["x4u.job.order.finish"]._x4u_action(self)
+        return self._x4u_finish()
+
+    def _x4u_finish(self):
+        self._x4u_check_finish()
         self._x4u_reserve_delivered_parts()
         if self.x4u_uses_ckd:
             # Spec v0.9 C3: the CKD replaced the engine and the alternator of the bill of materials on
             # purpose; Odoo's "consumption differs from the BoM" warning would only stop the finish.
             return self.with_context(skip_consumption=True).button_mark_done()
         return self.button_mark_done()
+
+    # ------------------------------------------------------------------
+    # Several generators of one order (spec v0.11 D1-D2)
+    # ------------------------------------------------------------------
+    def _x4u_open_to_deliver(self):
+        return self.filtered(lambda p: p.x4u_is_job_order and p.x4u_job_state in ("waiting_parts", "parts_ready"))
+
+    @api.depends("x4u_sale_order_id", "x4u_job_state")
+    def _compute_x4u_order_open_jobs(self):
+        for production in self:
+            count = 0
+            if production.x4u_sale_order_id:
+                count = self.sudo().search_count(
+                    [
+                        ("x4u_sale_order_id", "=", production.x4u_sale_order_id.id),
+                        ("x4u_is_job_order", "=", True),
+                        ("x4u_job_state", "in", ("waiting_parts", "parts_ready")),
+                    ]
+                )
+            production.x4u_order_open_jobs = count
+
+    def action_x4u_deliver_all(self):
+        """Storekeeper: Deliver Materials of the Job Orders selected in the list, a line per generator."""
+        jobs = self._x4u_open_to_deliver()
+        if not jobs:
+            raise UserError(_("Select Job Orders that wait for their parts (Waiting Parts or Parts Ready)."))
+        return self.env["x4u.job.order.deliver.all"]._x4u_action(jobs)
+
+    def action_x4u_deliver_order(self):
+        """Storekeeper: Deliver Materials of every generator of this Job Order's sales order."""
+        self.ensure_one()
+        jobs = self.search([("x4u_sale_order_id", "=", self.x4u_sale_order_id.id), ("x4u_is_job_order", "=", True)])
+        return jobs.action_x4u_deliver_all()
+
+    def _x4u_reserve_lot(self, move, lot):
+        quant = self.env["stock.quant"].sudo()._gather(move.product_id, move.location_id, lot_id=lot, strict=False).filtered(
+            lambda q: q.quantity > q.reserved_quantity
+        )[:1]
+        if not quant:
+            raise UserError(_("%s is not in the factory.", lot.name))
+        move.move_line_ids = [Command.create(move._prepare_move_line_vals(quantity=1, reserved_quant=quant))]
+
+    def _x4u_fit_lot(self, move, lot):
+        """Spec v0.11 D2: the factory fitted `lot` in this generator. The Job Order it was delivered to
+        takes this one's unit instead. Returns that Job Order."""
+        self.ensure_one()
+        move = move.sudo()
+        current = move.move_line_ids.lot_id[:1]
+        if lot == current:
+            return self.browse()
+        if lot.product_id != move.product_id:
+            raise UserError(_("%(lot)s is not a serial of %(part)s.", lot=lot.name, part=move.product_id.display_name))
+        theirs = self.env["stock.move.line"].sudo().search(
+            [
+                ("lot_id", "=", lot.id),
+                ("move_id", "!=", move.id),
+                ("move_id.raw_material_production_id", "!=", False),
+                ("move_id.state", "not in", ("done", "cancel")),
+            ]
+        )
+        their_moves = theirs.move_id
+        (move.move_line_ids | theirs).unlink()
+        self._x4u_reserve_lot(move, lot)
+        if current:
+            for their_move in their_moves:
+                self._x4u_reserve_lot(their_move, current)
+        others = their_moves.raw_material_production_id
+        self.sudo().message_post(
+            body=_(
+                "Fitted %(new)s instead of %(old)s%(swap)s.",
+                new=lot.name,
+                old=current.name or "-",
+                swap=_(" (%(job)s takes %(old)s)", job=", ".join(others.mapped("name")), old=current.name) if others and current else "",
+            )
+        )
+        for other in others:
+            other.sudo().message_post(
+                body=_("%(new)s instead of %(old)s: %(job)s was fitted with %(old)s.", new=current.name or "-", old=lot.name, job=self.name)
+            )
+        return others
+
+    def _x4u_fit_alternator(self, serial):
+        """Spec v0.11 D2: the alternator serial fitted in this generator; the one written before goes to
+        the Job Order the new one came from, or back to the list (in stock)."""
+        self.ensure_one()
+        Serial = self.env["x4u.alternator.serial"].sudo()
+        serial = serial.sudo()
+        mine = Serial.search([("production_id", "=", self.id)])
+        if serial in mine:
+            return self.browse()
+        other = serial.production_id
+        serial.write({"state": "fitted", "production_id": self.id})
+        if mine:
+            if other and other.state not in ("done", "cancel"):
+                mine.write({"production_id": other.id})
+            else:
+                mine.write({"state": "in_stock", "production_id": False})
+        # The cards of both generators show their alternator serials again.
+        (serial | mine)._x4u_write_on_card()
+        return other
 
     def _x4u_reserve_delivered_parts(self, all_parts=False):
         """The Job Order consumes what Pick Components brought to the factory, engines by their

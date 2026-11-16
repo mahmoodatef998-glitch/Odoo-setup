@@ -11,6 +11,8 @@ from . import sale_order
 from . import x4u_generator
 from . import x4u_job_order_ckd
 from . import x4u_job_order_deliver
+from . import x4u_job_order_serials
+from . import report_serials
 from . import x4u_ready_order
 from . import x4u_ready_receipt
 from . import purchase_request

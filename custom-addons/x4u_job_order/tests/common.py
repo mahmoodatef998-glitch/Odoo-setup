@@ -214,6 +214,15 @@ class X4uJobOrderCommon(TransactionCase):
                     line.lot_id = False
         wizard.action_confirm()
 
+    def _finish(self, production, user=None):
+        """Finish Job Order as the Operation Manager; the serials fitted are confirmed as they were
+        delivered (spec v0.11 D2)."""
+        user = user or self.operation
+        res = production.with_user(user).action_x4u_finish()
+        if isinstance(res, dict) and res.get("res_model") == "x4u.job.order.finish":
+            return self.env[res["res_model"]].with_user(user).browse(res["res_id"]).action_confirm()
+        return res
+
     def _produce(self, production):
         with Form(production) as form:
             form.qty_producing = 1

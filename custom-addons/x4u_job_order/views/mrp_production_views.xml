@@ -11,6 +11,10 @@
                 <button name="action_x4u_deliver_materials" type="object" string="Deliver Materials" class="oe_highlight"
                         groups="stock.group_stock_user"
                         invisible="not x4u_is_job_order or x4u_job_state not in ('waiting_parts', 'parts_ready')"/>
+                <!-- Spec v0.11 D1: every generator of the sales order in one screen -->
+                <button name="action_x4u_deliver_order" type="object" string="Deliver All of the Order"
+                        groups="stock.group_stock_user"
+                        invisible="not x4u_is_job_order or x4u_job_state not in ('waiting_parts', 'parts_ready') or x4u_order_open_jobs &lt; 2"/>
                 <button name="action_x4u_finish" type="object" string="Finish Job Order" class="oe_highlight"
                         groups="mrp.group_mrp_user"
                         invisible="not x4u_is_job_order or x4u_job_state != 'material_delivered'"/>
@@ -64,6 +68,7 @@
                 <field name="x4u_generator_id" invisible="1"/>
                 <field name="x4u_analytic_account_id" invisible="1"/>
                 <field name="x4u_can_switch_parts" invisible="1"/>
+                <field name="x4u_order_open_jobs" invisible="1"/>
                 <field name="x4u_uses_ckd" invisible="1"/>
                 <field name="x4u_job_state" widget="badge" invisible="not x4u_is_job_order"
                        decoration-info="x4u_job_state in ('waiting_parts', 'parts_ready')"
@@ -138,6 +143,10 @@
         <field name="priority">100</field>
         <field name="arch" type="xml">
             <list string="Job Orders" decoration-danger="x4u_delay_stage" create="0">
+                <!-- Spec v0.11 D1: the selected generators in one screen -->
+                <header>
+                    <button name="action_x4u_deliver_all" type="object" string="Deliver Materials" groups="stock.group_stock_user"/>
+                </header>
                 <field name="name" string="Job Order"/>
                 <field name="x4u_sale_order_id"/>
                 <field name="x4u_proforma_names" optional="show"/>

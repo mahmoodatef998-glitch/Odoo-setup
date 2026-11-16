@@ -137,7 +137,7 @@ class TestCkd(X4uJobOrderCommon):
         self.assertEqual((card.x4u_engine_lot_id, card.engine_serial), (dear, dear.name))
         self.assertFalse(card.alternator_serial)
         self.assertEqual(self.env["mrp.production"].search([("x4u_serial_search", "=", dear.name)]), production, "S1")
-        production.with_user(self.operation).action_x4u_finish()
+        self._finish(production)
         self.assertEqual(production.state, "done", "no BoM consumption warning: the CKD is on purpose")
         finished = production.move_finished_ids.filtered(lambda m: m.product_id == production.product_id)
         self.assertAlmostEqual(sum(finished.stock_valuation_layer_ids.mapped("value")), (1700.0 + 300.0) * 1.2)
@@ -208,7 +208,7 @@ class TestCkd(X4uJobOrderCommon):
         self.assertEqual((card.x4u_body_lot_id, card.x4u_body_serial), (dear, dear.name))
         dear.with_user(self.operation).name = "X4U-BODY-2B"
         self.assertEqual(card.x4u_body_serial, "X4U-BODY-2B", "the card follows the new serial (E3)")
-        production.with_user(self.operation).action_x4u_finish()
+        self._finish(production)
         finished = production.move_finished_ids.filtered(lambda m: m.product_id == production.product_id)
         self.assertAlmostEqual(sum(finished.stock_valuation_layer_ids.mapped("value")), (1000.0 + 500.0 + 350.0) * 1.2)
 

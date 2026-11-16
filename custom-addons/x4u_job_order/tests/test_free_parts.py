@@ -93,7 +93,7 @@ class TestFreeParts(X4uJobOrderCommon):
         card = production.x4u_generator_id
         self.assertEqual(card.x4u_engine_lot_id, lot)
         self.assertEqual(card.engine_serial, lot.name)
-        production.with_user(self.operation).action_x4u_finish()
+        self._finish(production)
         engine = production.move_raw_ids.filtered(lambda move: move.x4u_role == "engine")
         self.assertEqual(engine.move_line_ids.lot_id, lot, "the factory fits the engine delivered")
         self.assertEqual(card.x4u_engine_lot_id, lot)
@@ -162,7 +162,7 @@ class TestFreeParts(X4uJobOrderCommon):
             }
         )
         engine.picked = True
-        production.with_user(self.operation).action_x4u_finish()
+        self._finish(production)
         self.assertEqual(production.state, "done")
         self.assertEqual(engine.move_line_ids.lot_id, delivered)
 
@@ -177,7 +177,7 @@ class TestFreeParts(X4uJobOrderCommon):
         dear = self._lots(self.engine).filtered(lambda lot: lot.avg_cost == 1400.0)
         self.assertEqual(len(dear), 1)
         self._deliver_materials(production, lots={self.engine: dear})
-        production.with_user(self.operation).action_x4u_finish()
+        self._finish(production)
         finished = production.move_finished_ids.filtered(lambda m: m.product_id == production.product_id)
         self.assertAlmostEqual(sum(finished.stock_valuation_layer_ids.mapped("value")), (1400.0 + 500.0 + 300.0) * 1.2)
 

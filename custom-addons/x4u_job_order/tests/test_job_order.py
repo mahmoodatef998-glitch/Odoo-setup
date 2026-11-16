@@ -282,9 +282,9 @@ class TestJobOrder(X4uJobOrderCommon):
             self._stock(part, 1, price=price)
         _order, production = self._sell()
         with self.assertRaises(UserError):
-            production.with_user(self.operation).action_x4u_finish()
+            self._finish(production)
         self._deliver_materials(production)
-        production.with_user(self.operation).action_x4u_finish()
+        self._finish(production)
         self.assertEqual(production.state, "done")
         self.assertEqual(production.x4u_job_state, "finished")
         self.assertTrue(self.template.lot_valuated)
@@ -300,7 +300,7 @@ class TestJobOrder(X4uJobOrderCommon):
         order, production = self._sell(payment_term_id=self.env.ref("x4u_setup_base.payment_term_50_50").id)
         self.assertTrue(order.x4u_pay_before_delivery)
         self._deliver_materials(production)
-        production.with_user(self.operation).action_x4u_finish()
+        self._finish(production)
         self.assertEqual(production.x4u_job_state, "finished")
         delivery = order.picking_ids.filtered(lambda p: p.picking_type_code == "outgoing")
         delivery.action_assign()
@@ -345,7 +345,7 @@ class TestJobOrder(X4uJobOrderCommon):
         self.assertTrue(self.env.user.has_group("analytic.group_analytic_accounting"))
 
         self._deliver_materials(production)
-        production.with_user(self.operation).action_x4u_finish()
+        self._finish(production)
         self._deliver(order)
         invoice = order._create_invoices()
         invoice.action_post()
@@ -383,7 +383,7 @@ class TestJobOrder(X4uJobOrderCommon):
         invoice = order._create_invoices()
         invoice.action_post()
         self._deliver_materials(production)
-        production.with_user(self.operation).action_x4u_finish()
+        self._finish(production)
         self._deliver(order)
 
         output = categ.property_stock_account_output_categ_id

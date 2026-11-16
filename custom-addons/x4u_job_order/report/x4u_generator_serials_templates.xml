@@ -1,0 +1,56 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <!-- Spec v0.11 D3: the serials of each generator, for the customer -->
+    <template id="generator_serials_table">
+        <t t-if="cards">
+            <h5 class="mt-4">Generator Serial Numbers</h5>
+            <table class="table table-sm o_main_table" name="x4u_generator_serials">
+                <thead>
+                    <tr>
+                        <th class="text-start">Model</th>
+                        <th class="text-start">Serial No</th>
+                        <th class="text-start">Engine / CKD</th>
+                        <th class="text-start">Alternator</th>
+                        <th class="text-start">Canopy</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr t-foreach="cards" t-as="card">
+                        <td><span t-out="card.product_id.display_name"/></td>
+                        <td><span t-out="card.name"/></td>
+                        <td><span t-out="card.engine_serial or '-'"/></td>
+                        <td><span t-out="card.alternator_serial or '-'"/></td>
+                        <td><span t-out="card.x4u_body_serial or '-'"/></td>
+                    </tr>
+                </tbody>
+            </table>
+        </t>
+    </template>
+
+    <!-- The generators of this delivery -->
+    <template id="report_delivery_document_x4u_serials" inherit_id="stock.report_delivery_document">
+        <xpath expr="//div[@name='signature']" position="after">
+            <t t-call="x4u_job_order.generator_serials_table">
+                <t t-set="cards" t-value="o._x4u_generator_cards()"/>
+            </t>
+        </xpath>
+    </template>
+
+    <!-- The generators of the order invoiced -->
+    <template id="report_invoice_document_x4u_serials" inherit_id="account.report_invoice_document">
+        <xpath expr="//div[@name='comment']" position="before">
+            <t t-call="x4u_job_order.generator_serials_table">
+                <t t-set="cards" t-value="o._x4u_generator_cards()"/>
+            </t>
+        </xpath>
+    </template>
+
+    <!-- The generators of a confirmed order (a quotation has none yet) -->
+    <template id="report_saleorder_document_x4u_serials" inherit_id="sale.report_saleorder_document">
+        <xpath expr="//div[@name='so_total_summary']" position="after">
+            <t t-call="x4u_job_order.generator_serials_table">
+                <t t-set="cards" t-value="doc._x4u_generator_cards() if doc.state == 'sale' else []"/>
+            </t>
+        </xpath>
+    </template>
+</odoo>
