@@ -1,0 +1,71 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Spec §16: the actions of Accounting › Reporting that open a report already set. -->
+<odoo>
+    <record id="action_x4u_report_pl" model="ir.actions.server">
+        <field name="name">Profit and Loss</field>
+        <field name="model_id" ref="account.model_account_account"/>
+        <field name="state">code</field>
+        <field name="code">action = env["x4u.accounting.report"].action_x4u_mis("x4u_account.mis_instance_x4u_pl")</field>
+    </record>
+    <record id="action_x4u_report_bs" model="ir.actions.server">
+        <field name="name">Balance Sheet</field>
+        <field name="model_id" ref="account.model_account_account"/>
+        <field name="state">code</field>
+        <field name="code">action = env["x4u.accounting.report"].action_x4u_mis("x4u_account.mis_instance_x4u_bs")</field>
+    </record>
+    <record id="action_x4u_report_cash_flow" model="ir.actions.server">
+        <field name="name">Cash Flow Statement</field>
+        <field name="model_id" ref="account.model_account_account"/>
+        <field name="state">code</field>
+        <field name="code">action = env["x4u.accounting.report"].action_x4u_mis("x4u_account.mis_instance_x4u_cash_flow")</field>
+    </record>
+    <record id="action_x4u_report_bank_book" model="ir.actions.server">
+        <field name="name">Bank Book</field>
+        <field name="model_id" ref="account.model_account_account"/>
+        <field name="state">code</field>
+        <field name="code">action = env["x4u.accounting.report"].action_x4u_bank_book()</field>
+    </record>
+    <record id="action_x4u_report_cash_book" model="ir.actions.server">
+        <field name="name">Cash Book</field>
+        <field name="model_id" ref="account.model_account_account"/>
+        <field name="state">code</field>
+        <field name="code">action = env["x4u.accounting.report"].action_x4u_cash_book()</field>
+    </record>
+    <record id="action_x4u_report_day_book" model="ir.actions.server">
+        <field name="name">Day Book</field>
+        <field name="model_id" ref="account.model_account_account"/>
+        <field name="state">code</field>
+        <field name="code">action = env["x4u.accounting.report"].action_x4u_day_book()</field>
+    </record>
+    <record id="action_x4u_report_partner_ledger" model="ir.actions.server">
+        <field name="name">Partner Ledger</field>
+        <field name="model_id" ref="account.model_account_account"/>
+        <field name="state">code</field>
+        <field name="code">action = env["x4u.accounting.report"].action_x4u_partner_ledger()</field>
+    </record>
+    <record id="action_x4u_report_receivable_excel" model="ir.actions.server">
+        <field name="name">Accounts Receivable (Excel)</field>
+        <field name="model_id" ref="account.model_account_account"/>
+        <field name="state">code</field>
+        <field name="code">action = env["x4u.accounting.report"].action_x4u_receivable_excel()</field>
+    </record>
+    <record id="action_x4u_report_payable_excel" model="ir.actions.server">
+        <field name="name">Accounts Payable (Excel)</field>
+        <field name="model_id" ref="account.model_account_account"/>
+        <field name="state">code</field>
+        <field name="code">action = env["x4u.accounting.report"].action_x4u_payable_excel()</field>
+    </record>
+
+    <!-- Financial Statement: the 4U statements to choose from (Preview, Print, Export on each). -->
+    <record id="action_x4u_financial_statements" model="ir.actions.act_window">
+        <field name="name">Financial Statements</field>
+        <field name="res_model">mis.report.instance</field>
+        <field name="view_mode">list,form</field>
+        <field name="domain" eval="[('report_id', 'in', [ref('mis_report_x4u_pl'), ref('mis_report_x4u_cash'), ref('mis_report_x4u_cash_flow'), ref('mis_template_financial_report.report_bs')])]"/>
+        <field name="context">{'create': False}</field>
+        <field name="help" type="html">
+            <p class="o_view_nocontent_smiling_face">No financial statement</p>
+            <p>The 4U statements (P&amp;L, Balance Sheet, Cash Flow, Cash &amp; Working Capital) are listed here.</p>
+        </field>
+    </record>
+</odoo>

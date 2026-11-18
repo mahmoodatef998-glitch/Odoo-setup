@@ -1,0 +1,209 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Spec §16 R1: the cash flow statement, indirect method, by account type (a new account falls in its
+     group by itself). Each group is minus the change of its accounts in the period, so all of them
+     together are the change of the cash accounts: "Check (must be 0)" proves it. -->
+<odoo>
+    <record id="mis_report_x4u_cash_flow" model="mis.report">
+        <field name="name">4U Cash Flow Statement</field>
+        <field name="description">Operating, investing and financing cash flows (indirect method)</field>
+        <field name="style_id" ref="mis_template_financial_report.style_default"/>
+    </record>
+
+    <record id="mis_report_x4u_cash_flow_kpi_net_profit" model="mis.report.kpi">
+        <field name="report_id" ref="mis_report_x4u_cash_flow"/>
+        <field name="sequence">10</field>
+        <field name="name">net_profit</field>
+        <field name="description">Net Profit</field>
+        <field name="expression">-balp[('account_type', 'in', ('income', 'income_other', 'expense', 'expense_depreciation', 'expense_direct_cost'))]</field>
+        <field name="type">num</field>
+        <field name="compare_method">diff</field>
+        <field name="accumulation_method">sum</field>
+        <field name="style_id" ref="mis_template_financial_report.style_details"/>
+    </record>
+    <!-- The accumulated depreciation of the asset profiles (hooks.ASSET_PROFILES). -->
+    <record id="mis_report_x4u_cash_flow_kpi_depreciation" model="mis.report.kpi">
+        <field name="report_id" ref="mis_report_x4u_cash_flow"/>
+        <field name="sequence">20</field>
+        <field name="name">depreciation</field>
+        <field name="description">Add: Depreciation</field>
+        <field name="expression">-balp[100102,106006,106007,106008,106009]</field>
+        <field name="type">num</field>
+        <field name="compare_method">diff</field>
+        <field name="accumulation_method">sum</field>
+        <field name="style_id" ref="mis_template_financial_report.style_details"/>
+    </record>
+    <!-- Customers' cheques in hand (102013) are still owed by the customer for the cash. -->
+    <record id="mis_report_x4u_cash_flow_kpi_receivables" model="mis.report.kpi">
+        <field name="report_id" ref="mis_report_x4u_cash_flow"/>
+        <field name="sequence">30</field>
+        <field name="name">receivables</field>
+        <field name="description">(Increase) / Decrease in Receivables and Cheques in Hand</field>
+        <field name="expression">-balp[('account_type', '=', 'asset_receivable')] - balp[102013]</field>
+        <field name="type">num</field>
+        <field name="compare_method">diff</field>
+        <field name="accumulation_method">sum</field>
+        <field name="style_id" ref="mis_template_financial_report.style_details"/>
+        <field name="auto_expand_accounts" eval="True"/>
+        <field name="auto_expand_accounts_style_id" ref="mis_template_financial_report.style_details_double_indent"/>
+    </record>
+    <record id="mis_report_x4u_cash_flow_kpi_inventory" model="mis.report.kpi">
+        <field name="report_id" ref="mis_report_x4u_cash_flow"/>
+        <field name="sequence">40</field>
+        <field name="name">inventory</field>
+        <field name="description">(Increase) / Decrease in Inventory</field>
+        <field name="expression">-balp[103%]</field>
+        <field name="type">num</field>
+        <field name="compare_method">diff</field>
+        <field name="accumulation_method">sum</field>
+        <field name="style_id" ref="mis_template_financial_report.style_details"/>
+        <field name="auto_expand_accounts" eval="True"/>
+        <field name="auto_expand_accounts_style_id" ref="mis_template_financial_report.style_details_double_indent"/>
+    </record>
+    <record id="mis_report_x4u_cash_flow_kpi_other_assets" model="mis.report.kpi">
+        <field name="report_id" ref="mis_report_x4u_cash_flow"/>
+        <field name="sequence">50</field>
+        <field name="name">other_assets</field>
+        <field name="description">(Increase) / Decrease in Other Current Assets</field>
+        <field name="expression">-balp[('account_type', 'in', ('asset_current', 'asset_prepayments'))] + balp[103%] + balp[102013]</field>
+        <field name="type">num</field>
+        <field name="compare_method">diff</field>
+        <field name="accumulation_method">sum</field>
+        <field name="style_id" ref="mis_template_financial_report.style_details"/>
+    </record>
+    <record id="mis_report_x4u_cash_flow_kpi_payables" model="mis.report.kpi">
+        <field name="report_id" ref="mis_report_x4u_cash_flow"/>
+        <field name="sequence">60</field>
+        <field name="name">payables</field>
+        <field name="description">Increase / (Decrease) in Payables</field>
+        <field name="expression">-balp[('account_type', '=', 'liability_payable')]</field>
+        <field name="type">num</field>
+        <field name="compare_method">diff</field>
+        <field name="accumulation_method">sum</field>
+        <field name="style_id" ref="mis_template_financial_report.style_details"/>
+        <field name="auto_expand_accounts" eval="True"/>
+        <field name="auto_expand_accounts_style_id" ref="mis_template_financial_report.style_details_double_indent"/>
+    </record>
+    <record id="mis_report_x4u_cash_flow_kpi_other_liabilities" model="mis.report.kpi">
+        <field name="report_id" ref="mis_report_x4u_cash_flow"/>
+        <field name="sequence">70</field>
+        <field name="name">other_liabilities</field>
+        <field name="description">Increase / (Decrease) in Other Current Liabilities</field>
+        <field name="expression">-balp[('account_type', 'in', ('liability_current', 'liability_credit_card'))]</field>
+        <field name="type">num</field>
+        <field name="compare_method">diff</field>
+        <field name="accumulation_method">sum</field>
+        <field name="style_id" ref="mis_template_financial_report.style_details"/>
+    </record>
+    <record id="mis_report_x4u_cash_flow_kpi_operating" model="mis.report.kpi">
+        <field name="report_id" ref="mis_report_x4u_cash_flow"/>
+        <field name="sequence">80</field>
+        <field name="name">operating</field>
+        <field name="description">Net Cash from Operating Activities</field>
+        <field name="expression">net_profit + depreciation + receivables + inventory + other_assets + payables + other_liabilities</field>
+        <field name="type">num</field>
+        <field name="compare_method">diff</field>
+        <field name="accumulation_method">sum</field>
+        <field name="style_id" ref="mis_template_financial_report.style_header"/>
+    </record>
+    <record id="mis_report_x4u_cash_flow_kpi_fixed_assets" model="mis.report.kpi">
+        <field name="report_id" ref="mis_report_x4u_cash_flow"/>
+        <field name="sequence">90</field>
+        <field name="name">fixed_assets</field>
+        <field name="description">Purchase / Sale of Fixed Assets</field>
+        <field name="expression">-balp[('account_type', 'in', ('asset_fixed', 'asset_non_current'))] - depreciation</field>
+        <field name="type">num</field>
+        <field name="compare_method">diff</field>
+        <field name="accumulation_method">sum</field>
+        <field name="style_id" ref="mis_template_financial_report.style_details"/>
+    </record>
+    <record id="mis_report_x4u_cash_flow_kpi_investing" model="mis.report.kpi">
+        <field name="report_id" ref="mis_report_x4u_cash_flow"/>
+        <field name="sequence">100</field>
+        <field name="name">investing</field>
+        <field name="description">Net Cash from Investing Activities</field>
+        <field name="expression">fixed_assets</field>
+        <field name="type">num</field>
+        <field name="compare_method">diff</field>
+        <field name="accumulation_method">sum</field>
+        <field name="style_id" ref="mis_template_financial_report.style_header"/>
+    </record>
+    <record id="mis_report_x4u_cash_flow_kpi_loans" model="mis.report.kpi">
+        <field name="report_id" ref="mis_report_x4u_cash_flow"/>
+        <field name="sequence">110</field>
+        <field name="name">loans</field>
+        <field name="description">Loans Received / (Repaid)</field>
+        <field name="expression">-balp[('account_type', '=', 'liability_non_current')]</field>
+        <field name="type">num</field>
+        <field name="compare_method">diff</field>
+        <field name="accumulation_method">sum</field>
+        <field name="style_id" ref="mis_template_financial_report.style_details"/>
+    </record>
+    <record id="mis_report_x4u_cash_flow_kpi_equity" model="mis.report.kpi">
+        <field name="report_id" ref="mis_report_x4u_cash_flow"/>
+        <field name="sequence">120</field>
+        <field name="name">equity</field>
+        <field name="description">Capital Introduced / (Drawings)</field>
+        <field name="expression">-balp[('account_type', 'in', ('equity', 'equity_unaffected'))]</field>
+        <field name="type">num</field>
+        <field name="compare_method">diff</field>
+        <field name="accumulation_method">sum</field>
+        <field name="style_id" ref="mis_template_financial_report.style_details"/>
+    </record>
+    <record id="mis_report_x4u_cash_flow_kpi_financing" model="mis.report.kpi">
+        <field name="report_id" ref="mis_report_x4u_cash_flow"/>
+        <field name="sequence">130</field>
+        <field name="name">financing</field>
+        <field name="description">Net Cash from Financing Activities</field>
+        <field name="expression">loans + equity</field>
+        <field name="type">num</field>
+        <field name="compare_method">diff</field>
+        <field name="accumulation_method">sum</field>
+        <field name="style_id" ref="mis_template_financial_report.style_header"/>
+    </record>
+    <record id="mis_report_x4u_cash_flow_kpi_net_change" model="mis.report.kpi">
+        <field name="report_id" ref="mis_report_x4u_cash_flow"/>
+        <field name="sequence">140</field>
+        <field name="name">net_change</field>
+        <field name="description">Net Change in Cash</field>
+        <field name="expression">operating + investing + financing</field>
+        <field name="type">num</field>
+        <field name="compare_method">diff</field>
+        <field name="accumulation_method">sum</field>
+        <field name="style_id" ref="mis_template_financial_report.style_header"/>
+    </record>
+    <record id="mis_report_x4u_cash_flow_kpi_cash_begin" model="mis.report.kpi">
+        <field name="report_id" ref="mis_report_x4u_cash_flow"/>
+        <field name="sequence">150</field>
+        <field name="name">cash_begin</field>
+        <field name="description">Cash &amp; Bank at the Beginning</field>
+        <field name="expression">bali[('account_type', '=', 'asset_cash')]</field>
+        <field name="type">num</field>
+        <field name="compare_method">diff</field>
+        <field name="accumulation_method">none</field>
+        <field name="style_id" ref="mis_template_financial_report.style_details"/>
+    </record>
+    <record id="mis_report_x4u_cash_flow_kpi_cash_end" model="mis.report.kpi">
+        <field name="report_id" ref="mis_report_x4u_cash_flow"/>
+        <field name="sequence">160</field>
+        <field name="name">cash_end</field>
+        <field name="description">Cash &amp; Bank at the End</field>
+        <field name="expression">bale[('account_type', '=', 'asset_cash')]</field>
+        <field name="type">num</field>
+        <field name="compare_method">diff</field>
+        <field name="accumulation_method">none</field>
+        <field name="style_id" ref="mis_template_financial_report.style_header"/>
+        <field name="auto_expand_accounts" eval="True"/>
+        <field name="auto_expand_accounts_style_id" ref="mis_template_financial_report.style_details_double_indent"/>
+    </record>
+    <record id="mis_report_x4u_cash_flow_kpi_check" model="mis.report.kpi">
+        <field name="report_id" ref="mis_report_x4u_cash_flow"/>
+        <field name="sequence">170</field>
+        <field name="name">check</field>
+        <field name="description">Check (must be 0)</field>
+        <field name="expression">cash_end - cash_begin - net_change</field>
+        <field name="type">num</field>
+        <field name="compare_method">diff</field>
+        <field name="accumulation_method">none</field>
+        <field name="style_id" ref="mis_template_financial_report.style_details"/>
+    </record>
+</odoo>

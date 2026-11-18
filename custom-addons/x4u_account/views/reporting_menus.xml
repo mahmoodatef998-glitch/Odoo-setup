@@ -1,0 +1,135 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Spec §16: Accounting › Reporting, every report once, in the groups the user asked for. The OCA and
+     Odoo menus that exist are moved here, not copied. -->
+<odoo>
+    <!-- Generic Statements -->
+    <menuitem id="menu_x4u_generic_statements" name="Generic Statements" parent="account.menu_finance_reports"
+              sequence="1" groups="account.group_account_user,account.group_account_manager"/>
+    <menuitem id="menu_x4u_report_pl" name="Profit and Loss" parent="menu_x4u_generic_statements"
+              action="action_x4u_report_pl" sequence="10"/>
+    <menuitem id="menu_x4u_report_bs" name="Balance Sheet" parent="menu_x4u_generic_statements"
+              action="action_x4u_report_bs" sequence="20"/>
+    <menuitem id="menu_x4u_report_cash_flow" name="Cash Flow Statement" parent="menu_x4u_generic_statements"
+              action="action_x4u_report_cash_flow" sequence="30"/>
+
+    <!-- Daily Reports -->
+    <menuitem id="menu_x4u_daily_reports" name="Daily Reports" parent="account.menu_finance_reports"
+              sequence="2" groups="account.group_account_user,account.group_account_manager"/>
+    <menuitem id="menu_x4u_report_bank_book" name="Bank Book" parent="menu_x4u_daily_reports"
+              action="action_x4u_report_bank_book" sequence="10"/>
+    <menuitem id="menu_x4u_report_cash_book" name="Cash Book" parent="menu_x4u_daily_reports"
+              action="action_x4u_report_cash_book" sequence="20"/>
+    <menuitem id="menu_x4u_report_day_book" name="Day Book" parent="menu_x4u_daily_reports"
+              action="action_x4u_report_day_book" sequence="30"/>
+
+    <!-- Partner Reports -->
+    <menuitem id="menu_x4u_partner_reports" name="Partner Reports" parent="account.menu_finance_reports"
+              sequence="3" groups="account.group_account_user,account.group_account_manager"/>
+    <menuitem id="menu_x4u_report_partner_ledger" name="Partner Ledger" parent="menu_x4u_partner_reports"
+              action="action_x4u_report_partner_ledger" sequence="10"/>
+    <record id="account_financial_report.menu_aged_partner_balance_wizard" model="ir.ui.menu">
+        <field name="parent_id" ref="menu_x4u_partner_reports"/>
+        <field name="sequence">20</field>
+    </record>
+    <record id="account_financial_report.menu_open_items_wizard" model="ir.ui.menu">
+        <field name="parent_id" ref="menu_x4u_partner_reports"/>
+        <field name="sequence">30</field>
+    </record>
+
+    <!-- Management: Odoo's, plus Budgets and Assets -->
+    <record id="account.account_reports_management_menu" model="ir.ui.menu">
+        <field name="sequence">4</field>
+    </record>
+    <record id="account.menu_action_account_invoice_report_all" model="ir.ui.menu">
+        <field name="sequence">10</field>
+    </record>
+    <record id="mis_builder_budget.mis_budget_by_account_menu" model="ir.ui.menu">
+        <field name="name">Budgets</field>
+        <field name="parent_id" ref="account.account_reports_management_menu"/>
+        <field name="sequence">20</field>
+    </record>
+    <menuitem id="menu_x4u_report_assets" name="Assets" parent="account.account_reports_management_menu"
+              action="account_asset_management.account_asset_action" sequence="30"
+              groups="account.group_account_user,account.group_account_manager"/>
+    <record id="account_asset_management.menu_action_account_asset_report" model="ir.ui.menu">
+        <field name="parent_id" ref="account.account_reports_management_menu"/>
+        <field name="sequence">40</field>
+    </record>
+
+    <!-- Audit Reports -->
+    <menuitem id="menu_x4u_audit_reports" name="Audit Reports" parent="account.menu_finance_reports"
+              sequence="5" groups="account.group_account_user,account.group_account_manager"/>
+    <record id="account_financial_report.menu_general_ledger_wizard" model="ir.ui.menu">
+        <field name="parent_id" ref="menu_x4u_audit_reports"/>
+        <field name="sequence">10</field>
+    </record>
+    <record id="account_financial_report.menu_trial_balance_wizard" model="ir.ui.menu">
+        <field name="parent_id" ref="menu_x4u_audit_reports"/>
+        <field name="sequence">20</field>
+    </record>
+    <record id="account_financial_report.menu_journal_ledger_wizard" model="ir.ui.menu">
+        <field name="name">Journals Audit</field>
+        <field name="parent_id" ref="menu_x4u_audit_reports"/>
+        <field name="sequence">30</field>
+    </record>
+    <record id="account_financial_report.menu_vat_report_wizard" model="ir.ui.menu">
+        <field name="name">Tax Report</field>
+        <field name="parent_id" ref="menu_x4u_audit_reports"/>
+        <field name="sequence">40</field>
+    </record>
+    <record id="account_tax_balance.menu_action_open_tax_balances" model="ir.ui.menu">
+        <field name="name">Tax Details Report</field>
+        <field name="parent_id" ref="menu_x4u_audit_reports"/>
+        <field name="sequence">50</field>
+    </record>
+
+    <!-- Financial Reports -->
+    <menuitem id="menu_x4u_financial_reports" name="Financial Reports" parent="account.menu_finance_reports"
+              sequence="6" groups="account.group_account_user,account.group_account_manager"/>
+    <menuitem id="menu_x4u_financial_statement" name="Financial Statement" parent="menu_x4u_financial_reports"
+              action="action_x4u_financial_statements" sequence="10"/>
+    <record id="account_asset_management.wiz_account_asset_report_menu" model="ir.ui.menu">
+        <field name="name">Assets Schedule</field>
+        <field name="parent_id" ref="menu_x4u_financial_reports"/>
+        <field name="sequence">20</field>
+    </record>
+
+    <!-- Excel Reports: the same reports, set, with Export XLSX -->
+    <menuitem id="menu_x4u_excel_reports" name="Excel Reports" parent="account.menu_finance_reports"
+              sequence="7" groups="account.group_account_user,account.group_account_manager"/>
+    <menuitem id="menu_x4u_report_receivable_excel" name="Accounts Receivable (Excel)" parent="menu_x4u_excel_reports"
+              action="action_x4u_report_receivable_excel" sequence="10"/>
+    <menuitem id="menu_x4u_report_payable_excel" name="Accounts Payable (Excel)" parent="menu_x4u_excel_reports"
+              action="action_x4u_report_payable_excel" sequence="20"/>
+    <menuitem id="menu_x4u_report_trial_balance_excel" name="Trial Balance (Excel)" parent="menu_x4u_excel_reports"
+              action="account_financial_report.action_trial_balance_wizard" sequence="30"/>
+    <menuitem id="menu_x4u_report_bs_excel" name="Balance Sheet (Excel)" parent="menu_x4u_excel_reports"
+              action="action_x4u_report_bs" sequence="40"/>
+    <menuitem id="menu_x4u_report_pl_excel" name="Profit / Loss (Excel)" parent="menu_x4u_excel_reports"
+              action="action_x4u_report_pl" sequence="50"/>
+
+    <!-- My Dashboard -->
+    <menuitem id="menu_x4u_my_dashboard" name="My Dashboard" parent="account.menu_finance_reports"
+              action="board.open_board_my_dash_action" sequence="8"
+              groups="account.group_account_user,account.group_account_manager"/>
+
+    <!-- MIS Reporting: MIS Reports and Last Reports Generated stay; the budgets by KPI are for the
+         technical mode only (the budgets by account are under Management). -->
+    <record id="mis_builder.mis_report_finance_menu" model="ir.ui.menu">
+        <field name="sequence">9</field>
+    </record>
+    <record id="mis_builder_budget.mis_budget_menu" model="ir.ui.menu">
+        <field name="groups_id" eval="[Command.set([ref('base.group_no_one')])]"/>
+    </record>
+
+    <!-- Their reports moved above. -->
+    <record id="account_financial_report.menu_oca_reports" model="ir.ui.menu">
+        <field name="active" eval="False"/>
+    </record>
+    <record id="account_asset_management.account_asset_report_menu" model="ir.ui.menu">
+        <field name="active" eval="False"/>
+    </record>
+    <record id="account_tax_balance.menu_tax_balances" model="ir.ui.menu">
+        <field name="active" eval="False"/>
+    </record>
+</odoo>

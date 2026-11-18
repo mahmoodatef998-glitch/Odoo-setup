@@ -4,7 +4,7 @@
     "name": "4U Accounting",
     "summary": "Accounting the 4U way: menus, PDC cheques to vendors, equity accounts, Petty Cash, "
     "Receivables & Payables (due lists, aging, statements) and safe automatic reconciliation",
-    "version": "18.0.1.6.2",
+    "version": "18.0.1.7.0",
     "category": "Accounting/Accounting",
     # AGPL-3 because it depends on account_asset_management (AGPL-3).
     "license": "AGPL-3",
@@ -39,6 +39,10 @@
         "account_fiscal_year_auto_create",
         # Management reports (spec §14); the OCA Balance Sheet template and its styles.
         "mis_template_financial_report",
+        # Accounting › Reporting (spec §16): budgets by account, the tax details, My Dashboard.
+        "mis_builder_budget",
+        "account_tax_balance",
+        "board",
     ],
     "data": [
         "security/ir.model.access.csv",
@@ -47,11 +51,14 @@
         "data/landed_cost_product_data.xml",
         "data/ir_cron_data.xml",
         "data/mis_report_data.xml",
+        "data/mis_cash_flow_data.xml",
         "data/mis_report_instance_data.xml",
+        "data/x4u_reporting_data.xml",
         "views/account_payment_views.xml",
         "wizard/x4u_pdc_bounce_views.xml",
         "views/receivable_payable_views.xml",
         "views/menus.xml",
+        "views/reporting_menus.xml",
     ],
     "post_init_hook": "post_init_hook",
     "uninstall_hook": "uninstall_hook",

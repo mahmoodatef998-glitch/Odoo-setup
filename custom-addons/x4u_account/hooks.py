@@ -125,6 +125,7 @@ def x4u_setup(env):
         _asset_profiles(env, company)
         _pdc_received(env, company)
         _fiscal_years(env, company)
+        _budget_report(env, company)
     env["res.config.settings"].create(STATEMENT_SETTINGS).execute()
     # The OCA job that posts the depreciation lines that are due (it ships inactive).
     cron = env.ref("account_asset_management.ir_cron_assets_generator", raise_if_not_found=False)
@@ -159,6 +160,74 @@ def _pdc_received(env, company):
     # Cheques in hand are not paid out: only the deposit takes them out.
     if not env["account.payment"].sudo().search_count([("journal_id", "=", journal.id), ("payment_type", "=", "outbound")]):
         journal.outbound_payment_method_line_ids.unlink()
+
+
+BUDGET_REPORT_NAME = "4U P&L vs Budget"
+
+
+def _budget_report(env, company):
+    """Spec §16 R2: a budget by account for this fiscal year (the Accountant fills its lines from
+    Reporting › Management › Budgets), and the 4U P&L vs Budget on it: Actual, Budget and Variance,
+    year to date."""
+    report = env.ref("x4u_account.mis_report_x4u_pl", raise_if_not_found=False)
+    if not report:
+        return
+    today = fields.Date.context_today(company)
+    dates = company.compute_fiscalyear_dates(today)
+    Budget = env["mis.budget.by.account"].sudo()
+    budget = Budget.search(
+        [("company_id", "=", company.id), ("date_from", "<=", today), ("date_to", ">=", today)], limit=1
+    ) or Budget.create(
+        {
+            "name": "Budget %s" % dates["date_to"].year,
+            "date_from": dates["date_from"],
+            "date_to": dates["date_to"],
+            "company_id": company.id,
+        }
+    )
+    Instance = env["mis.report.instance"].sudo()
+    if Instance.search_count([("name", "=", BUDGET_REPORT_NAME), ("company_id", "in", (company.id, False))]):
+        return
+    ytd = {"mode": "relative", "type": "m", "offset": 0, "is_ytd": True}
+    instance = Instance.create(
+        {
+            "name": BUDGET_REPORT_NAME,
+            "report_id": report.id,
+            "company_id": company.id,
+            "comparison_mode": True,
+            "display_columns_description": True,
+            "period_ids": [
+                Command.create({"name": "Actual (Year to Date)", "sequence": 10, **ytd}),
+                Command.create(
+                    {
+                        "name": "Budget (Year to Date)",
+                        "sequence": 20,
+                        "source": "mis_budget_by_account",
+                        "source_mis_budget_by_account_id": budget.id,
+                        **ytd,
+                    }
+                ),
+            ],
+        }
+    )
+    actual, planned = instance.period_ids.sorted("sequence")
+    instance.write(
+        {
+            "period_ids": [
+                Command.create(
+                    {
+                        "name": "Variance",
+                        "sequence": 30,
+                        # A compare column has no dates of its own.
+                        "mode": "none",
+                        "source": "cmpcol",
+                        "source_cmpcol_from_id": planned.id,
+                        "source_cmpcol_to_id": actual.id,
+                    }
+                )
+            ]
+        }
+    )
 
 
 def _fiscal_years(env, company):

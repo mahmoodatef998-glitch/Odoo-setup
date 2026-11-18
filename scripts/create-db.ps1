@@ -20,6 +20,7 @@ param(
         'quality_control_mrp_oca',
         'account_usability', 'account_financial_report', 'mis_builder', 'account_reconcile_oca',
         'account_asset_management', 'account_fiscal_year', 'account_check_deposit', 'account_due_list',
+        'mis_builder_budget', 'account_tax_balance',
         'payroll', 'payroll_account', 'payroll_hr_public_holidays', 'hr_holidays_public',
         'hr_employee_service', 'hr_employee_document',
         # 4U

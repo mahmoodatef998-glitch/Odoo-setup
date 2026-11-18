@@ -5,3 +5,4 @@ from . import account_move
 from . import account_check_deposit
 from . import stock_move
 from . import sale_order_line
+from . import x4u_accounting_report

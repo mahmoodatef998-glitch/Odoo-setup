@@ -3,6 +3,7 @@
 - الحالة: **اتوافق عليها 2026-11-07** (طلب المستخدم، واختار "Full PDC cycle"). اتنفّذت في `x4u_account` 18.0.1.0.0، و `x4u_sale` 18.0.2.1.1، و `x4u_purchase` 18.0.1.0.1.
 - v0.2 (2026-11-07): الطلب التاني (Journal Items، Petty Cash، الـ Capital، Payments + Due List، التسوية التلقائية، Receivable & Payable) ← §1 (1b، 2b)، §2 P8، §3، §4، §5. المستخدم اختار الاقتراح في الأربع أسئلة. اتنفّذت في `x4u_account` 18.0.1.1.0.
 - v0.7 (2026-11-07): المرحلة 5، الرقابة والتقارير ← §12 شيكات العملاء، §13 القفل الشهري والسنة المالية، §14 التقارير الإدارية، §15 الربحية لكل Job Order. المستخدم اختار الاقتراح في الأربع أسئلة. اتنفّذت في `x4u_account` 18.0.1.6.0 و `x4u_job_order` 18.0.1.5.0.
+- v0.8 (2026-11-18): **قايمة Reporting كاملة** زي الصور اللي بعتها المستخدم (§16). المستخدم اختار: **مترتبة من غير تكرار**، و**تقارير الـ Excel تفتح الشاشة وتدوس Export XLSX**، و**MIS Budgets**. بتتنفّذ في `x4u_account` 18.0.1.7.0.
 - المرجع: [docs/modules/06-accounting.md](../modules/06-accounting.md).
 - العلامات: ✅ متفق عليه · 🟡 مستني قرارك · 🔵 مستني المحاسب
 
@@ -233,3 +234,60 @@ Create Landed Costs ← تختار الاستلام (Receipt) ← Compute ← Va
 - **مش** على قطع المخزون: القطع بتدخل المخزون وبعدين في قيمة المولد، فبتوصل للربحية مع تكلفة المبيعات من غير تكرار.
 - Accounting ← Reporting ← **Job Profitability** (Pivot: لكل Job Order الإيراد والتكلفة بالحساب، والإجمالي = الربح)، وزرار **Margin** على الـ Job Order.
 - الـ Job Orders اللي كانت موجودة خدت الـ Analytic بتاعها وقت الـ upgrade، هي وسطور فواتيرها وتكلفة مبيعاتها.
+
+## 16. قايمة Reporting كاملة (v0.8، 2026-11-18) ✅
+طلب المستخدم: "عاوز قائمة الـ reporting في الحسابات تضمن كل التابات دي وتشتغل بشكل احترافي". الصور من سيستم تاني متثبت عليه موديولين تقارير، فيها تقارير متكررة. المستخدم اختار: **مترتبة من غير تكرار** (نفس المجموعات والأسماء، كل تقرير مرة واحدة)، و**الـ Excel يفتح الشاشة وتدوس Export XLSX**، و**MIS Budgets**. كله على Odoo Community و OCA من الـ repos المتثبتة (مفيش pin جديد).
+
+### 16.1 القايمة: Accounting ← Reporting
+| المجموعة | التقرير | بيشتغل بإيه |
+|---|---|---|
+| **Generic Statements** | Profit and Loss | 4U Management P&L (MIS)، بيفتح على طول |
+| | Balance Sheet | 4U Balance Sheet (MIS) |
+| | Cash Flow Statement | **جديد**: 4U Cash Flow Statement (MIS، الطريقة غير المباشرة، R1) |
+| **Daily Reports** | Bank Book | General Ledger (OCA) على حسابات البنك (journals نوع Bank، من غير PDC Received) |
+| | Cash Book | General Ledger على حسابات الكاش (journals نوع Cash) |
+| | Day Book | Journal Ledger (OCA) على النهارده، كل الـ journals |
+| **Partner Reports** | Partner Ledger | General Ledger على حسابات العملاء والموردين، متجمّع بالعميل / المورد |
+| | Aged Partner Balance | OCA |
+| | Open Items | OCA |
+| **Management** | Invoice Analysis | Odoo |
+| | Budgets | **جديد**: OCA `mis_builder_budget`، Budget لكل حساب ولكل فترة (R2) |
+| | Assets | `account_asset_management`: قايمة الأصول |
+| | Assets Analysis | `account_asset_management` (Pivot) |
+| | Analytic Report، Audit Trail، Job Profitability | زي ما هم |
+| **Audit Reports** | General Ledger | OCA |
+| | Trial Balance | OCA |
+| | Journals Audit | Journal Ledger (OCA) |
+| | Tax Report | VAT Report (OCA) |
+| | Tax Details Report | **جديد**: OCA `account_tax_balance`: لكل ضريبة الأساس والضريبة، وتفتح لحد القيود |
+| **Financial Reports** | Financial Statement | القوايم المالية بتاعة 4U (MIS): تختار واحدة وتشوفها أو تطبعها PDF / Excel |
+| | Assets Schedule | Financial Assets report (`account_asset_management`، Excel) |
+| **Excel Reports** | Accounts Receivable (Excel) | Open Items على حسابات العملاء ← Export XLSX |
+| | Accounts Payable (Excel) | Open Items على حسابات الموردين ← Export XLSX |
+| | Trial Balance (Excel) | Trial Balance ← Export XLSX |
+| | Balance Sheet (Excel) | 4U Balance Sheet ← Export |
+| | Profit / Loss (Excel) | 4U Management P&L ← Export |
+| **My Dashboard** | | My Dashboard بتاع Odoo (أي تقرير يتضاف له بـ "Add to my dashboard") |
+| **MIS Reporting** | MIS Reports، Last Reports Generated | OCA |
+
+- مجموعة **OCA accounting reports** و **Financial Assets** و **Taxes Balance** بتاعة OCA بتتشال من القايمة، لأن تقاريرهم اتوزعت فوق. و **Budgets (by KPIs)** بتاعة OCA بتستخبى (Budgets بالحساب هي المستعملة).
+- كل تقرير OCA بيتفتح شاشة فيها الفترة والفلاتر، وفيها **View** (على الشاشة)، و **Export PDF**، و **Export XLSX**. وتقارير MIS بتتفتح على طول، وفيها **Print** و **Export**، وكل رقم بيتفتح لحد القيود.
+- الصلاحيات: المحاسب، و Accounting Manager، والمدير العام، زي تقارير OCA.
+
+### 16.2 القواعد
+| # | القاعدة | الحالة |
+|---|---|---|
+| R1 | **4U Cash Flow Statement** (الطريقة غير المباشرة، بأنواع الحسابات، فبيمشي مع أي حساب جديد): صافي الربح، + الإهلاك، ± التغير في العملاء، والمخزون، والأصول المتداولة التانية، والموردين، والالتزامات المتداولة التانية ← **Operating**؛ شراء الأصول الثابتة ← **Investing**؛ القروض، ورأس المال وحقوق الملكية ← **Financing**؛ صافي التغير في الكاش، والكاش أول الفترة وآخرها، وسطر **"Check (must be 0)"**. الأعمدة: This Month، Year to Date، Last Year. ملحوظة: `mis_builder_cash_flow` بتاع OCA مش Cash Flow Statement، ده توقع للكاش من تواريخ الاستحقاق، فماستعملناهوش | ✅ |
+| R2 | **Budgets**: المحاسب يعمل Budget بالحساب والفترة (شهر أو ربع سنة) من Management ← Budgets. وتقرير **4U P&L vs Budget** (Year to Date: Actual، Budget، Variance) بيتعمل على أول Budget للسنة الحالية | ✅ المستخدم |
+| R3 | **Bank Book / Cash Book / Partner Ledger / AR / AP (Excel)** بيفتحوا شاشة OCA بالحسابات متحطة (من الـ journals وأنواع الحسابات وقت الفتح، فأي بنك جديد بيدخل لوحده). والفترة وكل الفلاتر تتغير قبل View أو Export | ✅ المستخدم |
+
+### 16.3 الـ upgrade
+- `x4u_account` 18.0.1.7.0 بيعتمد على `mis_builder_budget` و `account_tax_balance` (OCA، من `mis-builder` و `account-financial-reporting` المتثبتين).
+- backup لـ `odoo4u_base` الأول، وتجربة على نسخة، وبعدين upgrade.
+
+### 16.4 Tests
+| # | الاختبار |
+|---|---|
+| T1 | القايمة: كل الأسماء في المجموعات بتاعتها، ومفيش "OCA accounting reports" |
+| T2 | Bank Book بيفتح General Ledger على حسابات البنك بس، و Cash Book على الكاش، و Partner Ledger متجمّع بالعميل على العملاء والموردين، و AR (Excel) على العملاء بس |
+| T3 | Cash Flow Statement: فاتورة بيع ودفعتها، وشراء أصل، وقرض: Check = 0، وصافي التغير = حركة البنك |
