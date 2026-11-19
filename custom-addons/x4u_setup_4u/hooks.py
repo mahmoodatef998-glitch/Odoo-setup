@@ -25,6 +25,13 @@ def remove_default_pricelist(env):
 
 
 SERVICES = ("product_installation", "product_transport", "product_commissioning")
+# x4u_sale spec v0.8 A1: priced only when the customer asks, quoted "As requested".
+PRICE_ON_REQUEST = ("product_installation", "product_transport")
+
+
+def set_price_on_request(env):
+    for xmlid in PRICE_ON_REQUEST:
+        env.ref("x4u_setup_4u." + xmlid).product_tmpl_id.x4u_price_on_request = True
 
 
 def use_sharjah_sales_tax(env):
@@ -89,3 +96,4 @@ def post_init_hook(env):
     env.ref("stock.route_warehouse0_mto").active = True
     warehouse.pbm_mto_pull_id.procure_method = "mts_else_mto"
     env.ref("sales_team.team_sales_department").name = "4U Sales"
+    set_price_on_request(env)

@@ -12,6 +12,18 @@
         <field name="active" eval="True"/>
     </record>
 
+    <!-- Spec §17 M2: the Monthly P&L of the new year, from its first day. -->
+    <record id="ir_cron_x4u_monthly_pl" model="ir.cron">
+        <field name="name">4U: Monthly P&amp;L of this year</field>
+        <field name="model_id" ref="model_x4u_accounting_report"/>
+        <field name="state">code</field>
+        <field name="code">model._cron_x4u_monthly_pl()</field>
+        <field name="interval_number">1</field>
+        <field name="interval_type">days</field>
+        <field name="nextcall" eval="(DateTime.now() + timedelta(days=1)).strftime('%Y-%m-%d 21:00:00')"/>
+        <field name="active" eval="True"/>
+    </record>
+
     <!-- Spec §13 L1: from the 10th, Sales and Purchase are locked up to the end of last month.
          Daily, so a day the server is off is caught the next day; it only moves the dates forward. -->
     <record id="ir_cron_x4u_soft_lock" model="ir.cron">

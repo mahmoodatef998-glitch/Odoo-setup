@@ -58,14 +58,10 @@ class SaleOrder(models.Model):
     x4u_schedule_custom = fields.Boolean(related="payment_term_id.x4u_custom")
     x4u_schedule_percent = fields.Float(string="Total %", compute="_compute_x4u_schedule_percent")
     x4u_pay_before_delivery = fields.Boolean(compute="_compute_x4u_pay_before_delivery")
-    # v0.7 O6: a PI for each payment, the Accountant's; salespeople see the amounts only.
-    x4u_proforma_ids = fields.One2many(
-        "x4u.sale.proforma", "order_id", string="PIs",
-        groups="account.group_account_invoice,account.group_account_readonly",
-    )
-    x4u_proforma_count = fields.Integer(
-        compute="_compute_x4u_proforma_count", groups="account.group_account_invoice,account.group_account_readonly"
-    )
+    # v0.8 Q1: the one PI of the order, the Salesperson's; a cancelled one stays in the list.
+    x4u_proforma_ids = fields.One2many("x4u.sale.proforma", "order_id", string="PIs")
+    x4u_proforma_count = fields.Integer(compute="_compute_x4u_proforma_count")
+    x4u_proforma_id = fields.Many2one("x4u.sale.proforma", string="PI", compute="_compute_x4u_proforma_count")
     x4u_advance_payment_ids = fields.One2many(
         "account.payment", "x4u_sale_order_id", string="Advance Payments",
         groups="account.group_account_invoice,account.group_account_readonly",
@@ -94,10 +90,11 @@ class SaleOrder(models.Model):
         for order in self:
             order.x4u_advance_due = "order" in order.x4u_schedule_ids.mapped("trigger")
 
-    @api.depends("x4u_proforma_ids")
+    @api.depends("x4u_proforma_ids.state")
     def _compute_x4u_proforma_count(self):
         for order in self:
             order.x4u_proforma_count = len(order.x4u_proforma_ids)
+            order.x4u_proforma_id = order._x4u_active_proforma()
 
     @api.depends(
         "amount_total",
@@ -142,7 +139,7 @@ class SaleOrder(models.Model):
         )
 
     def _x4u_active_proforma(self):
-        """The last PI that still counts (the payments' PIs, v0.7 O6)."""
+        """The PI of the order that is not cancelled (v0.8 Q1; the last one on older orders)."""
         self.ensure_one()
         return self.sudo().x4u_proforma_ids.filtered(lambda proforma: proforma.state != "cancel").sorted("sequence")[-1:]
 
@@ -191,8 +188,11 @@ class SaleOrder(models.Model):
         self.ensure_one()
         if self.locked:
             raise UserError(_("%s is locked: the Sales Manager unlocks it to change the payment terms.", self.name))
-        if self._x4u_active_proforma():
-            raise UserError(_("%s has a payment with its PI: the terms stay as agreed.", self.name))
+        proforma = self._x4u_active_proforma()
+        if proforma:
+            raise UserError(
+                _("%(order)s has its PI %(pi)s: cancel it to change the terms.", order=self.name, pi=proforma.name)
+            )
 
     def _x4u_log_schedule(self):
         for order in self:
@@ -260,6 +260,15 @@ class SaleOrder(models.Model):
                 raise UserError(
                     _("%s is with the Accountant: ask to send it back before changing it.", ", ".join(with_accountant.mapped("name")))
                 )
+            # v0.8 Q4: the customer has the PI; the order stays as on it until the PI is cancelled.
+            with_pi = self.filtered(lambda o: o.state in ("draft", "sent") and o._x4u_active_proforma())
+            if with_pi and self._x4u_changes_the_pi(vals):
+                raise UserError(
+                    _(
+                        "%s has its PI with the customer: cancel the PI to change the order, then make a new one.",
+                        ", ".join(with_pi.mapped("name")),
+                    )
+                )
         if self.env.context.get("x4u_schedule_sync"):
             return super().write(vals)
         if "payment_term_id" in vals:
@@ -289,8 +298,26 @@ class SaleOrder(models.Model):
             new._x4u_notify_accountant_each(lambda o: _("Payment receipt for %s: check the bank and record it", o.name))
         return res
 
+    @api.model
+    def _x4u_internal_line_fields(self):
+        """Fields of a line that are not on the PI (x4u_job_order adds the Supply)."""
+        return set()
+
+    def _x4u_changes_the_pi(self, vals):
+        """Q4: what the customer has on the PI; the internal choices on the lines stay open."""
+        if (FROZEN_FIELDS - {"order_line"}) & set(vals):
+            return True
+        internal = self._x4u_internal_line_fields()
+        for command in vals.get("order_line") or []:
+            if not (
+                isinstance(command, (list, tuple)) and command[0] == Command.UPDATE and set(command[2] or {}) <= internal
+            ):
+                return True
+        return False
+
     # ------------------------------------------------------------------
-    # v0.7: the Salesperson sends the PO and the first payment, the Accountant confirms (O1-O5)
+    # v0.7 / v0.8: the Salesperson sends the PO, the PI and the first payment, the Accountant
+    # confirms (O1-O5, Q3)
     # ------------------------------------------------------------------
 
     def _x4u_send_problems(self):
@@ -298,6 +325,8 @@ class SaleOrder(models.Model):
         the Supply of each generator."""
         self.ensure_one()
         problems = []
+        if self.x4u_advance_due and not self._x4u_active_proforma():
+            problems.append(_("the PI (Create PI)"))
         if not self.client_order_ref:
             problems.append(_("the customer PO number (LPO Number)"))
         if not self.x4u_lpo_date:
@@ -309,7 +338,7 @@ class SaleOrder(models.Model):
         return problems
 
     def action_x4u_send_to_accountant(self):
-        """O2: the Salesperson sends the customer PO and the first payment to the Accountant."""
+        """O2 / Q3: the Salesperson sends the customer PO, the PI and the first payment to the Accountant."""
         for order in self:
             if order.state not in ("draft", "sent") or order.x4u_po_check in ("to_check", "match"):
                 raise UserError(_("%s is not a quotation to send to the Accountant.", order.name))
@@ -323,7 +352,14 @@ class SaleOrder(models.Model):
         self.sudo().activity_feedback([ACTIVITY_PO_FIX], feedback=_("Sent back to the Accountant"))
         self._x4u_ask_po_check()
         for order in self:
-            order.message_post(body=_("Sent to the Accountant: customer PO %s and the first payment.", order.client_order_ref))
+            proforma = order._x4u_active_proforma()
+            order.message_post(
+                body=_(
+                    "Sent to the Accountant: customer PO %(po)s, %(pi)s and the first payment.",
+                    po=order.client_order_ref,
+                    pi=proforma.name or _("no PI"),
+                )
+            )
 
     @api.model
     def _x4u_accountant_only(self):
@@ -342,7 +378,7 @@ class SaleOrder(models.Model):
             for order in self.sudo():
                 order.activity_schedule(
                     ACTIVITY_PO_CHECK, user_id=user.id,
-                    summary=_("Check %s: customer PO and first payment", order.name),
+                    summary=_("Check %s: customer PO, PI and first payment", order.name),
                 )
 
     def _x4u_po_checked(self, state, reason=False):
@@ -453,6 +489,7 @@ class SaleOrder(models.Model):
         if self.state == "cancel" or (self.state != "sale" and self.x4u_po_check not in ("to_check", "match")):
             raise UserError(_("%s is not with the Accountant.", self.name))
         number = len(self.sudo().x4u_advance_payment_ids.filtered(lambda p: p.state in POSTED_PAYMENT_STATES)) + 1
+        proforma = self._x4u_active_proforma()
         payment = self.env["account.payment"].create(
             {
                 "payment_type": "inbound",
@@ -460,8 +497,9 @@ class SaleOrder(models.Model):
                 "partner_id": self.partner_id.commercial_partner_id.id,
                 "amount": self._x4u_next_amount(),
                 "currency_id": self.currency_id.id,
-                "memo": "%s · %s/%s" % (self.name, number, len(self.x4u_schedule_ids) or 1),
+                "memo": "%s · %s/%s" % (proforma.name or self.name, number, len(self.x4u_schedule_ids) or 1),
                 "x4u_sale_order_id": self.id,
+                "x4u_proforma_id": proforma.id,
             }
         )
         return {
@@ -511,6 +549,13 @@ class SaleOrder(models.Model):
             "context": {"create": False, "delete": False},
             "target": "new",
         }
+
+    def action_x4u_create_proforma(self):
+        """v0.8 Q1: the Salesperson makes the PI of the order once the customer agrees."""
+        self.ensure_one()
+        self._x4u_check_schedule_total()
+        proforma = self.env["x4u.sale.proforma"].create({"order_id": self.id})
+        return proforma._x4u_open()
 
     def action_x4u_view_proformas(self):
         self.ensure_one()

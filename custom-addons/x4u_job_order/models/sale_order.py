@@ -1,5 +1,6 @@
-from odoo import _, api, fields, models
+from odoo import Command, _, api, fields, models
 from odoo.exceptions import UserError
+from odoo.tools import format_amount
 
 SUPPLY = [("assemble", "Assembly"), ("ready", "Ready Product")]
 
@@ -9,6 +10,8 @@ class SaleOrder(models.Model):
 
     x4u_ready_order_ids = fields.One2many("x4u.ready.order", "sale_order_id", string="Ready Job Orders")
     x4u_ready_order_count = fields.Integer(compute="_compute_x4u_ready_order_count")
+    # Spec v0.12 J1: the order's one Job Order.
+    x4u_job_ids = fields.One2many("x4u.job.order", "sale_order_id", string="Job Order")
 
     def _compute_x4u_ready_order_count(self):
         for order in self:
@@ -24,6 +27,11 @@ class SaleOrder(models.Model):
                 _("Supply (Assembly or Ready Product) for %s", ", ".join(missing.product_id.mapped("display_name")))
             )
         return problems
+
+    @api.model
+    def _x4u_internal_line_fields(self):
+        # x4u_sale spec v0.8 Q4: the Supply is not on the PI, it can still be chosen after it.
+        return super()._x4u_internal_line_fields() | {"x4u_supply"}
 
     def action_confirm(self):
         # Spec v0.7 G1: a generator bought ready is bought (one request for the complete generator),
@@ -59,6 +67,108 @@ class SaleOrder(models.Model):
         self.sudo().x4u_ready_order_ids.filtered(lambda o: o.state == "waiting").write({"state": "cancelled"})
         return res
 
+    # ------------------------------------------------------------------
+    # Delivery within what was paid, and the tax invoice that takes the rest (spec v0.13 L1-L4)
+    # ------------------------------------------------------------------
+    def _x4u_delivery_within_paid(self):
+        """L1: paid before delivery and no tax invoice yet: the goods delivered stay within the payments."""
+        self.ensure_one()
+        return bool(self.x4u_pay_before_delivery and not self._x4u_final_invoices())
+
+    @api.model
+    def _x4u_unit_total(self, line):
+        """A unit of the line, with VAT, in the order's currency."""
+        if not line or not line.product_uom_qty:
+            return 0.0
+        return line.price_total / line.product_uom_qty
+
+    def _x4u_delivered_value(self):
+        self.ensure_one()
+        return sum(
+            self._x4u_unit_total(line) * line.qty_delivered
+            for line in self.order_line
+            if not line.display_type and line.product_id.type == "consu"
+        )
+
+    def _x4u_over_paid_message(self, value):
+        self.ensure_one()
+        return _(
+            "%(order)s is paid before delivery: %(paid)s paid, the goods delivered would be worth %(value)s. "
+            "Record the next payment, or issue the tax invoice.",
+            order=self.name,
+            paid=format_amount(self.env, self._x4u_amount_received(), self.currency_id),
+            value=format_amount(self.env, value, self.currency_id),
+        )
+
+    def _x4u_generator_lots_in_stock(self):
+        """The finished (or received ready) generators of the order still in the warehouse."""
+        self.ensure_one()
+        jobs = self.sudo().x4u_job_ids
+        lots = jobs.production_ids.filtered(lambda p: p.state == "done").lot_producing_id
+        lots |= jobs.ready_order_ids.filtered(lambda o: o.state == "in_stock").lot_id
+        if not lots:
+            return lots
+        quants = self.env["stock.quant"].sudo().search(
+            [("lot_id", "in", lots.ids), ("location_id", "child_of", self.warehouse_id.lot_stock_id.id), ("quantity", ">", 0)]
+        )
+        return quants.lot_id
+
+    def _x4u_generators_waiting(self):
+        """L3: the generators of the order not finished (or not received) yet."""
+        self.ensure_one()
+        jobs = self.sudo().x4u_job_ids
+        productions = jobs.production_ids.filtered(lambda p: p.x4u_job_state not in ("finished", "delivered", "cancelled"))
+        ready = jobs.ready_order_ids.filtered(lambda o: o.state == "waiting")
+        return productions.mapped("name") + ready.mapped("name")
+
+    def _x4u_ship_generators(self, lots, from_invoice=False):
+        """L2 / L4: these generators leave now on the order's delivery, by their serials; what else is
+        on it (other generators, spare parts) waits on a backorder."""
+        self.ensure_one()
+        Quant = self.env["stock.quant"].sudo()
+        remaining = lots
+        for picking in self.sudo().picking_ids.filtered(
+            lambda p: p.picking_type_code == "outgoing" and p.state not in ("done", "cancel") and p.location_dest_id.usage == "customer"
+        ):
+            moves = picking.move_ids.filtered(lambda m: m.product_id.x4u_is_generator and m.state not in ("done", "cancel"))
+            wanted = remaining.filtered(lambda lot: lot.product_id in moves.product_id)
+            if not wanted:
+                continue
+            picking.move_ids.filtered(lambda m: m.state not in ("done", "cancel")).picked = False
+            for move in moves:
+                take = remaining.filtered(lambda lot, p=move.product_id: lot.product_id == p)[: int(move.product_uom_qty)]
+                move.move_line_ids.unlink()
+                commands = []
+                for lot in take:
+                    quant = Quant._gather(move.product_id, move.location_id, lot_id=lot, strict=False).filtered(
+                        lambda q: q.quantity > 0
+                    )[:1]
+                    commands.append(Command.create(move._prepare_move_line_vals(quantity=1, reserved_quant=quant)))
+                if commands:
+                    move.move_line_ids = commands
+                    move.picked = True
+                remaining -= take
+            picking.with_context(skip_backorder=True, x4u_invoice_delivery=from_invoice).button_validate()
+        return lots - remaining
+
+    def action_x4u_create_tax_invoice(self):
+        """L3: the tax invoice has every generator, so it comes when they are all ready."""
+        for order in self:
+            waiting = order._x4u_generators_waiting()
+            if waiting:
+                raise UserError(
+                    _(
+                        "%(order)s: the tax invoice takes every generator out of stock, and these are not ready yet: %(names)s.",
+                        order=order.name,
+                        names=", ".join(waiting),
+                    )
+                )
+        return super().action_x4u_create_tax_invoice()
+
+    def action_x4u_open_job(self):
+        self.ensure_one()
+        return {"type": "ir.actions.act_window", "res_model": "x4u.job.order", "res_id": self.x4u_job_ids[:1].id, "view_mode": "form"}
+
     def action_x4u_open_ready_orders(self):
         self.ensure_one()
         action = self.env["ir.actions.actions"]._for_xml_id("x4u_job_order.action_x4u_ready_order")
@@ -91,7 +201,8 @@ class SaleOrderLine(models.Model):
         for line in self.sudo():
             count = int(line.product_uom._compute_quantity(line.product_uom_qty, line.product_id.uom_id))
             existing = Ready.search_count([("sale_line_id", "=", line.id)])
-            orders |= Ready.create([{"sale_line_id": line.id} for _i in range(max(count - existing, 0))])
+            job = self.env["x4u.job.order"]._x4u_for_order(line.order_id)
+            orders |= Ready.create([{"sale_line_id": line.id, "job_id": job.id} for _i in range(max(count - existing, 0))])
         requests = self.env["purchase.request.line"].sudo().search(
             [("move_dest_ids", "in", self.move_ids.ids), ("cancelled", "=", False)]
         ).request_id

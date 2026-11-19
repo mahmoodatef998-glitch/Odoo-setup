@@ -1,0 +1,444 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <!-- Spec v0.12: the Job Order of a sales order (J1), a row per generator on the Serial tab (J3) -->
+    <record id="x4u_job_order_order_view_form" model="ir.ui.view">
+        <field name="name">x4u.job.order.form</field>
+        <field name="model">x4u.job.order</field>
+        <field name="arch" type="xml">
+            <form string="Job Order" create="0" delete="0">
+                <header>
+                    <button name="action_deliver_materials" type="object" string="Deliver Materials" class="oe_highlight"
+                            groups="stock.group_stock_user" invisible="not can_deliver"/>
+                    <button name="action_finish" type="object" string="Finish" class="oe_highlight"
+                            groups="mrp.group_mrp_user" invisible="not can_finish"/>
+                    <!-- Spec v0.13 L2: the generators that leave now, within what was paid -->
+                    <button name="action_ship" type="object" string="Deliver Generators" class="oe_highlight"
+                            groups="stock.group_stock_user" invisible="not can_ship"/>
+                    <field name="state" widget="statusbar"
+                           statusbar_visible="waiting_parts,parts_ready,material_delivered,finished,delivered"/>
+                </header>
+                <sheet>
+                    <div class="oe_button_box" name="button_box">
+                        <button name="action_open_sale" type="object" class="oe_stat_button" icon="fa-dollar"
+                                string="Sales Order" invisible="not sale_order_id"/>
+                        <button name="action_open_productions" type="object" class="oe_stat_button" icon="fa-cogs"
+                                invisible="not production_ids">
+                            <field name="generator_count" widget="statinfo" string="Generators"/>
+                        </button>
+                        <button name="action_open_requests" type="object" class="oe_stat_button" icon="fa-list-alt"
+                                invisible="not request_count">
+                            <field name="request_count" widget="statinfo" string="Material Requests"/>
+                        </button>
+                        <button name="action_open_cards" type="object" class="oe_stat_button" icon="fa-bolt"
+                                invisible="not card_count">
+                            <field name="card_count" widget="statinfo" string="Generator Cards"/>
+                        </button>
+                        <button name="action_open_profitability" type="object" class="oe_stat_button" icon="fa-line-chart"
+                                groups="account.group_account_readonly,account.group_account_invoice">
+                            <field name="currency_id" invisible="1"/>
+                            <field name="margin" widget="statinfo" string="Margin"/>
+                        </button>
+                    </div>
+                    <div class="oe_title">
+                        <h1><field name="name"/></h1>
+                        <field name="material_flag" widget="badge" invisible="not material_flag"
+                               decoration-danger="material_flag == 'missing'" decoration-success="material_flag == 'ready'"/>
+                        <field name="delay_stage" widget="badge" decoration-danger="1" invisible="not delay_stage"/>
+                    </div>
+                    <group>
+                        <group>
+                            <field name="sale_order_id"/>
+                            <field name="partner_id"/>
+                            <field name="proforma_names" invisible="not proforma_names"/>
+                        </group>
+                        <group>
+                            <field name="models_summary"/>
+                            <field name="progress"/>
+                            <field name="date_deadline"/>
+                            <!-- Spec v0.14 H1: the Accountant's rate for this Job Order -->
+                            <field name="can_edit_overhead" invisible="1"/>
+                            <field name="overhead_percent" readonly="not can_edit_overhead"
+                                   groups="account.group_account_invoice,account.group_account_readonly,mrp.group_mrp_user"/>
+                            <field name="can_deliver" invisible="1"/>
+                            <field name="can_finish" invisible="1"/>
+                            <field name="can_ship" invisible="1"/>
+                            <field name="company_id" groups="base.group_multi_company"/>
+                        </group>
+                    </group>
+                    <notebook>
+                        <!-- J3: the serials of each generator, chosen from stock until its parts are delivered -->
+                        <page string="Serial" name="x4u_serial">
+                            <field name="production_ids" context="{'active_test': False}">
+                                <list editable="bottom" create="0" delete="0" decoration-muted="x4u_job_state == 'cancelled'">
+                                    <field name="x4u_serials_editable" column_invisible="1"/>
+                                    <field name="x4u_engine_lot_ids" column_invisible="1"/>
+                                    <field name="x4u_alternator_ids" column_invisible="1"/>
+                                    <field name="x4u_body_lot_ids" column_invisible="1"/>
+                                    <field name="x4u_can_switch_parts" column_invisible="1"/>
+                                    <field name="x4u_uses_ckd" column_invisible="1"/>
+                                    <field name="name" string="Generator" readonly="1"/>
+                                    <field name="product_id" string="Model" readonly="1"/>
+                                    <field name="x4u_engine_lot_id" readonly="not x4u_serials_editable"
+                                           options="{'no_create': True, 'no_open': True}"/>
+                                    <field name="x4u_alternator_id" readonly="not x4u_serials_editable or x4u_uses_ckd"
+                                           options="{'no_create': True, 'no_open': True}"/>
+                                    <field name="x4u_body_lot_id" readonly="not x4u_serials_editable"
+                                           options="{'no_create': True, 'no_open': True}"/>
+                                    <field name="x4u_generator_serial"/>
+                                    <field name="x4u_job_state" widget="badge" readonly="1"
+                                           decoration-info="x4u_job_state in ('waiting_parts', 'parts_ready')"
+                                           decoration-warning="x4u_job_state == 'material_delivered'"
+                                           decoration-success="x4u_job_state in ('finished', 'delivered')"/>
+                                    <button name="action_x4u_use_ckd" type="object" string="Use CKD" groups="mrp.group_mrp_user"
+                                            invisible="not x4u_can_switch_parts or x4u_uses_ckd"/>
+                                    <button name="action_x4u_use_parts" type="object" string="Use Engine + Alternator"
+                                            groups="mrp.group_mrp_user" invisible="not x4u_can_switch_parts or not x4u_uses_ckd"
+                                            confirm="Put the engine and the alternator of the bill of materials back instead of the CKD?"/>
+                                    <button name="action_x4u_finish" type="object" string="Finish" groups="mrp.group_mrp_user"
+                                            invisible="x4u_job_state != 'material_delivered'"/>
+                                    <button name="action_x4u_open" type="object" icon="fa-external-link" title="Open"/>
+                                </list>
+                            </field>
+                            <field name="ready_order_ids" readonly="1" invisible="not ready_order_ids">
+                                <list string="Ready Product">
+                                    <field name="name" string="Generator"/>
+                                    <field name="product_id" string="Model"/>
+                                    <field name="engine_serial"/>
+                                    <field name="lot_id" string="Generator Serial"/>
+                                    <field name="purchase_status"/>
+                                    <field name="state" widget="badge" decoration-info="state == 'waiting'"
+                                           decoration-success="state in ('in_stock', 'delivered')"/>
+                                </list>
+                            </field>
+                            <div class="text-muted" invisible="not production_ids">
+                                The Operation Manager picks the engine (or CKD), alternator and canopy of each generator from
+                                what is in stock; Deliver Materials is filled with them. The generator takes its engine's serial.
+                            </div>
+                        </page>
+                        <!-- J6: the parts and the steps of every generator -->
+                        <page string="Parts" name="x4u_parts">
+                            <field name="move_raw_ids" readonly="1">
+                                <list create="0" delete="0">
+                                    <field name="raw_material_production_id" string="Generator"/>
+                                    <field name="x4u_role"/>
+                                    <field name="product_id"/>
+                                    <field name="product_uom_qty" string="Qty"/>
+                                    <field name="x4u_stock_on_hand"/>
+                                    <field name="x4u_stock_free"/>
+                                    <field name="x4u_part_status" widget="badge"
+                                           decoration-success="x4u_part_status in ('received', 'delivered', 'from_stock')"
+                                           decoration-warning="x4u_part_status in ('rfq', 'ordered')"
+                                           decoration-info="x4u_part_status == 'requested'"/>
+                                    <field name="x4u_purchase_id"/>
+                                    <field name="x4u_vendor_id"/>
+                                    <field name="x4u_expected_date"/>
+                                </list>
+                            </field>
+                        </page>
+                        <!-- Spec v0.14 H2-H4: the order's profitability, each generator by its serials -->
+                        <page string="Profitability" name="x4u_profitability"
+                              groups="account.group_account_invoice,account.group_account_readonly">
+                            <div class="mb-2">
+                                <button name="action_print_cost_sheet" type="object" string="Print Cost Sheet"
+                                        class="btn-secondary" icon="fa-print"/>
+                                <button name="action_refresh_profitability" type="object" string="Refresh"
+                                        class="btn-link" icon="fa-refresh"/>
+                            </div>
+                            <field name="x4u_cost_sheet" readonly="1" nolabel="1"/>
+                        </page>
+                        <page string="Timeline" name="x4u_timeline">
+                            <field name="event_ids" readonly="1">
+                                <list create="0" delete="0" default_order="date, id">
+                                    <field name="date"/>
+                                    <field name="production_id" string="Generator"/>
+                                    <field name="event_type"/>
+                                    <field name="user_id" widget="many2one_avatar_user"/>
+                                    <field name="document"/>
+                                    <field name="detail"/>
+                                </list>
+                            </field>
+                        </page>
+                    </notebook>
+                </sheet>
+                <chatter/>
+            </form>
+        </field>
+    </record>
+
+    <record id="x4u_job_order_order_view_list" model="ir.ui.view">
+        <field name="name">x4u.job.order.list</field>
+        <field name="model">x4u.job.order</field>
+        <field name="arch" type="xml">
+            <list string="Job Orders" decoration-danger="delay_stage" create="0">
+                <field name="name"/>
+                <field name="sale_order_id"/>
+                <field name="proforma_names" optional="show"/>
+                <field name="partner_id"/>
+                <field name="models_summary"/>
+                <field name="state" widget="badge"
+                       decoration-info="state in ('waiting_parts', 'parts_ready')"
+                       decoration-warning="state == 'material_delivered'"
+                       decoration-success="state in ('finished', 'delivered')"/>
+                <field name="progress" optional="show"/>
+                <field name="material_flag" widget="badge"
+                       decoration-danger="material_flag == 'missing'" decoration-success="material_flag == 'ready'"/>
+                <field name="date_deadline" optional="show"/>
+                <field name="delay_stage" optional="show"/>
+            </list>
+        </field>
+    </record>
+
+    <record id="x4u_job_order_order_view_kanban" model="ir.ui.view">
+        <field name="name">x4u.job.order.kanban</field>
+        <field name="model">x4u.job.order</field>
+        <field name="arch" type="xml">
+            <kanban default_group_by="state" records_draggable="0" group_create="0" group_delete="0" group_edit="0" create="0">
+                <field name="material_flag"/>
+                <field name="delay_stage"/>
+                <templates>
+                    <t t-name="card">
+                        <div>
+                            <i class="fa fa-flag text-danger me-1" title="Missing Parts" invisible="material_flag != 'missing'"/>
+                            <i class="fa fa-flag text-success me-1" title="Materials Ready" invisible="material_flag != 'ready'"/>
+                            <field name="name" class="fw-bold"/>
+                            <span class="text-muted ms-1"><field name="sale_order_id"/></span>
+                        </div>
+                        <field name="partner_id"/>
+                        <field name="models_summary" class="small"/>
+                        <field name="progress" class="small text-muted"/>
+                        <div class="text-danger" invisible="not delay_stage">
+                            Delay at <field name="delay_stage"/> (<field name="delay_days"/> d)
+                        </div>
+                    </t>
+                </templates>
+            </kanban>
+        </field>
+    </record>
+
+    <record id="x4u_job_order_order_view_search" model="ir.ui.view">
+        <field name="name">x4u.job.order.search</field>
+        <field name="model">x4u.job.order</field>
+        <field name="arch" type="xml">
+            <search string="Job Orders">
+                <field name="name"/>
+                <!-- J8: by any serial of its generators or their parts, by the PI, by the model -->
+                <field name="serial_search"/>
+                <field name="sale_order_id"/>
+                <field name="proforma_names"/>
+                <field name="partner_id"/>
+                <field name="production_ids" string="Model"
+                       filter_domain="['|', ('production_ids.product_id', 'ilike', self), ('ready_order_ids.product_id', 'ilike', self)]"/>
+                <filter name="waiting_parts" string="Waiting Parts" domain="[('state', '=', 'waiting_parts')]"/>
+                <filter name="parts_ready" string="Parts Ready" domain="[('state', '=', 'parts_ready')]"/>
+                <filter name="material_delivered" string="Material Delivered" domain="[('state', '=', 'material_delivered')]"/>
+                <filter name="finished" string="Finished" domain="[('state', '=', 'finished')]"/>
+                <filter name="delivered" string="Delivered" domain="[('state', '=', 'delivered')]"/>
+                <separator/>
+                <filter name="missing_parts" string="Missing Parts" domain="[('material_flag', '=', 'missing')]"/>
+                <filter name="delayed" string="Delayed" domain="[('delay_stage', '!=', False)]"/>
+                <separator/>
+                <filter name="open" string="Open" domain="[('state', 'not in', ('delivered', 'cancelled'))]"/>
+                <group>
+                    <filter name="group_state" string="Status" context="{'group_by': 'state'}"/>
+                    <filter name="group_customer" string="Customer" context="{'group_by': 'partner_id'}"/>
+                </group>
+            </search>
+        </field>
+    </record>
+
+    <record id="action_x4u_job_orders" model="ir.actions.act_window">
+        <field name="name">Job Orders</field>
+        <field name="res_model">x4u.job.order</field>
+        <field name="view_mode">list,kanban,form</field>
+        <field name="context">{'search_default_open': 1}</field>
+        <field name="search_view_id" ref="x4u_job_order_order_view_search"/>
+        <field name="help" type="html">
+            <p class="o_view_nocontent_smiling_face">No Job Order yet</p>
+            <p>Confirming a sales order opens its Job Order (MO001), with a line per generator on the Serial tab.</p>
+        </field>
+    </record>
+
+    <!-- Spec v0.14 H4: Order Profitability, a line per Job Order, by month of its tax invoice -->
+    <record id="x4u_order_profitability_view_list" model="ir.ui.view">
+        <field name="name">x4u.job.order.list.profitability</field>
+        <field name="model">x4u.job.order</field>
+        <field name="priority">20</field>
+        <field name="arch" type="xml">
+            <list string="Order Profitability" create="0" decoration-danger="x4u_profit &lt; 0">
+                <field name="name"/>
+                <field name="sale_order_id"/>
+                <field name="partner_id"/>
+                <field name="models_summary" optional="show"/>
+                <field name="x4u_invoice_date"/>
+                <field name="currency_id" column_invisible="1"/>
+                <field name="x4u_revenue" sum="Revenue"/>
+                <field name="x4u_cost" sum="Cost"/>
+                <field name="x4u_direct_cost" sum="Direct" optional="show"/>
+                <field name="x4u_profit" sum="Profit"/>
+                <field name="x4u_margin_percent" avg="Margin"/>
+                <field name="overhead_percent" optional="hide"/>
+                <field name="x4u_profit_status" widget="badge" decoration-warning="x4u_profit_status == 'estimated'"
+                       decoration-success="x4u_profit_status == 'actual'"/>
+            </list>
+        </field>
+    </record>
+
+    <record id="x4u_order_profitability_view_pivot" model="ir.ui.view">
+        <field name="name">x4u.job.order.pivot.profitability</field>
+        <field name="model">x4u.job.order</field>
+        <field name="arch" type="xml">
+            <pivot string="Order Profitability" sample="1">
+                <field name="x4u_invoice_date" interval="month" type="row"/>
+                <field name="x4u_revenue" type="measure"/>
+                <field name="x4u_cost" type="measure"/>
+                <field name="x4u_profit" type="measure"/>
+            </pivot>
+        </field>
+    </record>
+
+    <record id="x4u_order_profitability_view_graph" model="ir.ui.view">
+        <field name="name">x4u.job.order.graph.profitability</field>
+        <field name="model">x4u.job.order</field>
+        <field name="arch" type="xml">
+            <graph string="Order Profitability" type="bar" sample="1">
+                <field name="x4u_invoice_date" interval="month"/>
+                <field name="x4u_profit" type="measure"/>
+            </graph>
+        </field>
+    </record>
+
+    <record id="x4u_order_profitability_view_search" model="ir.ui.view">
+        <field name="name">x4u.job.order.search.profitability</field>
+        <field name="model">x4u.job.order</field>
+        <field name="arch" type="xml">
+            <search string="Order Profitability">
+                <field name="name"/>
+                <field name="sale_order_id"/>
+                <field name="partner_id"/>
+                <field name="serial_search"/>
+                <filter name="invoiced" string="Invoiced" domain="[('x4u_invoice_date', '!=', False)]"/>
+                <filter name="not_invoiced" string="Not Invoiced Yet" domain="[('x4u_invoice_date', '=', False)]"/>
+                <filter name="loss" string="Loss" domain="[('x4u_profit', '&lt;', 0)]"/>
+                <separator/>
+                <filter name="invoice_date" string="Invoice Date" date="x4u_invoice_date"/>
+                <group>
+                    <filter name="group_month" string="Month" context="{'group_by': 'x4u_invoice_date:month'}"/>
+                    <filter name="group_customer" string="Customer" context="{'group_by': 'partner_id'}"/>
+                </group>
+            </search>
+        </field>
+    </record>
+
+    <record id="action_x4u_order_profitability" model="ir.actions.act_window">
+        <field name="name">Order Profitability</field>
+        <field name="res_model">x4u.job.order</field>
+        <field name="view_mode">list,pivot,graph,form</field>
+        <field name="domain">[('sale_order_id', '!=', False), ('state', '!=', 'cancelled')]</field>
+        <field name="context">{'create': False}</field>
+        <field name="search_view_id" ref="x4u_order_profitability_view_search"/>
+        <field name="view_ids" eval="[Command.clear(),
+            Command.create({'view_mode': 'list', 'view_id': ref('x4u_order_profitability_view_list')}),
+            Command.create({'view_mode': 'pivot', 'view_id': ref('x4u_order_profitability_view_pivot')}),
+            Command.create({'view_mode': 'graph', 'view_id': ref('x4u_order_profitability_view_graph')})]"/>
+        <field name="help" type="html">
+            <p class="o_view_nocontent_smiling_face">No order yet</p>
+            <p>Each confirmed order: what it is sold at, what its generators and direct costs cost, and the profit.</p>
+        </field>
+    </record>
+    <menuitem id="menu_x4u_order_profitability" parent="account.account_reports_management_menu"
+              action="action_x4u_order_profitability" sequence="49"
+              groups="account.group_account_readonly,account.group_account_invoice"/>
+
+    <!-- J4: Finish on the Job Order, a line per generator whose parts are delivered (D2 for each) -->
+    <record id="x4u_job_order_finish_all_view_form" model="ir.ui.view">
+        <field name="name">x4u.job.order.finish.all.form</field>
+        <field name="model">x4u.job.order.finish.all</field>
+        <field name="arch" type="xml">
+            <form string="Finish">
+                <p class="text-muted">
+                    The serials fitted in each generator, as delivered. If the factory fitted another unit of the same part,
+                    pick it here: the generator it was delivered to takes this one's unit. Remove a line to finish it later.
+                </p>
+                <field name="line_ids">
+                    <list editable="bottom" create="0">
+                        <field name="engine_move_id" column_invisible="1"/>
+                        <field name="alternator_move_id" column_invisible="1"/>
+                        <field name="body_move_id" column_invisible="1"/>
+                        <field name="available_engine_lot_ids" column_invisible="1"/>
+                        <field name="available_alternator_ids" column_invisible="1"/>
+                        <field name="available_body_lot_ids" column_invisible="1"/>
+                        <field name="production_id" string="Generator" readonly="1"/>
+                        <field name="product_id"/>
+                        <field name="engine_lot_id" options="{'no_create': True, 'no_open': True}"
+                               domain="[('id', 'in', available_engine_lot_ids)]" required="engine_move_id"
+                               readonly="not engine_move_id"/>
+                        <field name="alternator_serial_id" options="{'no_open': True}"
+                               domain="[('id', 'in', available_alternator_ids)]" readonly="not alternator_move_id"
+                               placeholder="Optional"/>
+                        <field name="body_lot_id" options="{'no_create': True, 'no_open': True}"
+                               domain="[('id', 'in', available_body_lot_ids)]" required="body_move_id"
+                               readonly="not body_move_id"/>
+                    </list>
+                </field>
+                <footer>
+                    <button name="action_confirm" type="object" string="Finish" class="btn-primary" data-hotkey="q"/>
+                    <button string="Discard" class="btn-secondary" special="cancel" data-hotkey="x"/>
+                </footer>
+            </form>
+        </field>
+    </record>
+
+    <!-- Spec v0.13 L2: Deliver Generators, a line per generator in stock -->
+    <record id="x4u_job_order_ship_view_form" model="ir.ui.view">
+        <field name="name">x4u.job.order.ship.form</field>
+        <field name="model">x4u.job.order.ship</field>
+        <field name="arch" type="xml">
+            <form string="Deliver Generators">
+                <field name="currency_id" invisible="1"/>
+                <field name="limited" invisible="1"/>
+                <p class="text-muted" invisible="not limited">
+                    Paid before delivery: until the tax invoice, the generators delivered stay within what was paid on the PI.
+                    The others leave later, or with the tax invoice.
+                </p>
+                <group invisible="not limited">
+                    <group>
+                        <field name="amount_paid"/>
+                        <field name="amount_delivered"/>
+                    </group>
+                    <group>
+                        <field name="amount_selected" class="fw-bold"/>
+                        <field name="amount_left"/>
+                    </group>
+                </group>
+                <field name="line_ids">
+                    <list editable="bottom" create="0" delete="0">
+                        <field name="selected" widget="boolean_toggle"/>
+                        <field name="generator" readonly="1"/>
+                        <field name="product_id" readonly="1"/>
+                        <field name="lot_id" readonly="1"/>
+                        <field name="currency_id" column_invisible="1"/>
+                        <field name="amount" sum="Total"/>
+                    </list>
+                </field>
+                <footer>
+                    <button name="action_confirm" type="object" string="Deliver" class="btn-primary" data-hotkey="q"/>
+                    <button string="Discard" class="btn-secondary" special="cancel" data-hotkey="x"/>
+                </footer>
+            </form>
+        </field>
+    </record>
+
+    <!-- The sales order: its Job Order -->
+    <record id="view_order_form_x4u_job_order" model="ir.ui.view">
+        <field name="name">sale.order.form.x4u.job.order</field>
+        <field name="model">sale.order</field>
+        <field name="inherit_id" ref="sale.view_order_form"/>
+        <field name="arch" type="xml">
+            <xpath expr="//div[@name='button_box']" position="inside">
+                <field name="x4u_job_ids" invisible="1"/>
+                <button name="action_x4u_open_job" type="object" class="oe_stat_button" icon="fa-cogs"
+                        string="Job Order" invisible="not x4u_job_ids"/>
+            </xpath>
+        </field>
+    </record>
+</odoo>

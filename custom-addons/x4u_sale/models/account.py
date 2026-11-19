@@ -31,7 +31,7 @@ class AccountPayment(models.Model):
         tracking=True,
         # v0.7 O4: the first payment comes before the Accountant confirms the order.
         domain="[('state', 'in', ('draft', 'sent', 'sale')), ('partner_id.commercial_partner_id', '=', x4u_commercial_partner_id)]",
-        help="An advance for this order: confirming the payment issues its PI, and the tax invoice of the order "
+        help="An advance for this order: it goes on the order's PI, and the tax invoice of the order "
         "applies it by itself.",
     )
     x4u_proforma_id = fields.Many2one(
@@ -40,7 +40,7 @@ class AccountPayment(models.Model):
         index="btree_not_null",
         copy=False,
         readonly=True,
-        help="The PI issued for this payment when it was confirmed (spec v0.7 O6).",
+        help="The PI of the order this payment is for (spec v0.8 Q5).",
     )
 
     @api.constrains("x4u_sale_order_id", "x4u_proforma_id", "partner_id", "payment_type", "partner_type")
@@ -57,18 +57,32 @@ class AccountPayment(models.Model):
             ):
                 raise ValidationError(_("Only money received from the customer of %s can be an advance for it.", order.name))
 
+    @api.model_create_multi
+    def create(self, vals_list):
+        payments = super().create(vals_list)
+        payments._x4u_link_proforma()
+        return payments
+
+    def write(self, vals):
+        res = super().write(vals)
+        if "x4u_sale_order_id" in vals:
+            self._x4u_link_proforma()
+        return res
+
+    def _x4u_link_proforma(self):
+        """Q5: a payment for an order goes on the order's PI by itself."""
+        for payment in self.sudo().filtered(lambda p: p.x4u_proforma_id.order_id != p.x4u_sale_order_id):
+            payment.x4u_proforma_id = payment.x4u_sale_order_id._x4u_active_proforma()
+
     def action_post(self):
         res = super().action_post()
         self._x4u_log_on_order(_("Payment received"))
-        # v0.7 O6: the PI of this payment, then the next due date to follow.
-        self.env["x4u.sale.proforma"]._x4u_for_payments(self)
         self.sudo().x4u_sale_order_id._x4u_sync_followup()
         return res
 
     def action_cancel(self):
         self._x4u_log_on_order(_("Payment cancelled"))
         res = super().action_cancel()
-        self.sudo().x4u_proforma_id.filtered(lambda p: not p.cancelled)._x4u_cancel()
         self.sudo().x4u_sale_order_id._x4u_sync_followup()
         return res
 

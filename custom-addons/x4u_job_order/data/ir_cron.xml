@@ -11,5 +11,16 @@
             <field name="interval_type">days</field>
             <field name="active" eval="True"/>
         </record>
+        <!-- Spec v0.14 H5: the figures of Order Profitability, every night -->
+        <record id="ir_cron_x4u_job_order_profitability" model="ir.cron">
+            <field name="name">Job Orders: Update Order Profitability</field>
+            <field name="model_id" ref="model_x4u_job_order"/>
+            <field name="state">code</field>
+            <field name="code">model._cron_x4u_refresh_profitability()</field>
+            <field name="user_id" ref="base.user_root"/>
+            <field name="interval_number">1</field>
+            <field name="interval_type">days</field>
+            <field name="active" eval="True"/>
+        </record>
     </data>
 </odoo>

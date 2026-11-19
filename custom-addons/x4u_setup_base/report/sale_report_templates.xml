@@ -1,0 +1,29 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <!-- x4u_sale spec v0.8 A1: a price-on-request line (installation, transport) with no price
+         prints "As requested", on the quotation, the order and its options. -->
+    <template id="report_saleorder_document_x4u_as_requested" inherit_id="sale.report_saleorder_document">
+        <xpath expr="//td[@name='td_priceunit']" position="replace">
+            <td t-if="line._x4u_as_requested()" name="td_priceunit" class="text-end text-nowrap">As requested</td>
+            <t t-else="">$0</t>
+        </xpath>
+        <xpath expr="//td[@name='td_taxes']" position="replace">
+            <td t-if="line._x4u_as_requested()" name="td_taxes"/>
+            <t t-else="">$0</t>
+        </xpath>
+        <xpath expr="//td[@name='td_subtotal']" position="replace">
+            <td t-if="not line.is_downpayment and line._x4u_as_requested()" name="td_subtotal" class="text-end o_price_total">As requested</td>
+            <t t-else="">$0</t>
+        </xpath>
+    </template>
+
+    <template id="report_saleorder_document_x4u_as_requested_options"
+              inherit_id="sale_management.report_saleorder_document_inherit_sale_management">
+        <xpath expr="//td[@name='td_option_price_unit']" position="replace">
+            <td t-if="option._x4u_as_requested()" name="td_option_price_unit" class="text-end">
+                <strong>As requested</strong>
+            </td>
+            <t t-else="">$0</t>
+        </xpath>
+    </template>
+</odoo>

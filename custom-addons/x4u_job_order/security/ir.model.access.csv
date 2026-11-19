@@ -26,3 +26,10 @@ access_x4u_job_order_ckd_mrp_user,x4u.job.order.ckd mrp user (Use CKD),model_x4u
 access_x4u_job_order_deliver_all_stock,x4u.job.order.deliver.all stock user,model_x4u_job_order_deliver_all,stock.group_stock_user,1,1,1,1
 access_x4u_job_order_deliver_all_line_stock,x4u.job.order.deliver.all.line stock user,model_x4u_job_order_deliver_all_line,stock.group_stock_user,1,1,1,1
 access_x4u_job_order_finish_mrp_user,x4u.job.order.finish mrp user,model_x4u_job_order_finish,mrp.group_mrp_user,1,1,1,1
+access_x4u_job_order_user,x4u.job.order user (v0.12 J1),model_x4u_job_order,base.group_user,1,0,0,0
+access_x4u_job_order_mrp_user,x4u.job.order mrp user,model_x4u_job_order,mrp.group_mrp_user,1,1,1,0
+access_x4u_job_order_mrp_manager,x4u.job.order mrp manager,model_x4u_job_order,mrp.group_mrp_manager,1,1,1,1
+access_x4u_job_order_accountant,x4u.job.order accountant (v0.14 H1 overhead),model_x4u_job_order,account.group_account_invoice,1,1,0,0
+access_x4u_job_order_finish_all_mrp_user,x4u.job.order.finish.all mrp user,model_x4u_job_order_finish_all,mrp.group_mrp_user,1,1,1,1
+access_x4u_job_order_ship_stock,x4u.job.order.ship stock user (v0.13 L2),model_x4u_job_order_ship,stock.group_stock_user,1,1,1,1
+access_x4u_job_order_ship_line_stock,x4u.job.order.ship.line stock user,model_x4u_job_order_ship_line,stock.group_stock_user,1,1,1,1

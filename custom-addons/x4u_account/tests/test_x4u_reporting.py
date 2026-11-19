@@ -1,9 +1,9 @@
 from datetime import date
 
-from odoo import Command
+from odoo import Command, fields
 from odoo.tests import TransactionCase, new_test_user, tagged
 
-from odoo.addons.x4u_account.hooks import BUDGET_REPORT_NAME, _account
+from odoo.addons.x4u_account.hooks import BUDGET_REPORT_NAME, _account, _monthly_pl
 
 
 @tagged("post_install", "-at_install")
@@ -42,7 +42,9 @@ class TestX4uReporting(TransactionCase):
     def test_menu(self):
         ref = self.env.ref
         expected = {
-            "x4u_account.menu_x4u_generic_statements": ["Profit and Loss", "Balance Sheet", "Cash Flow Statement"],
+            "x4u_account.menu_x4u_generic_statements": [
+                "Profit and Loss", "Monthly Profit and Loss", "Balance Sheet", "Cash Flow Statement",
+            ],
             "x4u_account.menu_x4u_daily_reports": ["Bank Book", "Cash Book", "Day Book"],
             "x4u_account.menu_x4u_partner_reports": ["Partner Ledger", "Aged Partner Balance", "Open Items"],
             "x4u_account.menu_x4u_audit_reports": ["General Ledger", "Trial Balance", "Journals Audit", "Tax Report", "Tax Details Report"],
@@ -160,3 +162,30 @@ class TestX4uReporting(TransactionCase):
         actual, planned, variance = ((cell.val if cell else None) or 0.0 for cell in row.iter_cells())
         self.assertGreater(planned, 0, "the budget column has the budget so far this year")
         self.assertAlmostEqual(variance, actual - planned, places=2)
+
+    # T4 (spec §17 M1, M2): this year's P&L month by month, made once; an entry shows in its month
+    def test_monthly_pl(self):
+        instance = _monthly_pl(self.env, self.company)
+        self.assertEqual(_monthly_pl(self.env, self.company), instance, "made once a year")
+        periods = instance.period_ids.sorted("sequence")
+        self.assertEqual(len(periods), 13, "12 months and the total")
+        self.assertEqual(periods[-1].name, "Total")
+        action = self.Report.action_x4u_monthly_pl()
+        self.assertEqual(action["res_id"], instance.id)
+
+        def revenue():
+            matrix = instance._compute_matrix()
+            row = next(row for row in matrix.iter_rows() if row.kpi.name == "rev_generators")
+            return [(cell.val if cell else None) or 0.0 for cell in row.iter_cells()]
+
+        before = revenue()
+        march = periods[2]
+        receivable = self._accounts([("account_type", "=", "asset_receivable")])[:1]
+        self._entry(
+            fields.Date.add(march.manual_date_from, days=14),
+            [(receivable, 1000.0, None), (self._code("500001", "income"), -1000.0, None)],
+        )
+        after = revenue()
+        self.assertAlmostEqual(after[2] - before[2], 1000.0, msg="in its month")
+        self.assertAlmostEqual(after[-1] - before[-1], 1000.0, msg="and in the total")
+        self.assertAlmostEqual(after[0] - before[0], 0.0)

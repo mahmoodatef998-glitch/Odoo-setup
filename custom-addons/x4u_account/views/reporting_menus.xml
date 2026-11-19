@@ -7,6 +7,8 @@
               sequence="1" groups="account.group_account_user,account.group_account_manager"/>
     <menuitem id="menu_x4u_report_pl" name="Profit and Loss" parent="menu_x4u_generic_statements"
               action="action_x4u_report_pl" sequence="10"/>
+    <menuitem id="menu_x4u_report_monthly_pl" name="Monthly Profit and Loss" parent="menu_x4u_generic_statements"
+              action="action_x4u_report_monthly_pl" sequence="15"/>
     <menuitem id="menu_x4u_report_bs" name="Balance Sheet" parent="menu_x4u_generic_statements"
               action="action_x4u_report_bs" sequence="20"/>
     <menuitem id="menu_x4u_report_cash_flow" name="Cash Flow Statement" parent="menu_x4u_generic_statements"

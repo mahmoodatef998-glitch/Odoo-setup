@@ -47,6 +47,9 @@
                 <attribute name="invisible" add="x4u_is_job_order" separator=" or "/>
             </xpath>
             <xpath expr="//div[@name='button_box']" position="inside">
+                <!-- Spec v0.12 J2: the order's Job Order this generator belongs to -->
+                <button name="action_x4u_open_job" type="object" class="oe_stat_button" icon="fa-folder-open"
+                        string="Job Order" invisible="not x4u_job_id"/>
                 <button name="action_x4u_open_sale" type="object" class="oe_stat_button" icon="fa-dollar"
                         string="Sales Order" invisible="not x4u_sale_order_id"/>
                 <button name="action_x4u_open_requests" type="object" class="oe_stat_button" icon="fa-list-alt"
@@ -64,6 +67,7 @@
             </xpath>
             <xpath expr="//div[hasclass('oe_title')]" position="inside">
                 <field name="x4u_is_job_order" invisible="1"/>
+                <field name="x4u_job_id" invisible="1"/>
                 <field name="x4u_sale_order_id" invisible="1"/>
                 <field name="x4u_generator_id" invisible="1"/>
                 <field name="x4u_analytic_account_id" invisible="1"/>
@@ -281,7 +285,7 @@
             Command.create({'view_mode': 'kanban', 'view_id': ref('x4u_job_order_view_kanban')})]"/>
         <field name="help" type="html">
             <p class="o_view_nocontent_smiling_face">No Job Order yet</p>
-            <p>Confirming a sales order for a generator opens one Job Order per generator (MO001, MO002 ...).</p>
+            <p>Each generator of a Job Order (MO001/1, MO001/2 ...): its parts, serials and value.</p>
         </field>
     </record>
 
@@ -316,17 +320,20 @@
         </field>
     </record>
 
+    <!-- Spec v0.12 J1: the menus open the order's Job Orders; each generator is under "Generators". -->
     <menuitem id="menu_x4u_job_order" name="Job Orders" parent="mrp.menu_mrp_manufacturing"
-              action="action_x4u_job_order" sequence="1"/>
+              action="action_x4u_job_orders" sequence="1"/>
+    <menuitem id="menu_x4u_job_order_generators" name="Generators" parent="mrp.menu_mrp_manufacturing"
+              action="action_x4u_job_order" sequence="3" groups="mrp.group_mrp_user"/>
     <menuitem id="menu_x4u_job_order_analysis" name="Job Order Analysis" parent="mrp.menu_mrp_reporting"
               action="action_x4u_job_order_analysis" sequence="50"/>
     <menuitem id="menu_x4u_job_order_delays" name="Job Order Delays" parent="mrp.menu_mrp_reporting"
               action="action_x4u_job_order_delays" sequence="51"/>
     <!-- Read-only Job Orders where Purchasing, Quality and the Storekeeper work (guide R1, spec v0.4) -->
     <menuitem id="menu_x4u_job_order_purchase" name="Job Orders" parent="purchase.menu_procurement_management"
-              action="action_x4u_job_order" sequence="12" groups="group_x4u_job_order_viewer"/>
+              action="action_x4u_job_orders" sequence="12" groups="group_x4u_job_order_viewer"/>
     <menuitem id="menu_x4u_job_order_quality" name="Job Orders" parent="quality_control_oca.qc_inspection_menu_parent"
-              action="action_x4u_job_order" sequence="40" groups="group_x4u_job_order_viewer"/>
+              action="action_x4u_job_orders" sequence="40" groups="group_x4u_job_order_viewer"/>
     <menuitem id="menu_x4u_job_order_inventory" name="Job Orders" parent="stock.menu_stock_warehouse_mgmt"
-              action="action_x4u_job_order" sequence="5" groups="group_x4u_job_order_viewer"/>
+              action="action_x4u_job_orders" sequence="5" groups="group_x4u_job_order_viewer"/>
 </odoo>

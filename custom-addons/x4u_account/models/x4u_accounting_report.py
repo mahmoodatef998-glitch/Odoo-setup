@@ -88,6 +88,24 @@ class X4uAccountingReport(models.AbstractModel):
         return self._x4u_open_items("liability_payable", _("Accounts Payable (Excel)"))
 
     @api.model
+    @api.model
+    def action_x4u_monthly_pl(self):
+        """Spec §17 M2: the P&L of this year, month by month (made the first time it is opened)."""
+        from odoo.addons.x4u_account.hooks import _monthly_pl
+
+        instance = _monthly_pl(self.env, self.env.company)
+        if not instance:
+            raise UserError(_("The 4U P&L report was removed: open MIS Reporting › MIS Reports."))
+        return instance.preview()
+
+    @api.model
+    def _cron_x4u_monthly_pl(self):
+        """M2: the new year's report is there from its first day."""
+        from odoo.addons.x4u_account.hooks import _monthly_pl
+
+        for company in self.env["res.company"].search([("chart_template", "!=", False)]):
+            _monthly_pl(self.env, company)
+
     def action_x4u_mis(self, xmlid):
         """A 4U statement (MIS), straight to its figures: Print and Export are on top."""
         instance = self.env.ref(xmlid, raise_if_not_found=False)

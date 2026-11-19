@@ -50,9 +50,9 @@ class TestReadyGenerator(X4uJobOrderCommon):
         order = self._sell_ready()
         ready = order.x4u_ready_order_ids
         Ready = self.env["x4u.ready.order"]
-        self.env["x4u.sale.proforma"].create({"order_id": order.id, "amount_payment": 1000.0})
-        self.assertEqual(ready.proforma_names, "%s-PI1" % order.name)
-        self.assertEqual(Ready.search([("proforma_names", "ilike", "%s-PI1" % order.name)]), ready)
+        self.env["x4u.sale.proforma"].create({"order_id": order.id})
+        self.assertEqual(ready.proforma_names, "%s-PI" % order.name)
+        self.assertEqual(Ready.search([("proforma_names", "ilike", "%s-PI" % order.name)]), ready)
         po = self._buy(order)
         self._validate(po.picking_ids)
         self.assertEqual(ready.state, "in_stock")
@@ -83,7 +83,7 @@ class TestReadyGenerator(X4uJobOrderCommon):
         receipt = po.picking_ids
         self._validate(receipt)
         self.assertEqual(ready.state, "in_stock")
-        self.assertEqual(ready.lot_id.name, ready.name, "the serial is the Ready Job Order number")
+        self.assertEqual(ready.lot_id.name, "X4U-E-%s" % ready.name, "v0.12 J10: the serial is its engine's")
         quant = self.env["stock.quant"].search(
             [("lot_id", "=", ready.lot_id.id), ("location_id", "=", self.warehouse.lot_stock_id.id)]
         )
@@ -126,6 +126,7 @@ class TestReadyGenerator(X4uJobOrderCommon):
         self.assertEqual((ready.state, ready.engine_serial, ready.supplier_serial), ("in_stock", "E-2001", "SUP-77"))
         card = ready.generator_id
         self.assertEqual((card.engine_serial, card.x4u_supplier_serial), ("E-2001", "SUP-77"))
+        self.assertEqual((ready.lot_id.name, card.name), ("E-2001", "E-2001"), "v0.12 J10: the generator is its engine's serial")
         self.assertFalse(card.alternator_serial)
 
     def test_two_ready_generators(self):
@@ -135,7 +136,7 @@ class TestReadyGenerator(X4uJobOrderCommon):
         self._buy(order)
         self._validate(order.x4u_ready_order_ids.purchase_order_id.picking_ids)
         self.assertEqual(set(ready.mapped("state")), {"in_stock"})
-        self.assertEqual(sorted(ready.lot_id.mapped("name")), sorted(ready.mapped("name")))
+        self.assertEqual(sorted(ready.lot_id.mapped("name")), sorted("X4U-E-%s" % name for name in ready.mapped("name")))
 
     def test_buy_ready_is_for_generators(self):
         part = self.engine
@@ -166,7 +167,13 @@ class TestReadyGenerator(X4uJobOrderCommon):
         )
         with self.assertRaisesRegex(UserError, "Supply"):
             order.action_x4u_send_to_accountant()
-        line.x4u_supply = "assemble"
+        # x4u_sale v0.8 Q4: the PI freezes the order for the Salesperson, not the Supply (not on the PI).
+        order.write({"user_id": self.salesman.id})
+        as_salesman = order.with_user(self.salesman)
+        as_salesman.action_x4u_create_proforma()
+        as_salesman.write({"order_line": [Command.update(line.id, {"x4u_supply": "assemble"})]})
+        with self.assertRaisesRegex(UserError, "PI with the customer"):
+            as_salesman.write({"order_line": [Command.update(line.id, {"product_uom_qty": 2})]})
         order.action_x4u_send_to_accountant()
         self.assertEqual(order.x4u_po_check, "to_check")
 

@@ -1,0 +1,153 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <!-- Spec v0.14 H2-H4: the profitability of an order, each generator by its serials; on the Job
+         Order (Profitability tab) and printed (Cost Sheet). -->
+    <template id="cost_sheet_table">
+        <t t-set="currency" t-value="sheet['currency']"/>
+        <t t-set="money" t-value="{'widget': 'monetary', 'display_currency': currency}"/>
+        <table class="table table-sm o_main_table mb-3">
+            <thead>
+                <tr>
+                    <th class="text-start">Generator</th>
+                    <th class="text-start">Part</th>
+                    <th class="text-start">Serial</th>
+                    <th class="text-end">Cost</th>
+                </tr>
+            </thead>
+            <tbody>
+                <t t-foreach="sheet['generators']" t-as="row">
+                    <tr class="fw-bold" style="background-color: #f2f2f2;">
+                        <td colspan="2">
+                            <t t-out="row['name']"/> · <t t-out="row['model']"/>
+                            <span t-if="row['status'] == 'estimated'" class="badge text-bg-warning ms-1">Estimated</span>
+                        </td>
+                        <td>Generator <t t-out="row['serial']"/></td>
+                        <td/>
+                    </tr>
+                    <tr t-foreach="row['parts']" t-as="part">
+                        <td/>
+                        <td><t t-out="part['label']"/> · <t t-out="part['product']"/></td>
+                        <td><t t-out="part['serial']"/></td>
+                        <td class="text-end"><t t-out="part['cost']" t-options="money"/></td>
+                    </tr>
+                    <tr t-if="row['other']">
+                        <td/>
+                        <td>Other parts</td>
+                        <td/>
+                        <td class="text-end"><t t-out="row['other']" t-options="money"/></td>
+                    </tr>
+                    <tr>
+                        <td/>
+                        <td>Materials</td>
+                        <td/>
+                        <td class="text-end"><t t-out="row['materials']" t-options="money"/></td>
+                    </tr>
+                    <tr t-if="row['overhead']">
+                        <td/>
+                        <td>Overhead <t t-out="'%g' % round(row['rate'], 2)"/>%</td>
+                        <td/>
+                        <td class="text-end"><t t-out="row['overhead']" t-options="money"/></td>
+                    </tr>
+                    <tr class="fw-bold">
+                        <td/>
+                        <td>Cost · Sold at · Profit</td>
+                        <td class="text-end"><t t-out="row['cost']" t-options="money"/> · <t t-out="row['price']" t-options="money"/></td>
+                        <td t-attf-class="text-end #{'text-danger' if row['profit'] &lt; 0 else 'text-success'}">
+                            <t t-out="row['profit']" t-options="money"/>
+                        </td>
+                    </tr>
+                </t>
+            </tbody>
+        </table>
+        <table t-if="sheet['others']" class="table table-sm mb-3">
+            <thead>
+                <tr>
+                    <th class="text-start">Other lines of the order</th>
+                    <th class="text-end">Qty</th>
+                    <th class="text-end">Sold at</th>
+                    <th class="text-end">Cost</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr t-foreach="sheet['others']" t-as="row">
+                    <td><t t-out="row['product']"/></td>
+                    <td class="text-end"><t t-out="'%g' % row['qty']"/></td>
+                    <td class="text-end"><t t-out="row['price']" t-options="money"/></td>
+                    <td class="text-end"><t t-out="row['cost']" t-options="money"/></td>
+                </tr>
+            </tbody>
+        </table>
+        <table t-if="sheet['direct']" class="table table-sm mb-3">
+            <thead>
+                <tr>
+                    <th class="text-start">Direct costs</th>
+                    <th class="text-start">Partner</th>
+                    <th class="text-start">Account</th>
+                    <th class="text-end">Cost</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr t-foreach="sheet['direct']" t-as="row">
+                    <td><t t-out="row['date']"/> · <t t-out="row['document']"/></td>
+                    <td><t t-out="row['partner']"/></td>
+                    <td><t t-out="row['account']"/></td>
+                    <td class="text-end"><t t-out="row['cost']" t-options="money"/></td>
+                </tr>
+            </tbody>
+        </table>
+        <div class="row justify-content-end">
+            <div class="col-6">
+                <table class="table table-sm">
+                    <tr><td>Revenue (before VAT)</td><td class="text-end"><t t-out="sheet['revenue']" t-options="money"/></td></tr>
+                    <tr><td>Generators</td><td class="text-end"><t t-out="sheet['generator_cost']" t-options="money"/></td></tr>
+                    <tr t-if="sheet['other_cost']"><td>Other goods</td><td class="text-end"><t t-out="sheet['other_cost']" t-options="money"/></td></tr>
+                    <tr><td>Direct costs</td><td class="text-end"><t t-out="sheet['direct_cost']" t-options="money"/></td></tr>
+                    <tr class="fw-bold"><td>Total cost</td><td class="text-end"><t t-out="sheet['cost']" t-options="money"/></td></tr>
+                    <tr class="fw-bold">
+                        <td>Profit · Margin</td>
+                        <td t-attf-class="text-end #{'text-danger' if sheet['profit'] &lt; 0 else 'text-success'}">
+                            <t t-out="sheet['profit']" t-options="money"/> · <t t-out="'%.1f' % sheet['margin']"/>%
+                        </td>
+                    </tr>
+                </table>
+            </div>
+        </div>
+        <p class="text-muted small">
+            Actual: a finished generator at its value in stock (each serial at its purchase price with landed costs, plus the overhead).
+            Estimated: a generator not finished yet, with the serials chosen for it or the part's cost.
+        </p>
+    </template>
+
+    <record id="action_report_cost_sheet" model="ir.actions.report">
+        <field name="name">Cost Sheet</field>
+        <field name="model">x4u.job.order</field>
+        <field name="report_type">qweb-pdf</field>
+        <field name="report_name">x4u_job_order.report_cost_sheet</field>
+        <field name="report_file">x4u_job_order.report_cost_sheet</field>
+        <field name="print_report_name">'Cost Sheet %s' % object.name</field>
+        <field name="binding_model_id" ref="model_x4u_job_order"/>
+        <field name="binding_type">report</field>
+        <field name="groups_id" eval="[Command.set([ref('account.group_account_invoice'), ref('account.group_account_readonly')])]"/>
+    </record>
+
+    <template id="report_cost_sheet">
+        <t t-call="web.html_container">
+            <t t-foreach="docs" t-as="job">
+                <t t-call="web.external_layout">
+                    <div class="page">
+                        <h2>Cost Sheet <span t-field="job.name"/></h2>
+                        <div class="row mt-3 mb-3">
+                            <div class="col-3"><strong>Sales Order</strong><div t-field="job.sale_order_id"/></div>
+                            <div class="col-3"><strong>Customer</strong><div t-field="job.partner_id"/></div>
+                            <div class="col-3" t-if="job.proforma_names"><strong>PI</strong><div t-field="job.proforma_names"/></div>
+                            <div class="col-3"><strong>Status</strong><div t-field="job.state"/></div>
+                        </div>
+                        <t t-call="x4u_job_order.cost_sheet_table">
+                            <t t-set="sheet" t-value="job._x4u_cost_sheet_values()"/>
+                        </t>
+                    </div>
+                </t>
+            </t>
+        </t>
+    </template>
+</odoo>

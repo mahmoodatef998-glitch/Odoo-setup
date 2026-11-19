@@ -63,6 +63,34 @@ class TestSetup4U(TransactionCase):
         self.assertEqual({pl.company_id for pl in pricelists.values()}, {company})
         self.assertFalse(self.env.ref("x4u_setup_4u.pricelist_contractors", raise_if_not_found=False))
 
+    # x4u_sale spec v0.8 A1: installation and transport are quoted "As requested" until priced
+    def test_as_requested(self):
+        installation = self.env.ref("x4u_setup_4u.product_installation")
+        transport = self.env.ref("x4u_setup_4u.product_transport")
+        self.assertTrue(installation.x4u_price_on_request)
+        self.assertTrue(transport.x4u_price_on_request)
+        self.assertFalse(self.env.ref("x4u_setup_4u.product_commissioning").x4u_price_on_request)
+        partner = self.env["res.partner"].create({"name": "X4U Test As Requested"})
+        order = self.env["sale.order"].create(
+            {
+                "partner_id": partner.id,
+                "sale_order_template_id": False,
+                "order_line": [Command.create({"product_id": installation.id, "price_unit": 0.0})],
+                "sale_order_option_ids": [
+                    Command.create({"product_id": transport.id, "name": "Transport", "price_unit": 0.0})
+                ],
+            }
+        )
+
+        def printed():
+            return self.env["ir.actions.report"]._render_qweb_html("sale.action_report_saleorder", order.ids)[0]
+
+        self.assertEqual(printed().count(b"As requested"), 3, "the line's price and amount, and the option")
+        order.order_line.price_unit = 750.0
+        html = printed()
+        self.assertEqual(html.count(b"As requested"), 1, "the option only")
+        self.assertIn(b"750.00", html)
+
     def test_invoice_numbers_carry_the_company(self):
         """4U-INV-<year>-0001 for invoices, 4U-CN-<year>-0001 for credit notes (06-accounting.md)."""
         self.assertEqual(self.env.company.x4u_document_prefix, "4U")

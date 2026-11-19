@@ -87,10 +87,25 @@ class X4uJobOrderDeliver(models.TransientModel):
         fitted = to_deliver.alternator_serial_id.sudo()
         if fitted:
             fitted.write({"state": "fitted", "production_id": production.id})
+            # Spec v0.12 J3: the row of the Serial tab shows what was delivered.
+            production.x4u_set_serials(x4u_alternator_id=fitted[:1].id)
             card = production.lot_producing_id.x4u_generator_id
             if card:
                 card.write({"alternator_serial": " / ".join(fitted.mapped("name"))})
         return {"type": "ir.actions.act_window_close"}
+
+    def _x4u_fill_chosen(self):
+        """Spec v0.12 J4: the serials chosen on the Serial tab, if they are still in stock."""
+        production = self.production_id
+        for field, roles in (("x4u_engine_lot_id", ("engine", "ckd")), ("x4u_body_lot_id", ("body",))):
+            lot = production[field]
+            line = self.line_ids.filtered(lambda l, r=roles: l.x4u_role in r and l.tracking == "serial")[:1]
+            if lot and line and lot in line.available_lot_ids:
+                line.write({"lot_id": lot.id, "quantity": 1.0})
+        alternator = production.x4u_alternator_id
+        line = self.line_ids.filtered(lambda l: l.x4u_role == "alternator")[:1]
+        if alternator and line and alternator in line.available_alternator_ids:
+            line.write({"alternator_serial_id": alternator.id, "quantity": 1.0})
 
 
 class X4uJobOrderDeliverLine(models.TransientModel):

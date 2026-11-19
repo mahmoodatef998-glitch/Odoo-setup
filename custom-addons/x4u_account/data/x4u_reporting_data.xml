@@ -7,6 +7,13 @@
         <field name="state">code</field>
         <field name="code">action = env["x4u.accounting.report"].action_x4u_mis("x4u_account.mis_instance_x4u_pl")</field>
     </record>
+    <!-- Spec §17 M2: this year's P&L, month by month -->
+    <record id="action_x4u_report_monthly_pl" model="ir.actions.server">
+        <field name="name">Monthly Profit and Loss</field>
+        <field name="model_id" ref="account.model_account_account"/>
+        <field name="state">code</field>
+        <field name="code">action = env["x4u.accounting.report"].action_x4u_monthly_pl()</field>
+    </record>
     <record id="action_x4u_report_bs" model="ir.actions.server">
         <field name="name">Balance Sheet</field>
         <field name="model_id" ref="account.model_account_account"/>

@@ -7,26 +7,34 @@
         <field name="model">sale.order</field>
         <field name="inherit_id" ref="sale.view_order_form"/>
         <field name="arch" type="xml">
-            <!-- Spec v0.7: the Salesperson sends the PO and the first payment, the Accountant checks
-                 the PO, records the payment and confirms (O2-O5); a PI per payment (O6). -->
+            <!-- Spec v0.7 / v0.8: the Salesperson makes the PI and sends the PO and the first payment,
+                 the Accountant checks the PO, records the payment and confirms (O2-O5, Q1-Q5). -->
             <!-- The quotation goes to the customer first (Send by Email, Preview, Print), as many times as
                  it changes; Send to Accountant comes once the customer agreed and paid: after the
                  sending buttons, blue only once the quotation was sent (the user, 2026-11-14). -->
             <xpath expr="//button[@name='action_preview_sale_order']" position="before">
+                <field name="x4u_proforma_id" invisible="1"/>
+                <!-- Q1: the customer agreed, the PI goes to him (blue once the quotation was sent). -->
+                <button name="action_x4u_create_proforma" type="object" string="Create PI" class="btn-primary"
+                        groups="sales_team.group_sale_salesman,account.group_account_invoice"
+                        invisible="state != 'sent' or x4u_proforma_id or x4u_po_check in ('to_check', 'match')"/>
+                <button name="action_x4u_create_proforma" type="object" string="Create PI"
+                        groups="sales_team.group_sale_salesman,account.group_account_invoice"
+                        invisible="state in ('sent', 'cancel') or x4u_proforma_id or (state == 'draft' and x4u_po_check in ('to_check', 'match'))"/>
                 <button name="action_x4u_send_to_accountant" type="object" string="Send to Accountant"
                         groups="sales_team.group_sale_salesman"
-                        invisible="state != 'draft' or x4u_po_check in ('to_check', 'match')"/>
+                        invisible="state not in ('draft', 'sent') or x4u_po_check in ('to_check', 'match') or (state == 'sent' and (x4u_proforma_id or not x4u_advance_due))"/>
                 <button name="action_x4u_send_to_accountant" type="object" string="Send to Accountant" class="btn-primary"
                         groups="sales_team.group_sale_salesman"
-                        invisible="state != 'sent' or x4u_po_check in ('to_check', 'match')"/>
+                        invisible="state != 'sent' or x4u_po_check in ('to_check', 'match') or (x4u_advance_due and not x4u_proforma_id)"/>
             </xpath>
-            <!-- Odoo's own "Send PRO-FORMA Invoice" sends the quotation as a pro-forma; the 4U PI is the
-                 Accountant's, for each payment (v0.7 O6): the Salesperson does not see it (2026-11-14). -->
+            <!-- Q8: Odoo's own "Send PRO-FORMA Invoice" sends the quotation as a pro-forma; the 4U PI is
+                 the one PI of the order (Create PI): Odoo's stays hidden, so there is one kind of PI. -->
             <xpath expr="//button[@id='send_proforma_primary']" position="attributes">
-                <attribute name="groups">account.group_account_invoice</attribute>
+                <attribute name="groups">base.group_no_one</attribute>
             </xpath>
             <xpath expr="//button[@id='send_proforma']" position="attributes">
-                <attribute name="groups">account.group_account_invoice</attribute>
+                <attribute name="groups">base.group_no_one</attribute>
             </xpath>
             <xpath expr="//button[@id='create_invoice']" position="before">
                 <button name="action_x4u_po_match" type="object" string="PO Matches Quotation" class="btn-primary"
@@ -60,7 +68,7 @@
             </xpath>
             <xpath expr="//div[@name='button_box']" position="inside">
                 <button name="action_x4u_view_proformas" type="object" class="oe_stat_button" icon="fa-file-text-o"
-                        groups="account.group_account_invoice,account.group_account_readonly" invisible="not x4u_proforma_count">
+                        invisible="not x4u_proforma_count">
                     <field name="x4u_proforma_count" widget="statinfo" string="PI"/>
                 </button>
                 <button name="action_x4u_view_advances" type="object" class="oe_stat_button" icon="fa-money"
@@ -82,6 +90,7 @@
                 <field name="x4u_lpo_attachment_ids" widget="many2many_binary"
                        readonly="state == 'sale' or x4u_po_check in ('to_check', 'match')"/>
                 <field name="x4u_advance_due" invisible="1"/>
+                <field name="x4u_proforma_id" string="PI" invisible="not x4u_proforma_id"/>
                 <field name="x4u_payment_proof_ids" widget="many2many_binary" readonly="state == 'cancel'"/>
                 <field name="x4u_po_check" widget="badge" invisible="not x4u_po_check"
                        decoration-success="x4u_po_check == 'match'" decoration-warning="x4u_po_check == 'to_check'"
@@ -138,6 +147,10 @@
                         domain="[('state', 'in', ('draft', 'sent')), ('x4u_po_check', 'in', ('to_check', 'match'))]"/>
                 <filter name="x4u_po_mismatch" string="Customer PO Doesn't Match" domain="[('x4u_po_check', '=', 'mismatch')]"/>
                 <separator/>
+            </xpath>
+            <!-- Q1: the order is found by its PI number. -->
+            <xpath expr="//field[@name='name']" position="after">
+                <field name="x4u_proforma_ids" string="PI" filter_domain="[('x4u_proforma_ids.name', 'ilike', self)]"/>
             </xpath>
         </field>
     </record>

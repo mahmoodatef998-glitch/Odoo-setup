@@ -15,9 +15,9 @@ READY_STATES = [
 class X4uReadyOrder(models.Model):
     """Ready Job Order (spec v0.7 G1-G6): a generator bought complete from a supplier, not assembled.
 
-    One per generator sold with Supply = Buy Ready. Its number (RG001) becomes the generator's serial
-    at the receipt, it goes to stock as a finished good, then to the customer. It has its own
-    analytic account like an assembled Job Order, so its margin shows the same way."""
+    One per generator sold with Supply = Buy Ready, in the Job Order of its sales order (spec v0.12 J2).
+    At the receipt the generator's serial is the serial of its engine (J10; RG001 before v0.12), it
+    goes to stock as a finished good, then to the customer. Its margin is the Job Order's (J7)."""
 
     _name = "x4u.ready.order"
     _description = "Ready Job Order"
@@ -27,6 +27,7 @@ class X4uReadyOrder(models.Model):
 
     name = fields.Char(string="Number", required=True, readonly=True, copy=False, default=lambda self: _("New"), index=True)
     sale_line_id = fields.Many2one("sale.order.line", string="Sales Line", readonly=True, index=True, ondelete="restrict")
+    job_id = fields.Many2one("x4u.job.order", string="Job Order", readonly=True, index="btree_not_null", ondelete="restrict")
     sale_order_id = fields.Many2one(related="sale_line_id.order_id", string="Sales Order", store=True, index=True)
     customer_id = fields.Many2one(
         related="sale_line_id.order_id.partner_id", string="Customer", store=True, index=True
@@ -71,6 +72,9 @@ class X4uReadyOrder(models.Model):
             return
         Account = self.env["account.analytic.account"].sudo()
         for order in self.sudo().filtered(lambda o: not o.analytic_account_id):
+            if order.job_id:
+                order.analytic_account_id = order.job_id._x4u_analytic()
+                continue
             partner = order.customer_id.commercial_partner_id
             order.analytic_account_id = Account.create(
                 {
@@ -148,7 +152,8 @@ class X4uReadyOrder(models.Model):
     def _x4u_received(self, lots, picking):
         """At the receipt: the serial with the order's number, the card filled, the Accountant told."""
         for order in self.sudo():
-            lot = lots.filtered(lambda l, o=order: l.name == o.name)[:1]
+            # J10: the serial is the engine's (the order's number on receipts made before v0.12).
+            lot = lots.filtered(lambda l, o=order: l.name in (o.name, o.engine_serial))[:1]
             if not lot or order.lot_id:
                 continue
             order.write({"lot_id": lot.id, "state": "in_stock"})

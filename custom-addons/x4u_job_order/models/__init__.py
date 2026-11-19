@@ -12,6 +12,10 @@ from . import x4u_generator
 from . import x4u_job_order_ckd
 from . import x4u_job_order_deliver
 from . import x4u_job_order_serials
+from . import x4u_job_order
+from . import x4u_job_order_ship
+from . import x4u_job_order_profit
+from . import account_move
 from . import report_serials
 from . import x4u_ready_order
 from . import x4u_ready_receipt

@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <!-- x4u_sale spec v0.8 A2: priced only when the customer asks (installation, transport). -->
+    <record id="product_template_form_view_x4u_price_on_request" model="ir.ui.view">
+        <field name="name">product.template.form.x4u.price.on.request</field>
+        <field name="model">product.template</field>
+        <field name="inherit_id" ref="sale.product_template_form_view"/>
+        <field name="arch" type="xml">
+            <field name="invoice_policy" position="after">
+                <field name="x4u_price_on_request" invisible="not sale_ok or type == 'combo'"/>
+            </field>
+        </field>
+    </record>
+</odoo>

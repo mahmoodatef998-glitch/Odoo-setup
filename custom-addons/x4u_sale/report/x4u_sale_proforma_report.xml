@@ -59,8 +59,15 @@
                         <tr t-foreach="order.order_line.filtered(lambda line: not line.display_type and not line.is_downpayment)" t-as="line">
                             <td><span t-field="line.name"/></td>
                             <td class="text-end"><span t-field="line.product_uom_qty"/> <span t-field="line.product_uom"/></td>
-                            <td class="text-end"><span t-field="line.price_unit"/></td>
-                            <td class="text-end"><span t-field="line.price_subtotal"/></td>
+                            <!-- v0.8 A1: installation, transport... with no price yet -->
+                            <t t-if="line._x4u_as_requested()">
+                                <td class="text-end">As requested</td>
+                                <td class="text-end">As requested</td>
+                            </t>
+                            <t t-else="">
+                                <td class="text-end"><span t-field="line.price_unit"/></td>
+                                <td class="text-end"><span t-field="line.price_subtotal"/></td>
+                            </t>
                         </tr>
                     </tbody>
                 </table>
@@ -112,19 +119,19 @@
                         </tr>
                     </tbody>
                 </table>
-                <!-- v0.7 O6: this PI is for a payment received; what is paid and what is left -->
+                <!-- v0.8 Q2: what the customer pays now, what is paid and what is left -->
                 <div class="row justify-content-end">
                     <div class="col-5">
                         <table class="table table-sm">
-                            <tr>
-                                <td>This payment, received <span t-field="o.date"/></td>
-                                <td class="text-end"><span t-field="o.amount_payment"/></td>
+                            <tr class="fw-bold" t-if="o.amount_due">
+                                <td>Amount Due Now</td>
+                                <td class="text-end"><span t-field="o.amount_due"/></td>
                             </tr>
-                            <tr>
+                            <tr t-if="o.amount_paid">
                                 <td>Paid to date</td>
                                 <td class="text-end"><span t-field="o.amount_paid"/></td>
                             </tr>
-                            <tr class="fw-bold">
+                            <tr>
                                 <td>Remaining</td>
                                 <td class="text-end"><span t-field="o.amount_remaining"/></td>
                             </tr>
@@ -141,7 +148,7 @@
                         <span t-if="bank.bank_id.bic"> · SWIFT <span t-field="bank.bank_id.bic"/></span>
                     </div>
                 </div>
-                <p class="mt-3">Thank you for your payment. Please quote <strong t-field="order.name"/> with the next one. The tax invoice of the whole order is issued by our accounts department.</p>
+                <p class="mt-3">Please quote <strong t-field="o.name"/> with your payment. The tax invoice is issued by our accounts department.</p>
             </div>
         </t>
     </template>

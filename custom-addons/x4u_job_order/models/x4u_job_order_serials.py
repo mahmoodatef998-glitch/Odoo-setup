@@ -48,15 +48,25 @@ class X4uJobOrderDeliverAll(models.TransientModel):
                 continue
 
             def first(roles, moves=moves):
-                return moves.filtered(lambda m: m.x4u_role in roles)[:1].id
+                return moves.filtered(lambda m: m.x4u_role in roles)[:1]
 
+            engine, alternator, body = first(("engine", "ckd")), first(("alternator",)), first(("body",))
+            # Spec v0.12 J4: filled with the serials chosen on the Serial tab, if still free.
+            chosen_engine = production.x4u_engine_lot_id if production.x4u_engine_lot_id in free_lots(self.env, engine) else False
+            chosen_body = production.x4u_body_lot_id if production.x4u_body_lot_id in free_lots(self.env, body) else False
+            chosen_alternator = production.x4u_alternator_id.filtered(
+                lambda s, a=alternator: s.state == "in_stock" and s.product_id == a.product_id
+            )
             lines.append(
                 Command.create(
                     {
                         "production_id": production.id,
-                        "engine_move_id": first(("engine", "ckd")),
-                        "alternator_move_id": first(("alternator",)),
-                        "body_move_id": first(("body",)),
+                        "engine_move_id": engine.id,
+                        "engine_lot_id": chosen_engine and chosen_engine.id,
+                        "alternator_move_id": alternator.id,
+                        "alternator_serial_id": chosen_alternator[:1].id,
+                        "body_move_id": body.id,
+                        "body_lot_id": chosen_body and chosen_body.id,
                     }
                 )
             )
@@ -149,8 +159,12 @@ class X4uJobOrderFinish(models.TransientModel):
 
     _name = "x4u.job.order.finish"
     _description = "Finish Job Order: Serials Fitted"
+    _order = "production_id"
 
+    # Spec v0.12 J4: a line of Finish on the Job Order, one per generator.
+    batch_id = fields.Many2one("x4u.job.order.finish.all", ondelete="cascade")
     production_id = fields.Many2one("mrp.production", string="Job Order", required=True, readonly=True)
+    product_id = fields.Many2one(related="production_id.product_id", string="Model")
     engine_move_id = fields.Many2one("stock.move", readonly=True)
     engine_product_id = fields.Many2one(related="engine_move_id.product_id", string="Engine / CKD")
     available_engine_lot_ids = fields.Many2many("stock.lot", compute="_compute_available")
@@ -167,7 +181,8 @@ class X4uJobOrderFinish(models.TransientModel):
     body_lot_id = fields.Many2one("stock.lot", string="Canopy Serial")
 
     @api.model
-    def _x4u_action(self, production):
+    def _x4u_values(self, production):
+        """The serials fitted in the generator, filled with what was delivered to it."""
         production._x4u_reserve_delivered_parts()
         raw = production.move_raw_ids.filtered(lambda m: m.state not in ("done", "cancel"))
 
@@ -177,17 +192,19 @@ class X4uJobOrderFinish(models.TransientModel):
         engine, alternator, body = first(("engine", "ckd")), first(("alternator",)), first(("body",))
         card = production.lot_producing_id.sudo().x4u_generator_id
         fitted = self.env["x4u.alternator.serial"].sudo().search([("production_id", "=", production.id)], limit=1)
-        wizard = self.create(
-            {
-                "production_id": production.id,
-                "engine_move_id": engine.id,
-                "engine_lot_id": (engine.move_line_ids.lot_id[:1] or card.x4u_engine_lot_id).id if engine.has_tracking == "serial" else False,
-                "alternator_move_id": alternator.id,
-                "alternator_serial_id": fitted.id,
-                "body_move_id": body.id,
-                "body_lot_id": (body.move_line_ids.lot_id[:1] or card.x4u_body_lot_id).id if body.has_tracking == "serial" else False,
-            }
-        )
+        return {
+            "production_id": production.id,
+            "engine_move_id": engine.id,
+            "engine_lot_id": (engine.move_line_ids.lot_id[:1] or card.x4u_engine_lot_id).id if engine.has_tracking == "serial" else False,
+            "alternator_move_id": alternator.id,
+            "alternator_serial_id": fitted.id,
+            "body_move_id": body.id,
+            "body_lot_id": (body.move_line_ids.lot_id[:1] or card.x4u_body_lot_id).id if body.has_tracking == "serial" else False,
+        }
+
+    @api.model
+    def _x4u_action(self, production):
+        wizard = self.create(self._x4u_values(production))
         return {
             "type": "ir.actions.act_window",
             "name": _("Finish Job Order · %s", production.name),
@@ -237,3 +254,43 @@ class X4uJobOrderFinish(models.TransientModel):
         for other in others - production:
             other._x4u_card_parts(other.move_raw_ids.filtered(lambda m: m.state not in ("done", "cancel")))
         return production._x4u_finish()
+
+
+class X4uJobOrderFinishAll(models.TransientModel):
+    """Spec v0.12 J4: Finish on the Job Order, a line per generator whose parts are delivered. Each
+    line is Finish Job Order of its generator (D2): the serials fitted, swapped if the factory
+    mixed them between two generators."""
+
+    _name = "x4u.job.order.finish.all"
+    _description = "Finish the Generators of a Job Order"
+
+    line_ids = fields.One2many("x4u.job.order.finish", "batch_id", string="Generators")
+
+    @api.model
+    def _x4u_action(self, productions):
+        Line = self.env["x4u.job.order.finish"]
+        wizard = self.create(
+            {"line_ids": [Command.create(Line._x4u_values(production)) for production in productions.sorted("name")]}
+        )
+        return {
+            "type": "ir.actions.act_window",
+            "name": _("Finish"),
+            "res_model": self._name,
+            "res_id": wizard.id,
+            "view_mode": "form",
+            "target": "new",
+        }
+
+    def action_confirm(self):
+        self.ensure_one()
+        lots = Counter(lot for line in self.line_ids for lot in (line.engine_lot_id, line.body_lot_id) if lot)
+        alternators = Counter(line.alternator_serial_id for line in self.line_ids if line.alternator_serial_id)
+        twice = [record.name for record, count in list(lots.items()) + list(alternators.items()) if count > 1]
+        if twice:
+            raise UserError(_("Chosen for two generators: %s", ", ".join(twice)))
+        result = True
+        for line in self.line_ids:
+            res = line.action_confirm()
+            if isinstance(res, dict) and result is True:
+                result = res
+        return result if isinstance(result, dict) else {"type": "ir.actions.act_window_close"}

@@ -7,6 +7,7 @@ from odoo.tools import float_compare
 from .serial_search import serial_domain
 from .stock_move import part_role
 from .x4u_job_order_event import SINGLE_EVENTS
+from .x4u_job_order_serials import free_lots
 
 JOB_STATES = [
     ("waiting_parts", "Waiting Parts"),
@@ -34,6 +35,14 @@ CKD_REPLACES = ("engine", "alternator")
 # Spec v0.5 A3: the margin counts P&L accounts only. With Anglo-Saxon, Odoo also puts the analytic
 # on the cost of sales' balance-sheet side (Goods Delivered Not Invoiced), which would cancel it.
 PROFIT_DOMAIN = [("general_account_id.internal_group", "in", ("income", "expense"))]
+# Spec v0.12 J3: the serials chosen for a generator on the Serial tab of its Job Order, until its parts
+# are delivered; then what was delivered (and changed at Finish).
+SERIAL_FIELDS = {
+    "x4u_engine_lot_id": ("engine", "ckd"),
+    "x4u_body_lot_id": ("body",),
+    "x4u_alternator_id": ("alternator",),
+}
+OPEN_STATES = ("waiting_parts", "parts_ready")
 
 
 class MrpProduction(models.Model):
@@ -42,6 +51,24 @@ class MrpProduction(models.Model):
     x4u_is_job_order = fields.Boolean(
         string="Is Job Order", compute="_compute_x4u_is_job_order", store=True, index=True
     )
+    # Spec v0.12 J1 / J2: the order's Job Order (MO020) this generator (MO020/1) belongs to.
+    x4u_job_id = fields.Many2one("x4u.job.order", string="Job Order", readonly=True, index="btree_not_null", ondelete="restrict")
+    x4u_engine_lot_id = fields.Many2one(
+        "stock.lot", string="Engine / CKD Serial", copy=False, tracking=True,
+        domain="[('id', 'in', x4u_engine_lot_ids)]",
+    )
+    x4u_alternator_id = fields.Many2one(
+        "x4u.alternator.serial", string="Alternator Serial", copy=False, tracking=True,
+        domain="[('id', 'in', x4u_alternator_ids)]",
+    )
+    x4u_body_lot_id = fields.Many2one(
+        "stock.lot", string="Canopy Serial", copy=False, tracking=True, domain="[('id', 'in', x4u_body_lot_ids)]"
+    )
+    x4u_engine_lot_ids = fields.Many2many("stock.lot", compute="_compute_x4u_serial_choices")
+    x4u_alternator_ids = fields.Many2many("x4u.alternator.serial", compute="_compute_x4u_serial_choices")
+    x4u_body_lot_ids = fields.Many2many("stock.lot", compute="_compute_x4u_serial_choices")
+    x4u_serials_editable = fields.Boolean(compute="_compute_x4u_serial_choices")
+    x4u_generator_serial = fields.Char(related="lot_producing_id.name", string="Generator Serial")
     # Spec v0.5 A1: the Job Order's own analytic account, so its revenue, cost of sales and
     # direct costs give its margin (x4u_account spec §15).
     x4u_analytic_account_id = fields.Many2one(
@@ -114,6 +141,80 @@ class MrpProduction(models.Model):
         help="Red: WH/Stock is short of a part this Job Order still needs. Green: every part is in "
         "stock or delivered. Other Job Orders are not counted: the first one delivered takes the parts.",
     )
+
+    # ------------------------------------------------------------------
+    # The serials of the Serial tab (spec v0.12 J3)
+    # ------------------------------------------------------------------
+    def _x4u_part_moves(self, roles):
+        """The raw move of the part and its Pick Components move still to do."""
+        self.ensure_one()
+        raw = self.move_raw_ids.filtered(lambda m: m.state != "cancel" and m.x4u_role in roles)[:1]
+        pick = raw.move_orig_ids.filtered(lambda m: m.state not in ("done", "cancel"))[:1]
+        return raw, pick
+
+    def _x4u_free_serials(self, field):
+        """What can be chosen for this generator: in WH/Stock and not chosen for another one."""
+        self.ensure_one()
+        raw, pick = self._x4u_part_moves(SERIAL_FIELDS[field])
+        others = self.sudo().search(
+            [("id", "!=", self._origin.id or 0), (field, "!=", False), ("x4u_job_state", "in", OPEN_STATES)]
+        ).mapped(field)
+        if field == "x4u_alternator_id":
+            if not raw:
+                return self.env["x4u.alternator.serial"]
+            serials = self.env["x4u.alternator.serial"].sudo().search(
+                [("product_id", "=", raw.product_id.id), ("state", "=", "in_stock")]
+            )
+            return serials - others
+        if not pick or pick.has_tracking != "serial":
+            return self.env["stock.lot"]
+        return free_lots(self.env, pick) - others
+
+    @api.depends("x4u_job_state", "move_raw_ids.state", "move_raw_ids.product_id", "move_raw_ids.move_orig_ids.state")
+    @api.depends_context("uid")
+    def _compute_x4u_serial_choices(self):
+        for production in self:
+            editable = production.x4u_is_job_order and production.x4u_job_state in OPEN_STATES
+            # The Operation Manager or the General Manager chooses them; the others see them.
+            production.x4u_serials_editable = editable and self.env.user.has_group("mrp.group_mrp_user")
+            for field in SERIAL_FIELDS:
+                choices = production._x4u_free_serials(field) if editable else production[field].browse()
+                production[field + "s" if field != "x4u_alternator_id" else "x4u_alternator_ids"] = choices | production[field]
+
+    def _x4u_check_serials(self, vals):
+        """J3: chosen until the parts are delivered, from what is free in stock, for one generator."""
+        for production in self:
+            if not production.x4u_is_job_order or production.x4u_job_state not in OPEN_STATES:
+                raise UserError(
+                    _("%s: its parts are delivered, a serial changes at Finish Job Order.", production.name)
+                )
+            for field in SERIAL_FIELDS.keys() & vals.keys():
+                value = production[field].browse(vals[field])
+                if value and value not in production._x4u_free_serials(field):
+                    raise UserError(
+                        _(
+                            "%(serial)s can't go in %(job)s: it is not in stock, not this part, or chosen for another generator.",
+                            serial=value.name,
+                            job=production.name,
+                        )
+                    )
+
+    def write(self, vals):
+        if SERIAL_FIELDS.keys() & vals.keys() and not self.env.context.get("x4u_serial_sync"):
+            self._x4u_check_serials(vals)
+        return super().write(vals)
+
+    def x4u_set_serials(self, **values):
+        """What was delivered or fitted, written by the system (no J3 check)."""
+        self.with_context(x4u_serial_sync=True).sudo().write(values)
+
+    def action_x4u_open(self):
+        self.ensure_one()
+        return {"type": "ir.actions.act_window", "res_model": self._name, "res_id": self.id, "view_mode": "form"}
+
+    def action_x4u_open_job(self):
+        self.ensure_one()
+        return {"type": "ir.actions.act_window", "res_model": "x4u.job.order", "res_id": self.x4u_job_id.id, "view_mode": "form"}
 
     @api.model
     def _read_group_x4u_job_state(self, values, domain):
@@ -405,6 +506,25 @@ class MrpProduction(models.Model):
     # ------------------------------------------------------------------
     @api.model_create_multi
     def create(self, vals_list):
+        """Spec v0.12 J1 / J2: a generator goes in the Job Order of its sales order and takes its
+        number: MO020/1, MO020/2. One opened by hand gets a Job Order of its own."""
+        Job = self.env["x4u.job.order"].sudo()
+        counters = {}
+        for vals in vals_list:
+            product = self.env["product.product"].browse(vals.get("product_id"))
+            if not product.x4u_is_generator or (vals.get("name") and vals["name"] != _("New")):
+                continue
+            if not vals.get("x4u_job_id"):
+                company_id = vals.get("company_id") or self.env.company.id
+                picking_type = self.env["stock.picking.type"].browse(
+                    vals.get("picking_type_id") or self._get_default_picking_type_id(company_id)
+                )
+                vals["x4u_job_id"] = Job.create({"name": Job._x4u_next_name(picking_type), "company_id": company_id}).id
+            job = Job.browse(vals["x4u_job_id"])
+            if job.id not in counters:
+                counters[job.id] = len(job.with_context(active_test=False).production_ids)
+            counters[job.id] += 1
+            vals["name"] = "%s/%s" % (job.name, counters[job.id])
         productions = super().create(vals_list)
         for production in productions.filtered("x4u_is_job_order"):
             production._x4u_log("job_order_created", document=production)
@@ -428,6 +548,10 @@ class MrpProduction(models.Model):
         for production in jobs.sudo():
             partner = production.x4u_customer_id.commercial_partner_id
             account = production.x4u_analytic_account_id
+            if not account and production.x4u_job_id:
+                # Spec v0.12 J7: one account for the order's Job Order.
+                account = production.x4u_job_id._x4u_analytic()
+                production.x4u_analytic_account_id = account
             if not account:
                 account = Account.search(
                     [("plan_id", "=", plan.id), ("code", "=", production.name),
@@ -564,6 +688,8 @@ class MrpProduction(models.Model):
             production._x4u_log("finished", document=production, date=production.date_finished)
         finished._x4u_card_parts()
         finished._x4u_ask_final_invoice()
+        # Spec v0.14 H5: the order's figures, now that this generator has its value.
+        finished.x4u_job_id._x4u_refresh_profitability()
         return res
 
     def _x4u_card_parts(self, moves=None):
@@ -580,11 +706,30 @@ class MrpProduction(models.Model):
             engine = source.filtered(lambda m: m.x4u_role in ("engine", "ckd")).move_line_ids.lot_id
             if len(engine) == 1:
                 vals.update(x4u_engine_lot_id=engine.id, engine_serial=engine.name)
+                production.x4u_set_serials(x4u_engine_lot_id=engine.id)
+                production._x4u_serial_from_engine(engine)
             body = source.filtered(lambda m: m.x4u_role == "body").move_line_ids.lot_id
             if len(body) == 1:
                 vals.update(x4u_body_lot_id=body.id, x4u_body_serial=body.name)
+                production.x4u_set_serials(x4u_body_lot_id=body.id)
             if vals:
                 card.write(vals)
+
+    def _x4u_serial_from_engine(self, engine):
+        """Spec v0.12 J9: the generator's serial is its engine's (a CKD has the engine's serial).
+        Another generator of the same model that still wears it (serials swapped at Finish) takes
+        its own Job Order number back until its own engine is known."""
+        self.ensure_one()
+        lot = self.lot_producing_id.sudo()
+        if not lot or not engine or lot.name == engine.name:
+            return
+        Lot = self.env["stock.lot"].sudo()
+        for other in Lot.search([("product_id", "=", lot.product_id.id), ("name", "=", engine.name), ("id", "!=", lot.id)]):
+            holder = self.sudo().search([("lot_producing_id", "=", other.id)], limit=1)
+            if not holder or holder.state in ("done", "cancel"):
+                raise UserError(_("Generator serial %s is already used by another generator.", engine.name))
+            other.name = holder.name
+        lot.name = engine.name
 
     def _x4u_ask_final_invoice(self):
         """x4u_sale spec §6 S10: every generator of an order paid before delivery is ready,
@@ -613,7 +758,11 @@ class MrpProduction(models.Model):
             quantity = sum(move.product_uom._compute_quantity(move.quantity, move.product_id.uom_id) for move in finished)
             if quantity:
                 parts = -sum(consumed_moves.sudo().stock_valuation_layer_ids.mapped("value"))
-                rate = float(self.env["ir.config_parameter"].sudo().get_param("x4u_job_order.overhead_percent") or 0.0)
+                # Spec v0.14 H1: the rate of its Job Order (the Accountant's), else the general one.
+                job = production.x4u_job_id
+                rate = job.overhead_percent if job else float(
+                    self.env["ir.config_parameter"].sudo().get_param("x4u_job_order.overhead_percent") or 0.0
+                )
                 production.extra_cost = parts * rate / 100 / quantity
         return super()._cal_price(consumed_moves)
 
@@ -633,6 +782,7 @@ class MrpProduction(models.Model):
                 "line_ids": [Command.create(values) for values in Wizard._x4u_line_values(moves)],
             }
         )
+        wizard._x4u_fill_chosen()
         return {
             "type": "ir.actions.act_window",
             "name": _("Deliver Materials · %s", self.name),
@@ -847,11 +997,15 @@ class MrpProduction(models.Model):
             return self.browse()
         other = serial.production_id
         serial.write({"state": "fitted", "production_id": self.id})
+        self.x4u_set_serials(x4u_alternator_id=serial.id)
         if mine:
             if other and other.state not in ("done", "cancel"):
                 mine.write({"production_id": other.id})
+                other.x4u_set_serials(x4u_alternator_id=mine[:1].id)
             else:
                 mine.write({"state": "in_stock", "production_id": False})
+        elif other:
+            other.x4u_set_serials(x4u_alternator_id=False)
         # The cards of both generators show their alternator serials again.
         (serial | mine)._x4u_write_on_card()
         return other

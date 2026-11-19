@@ -1,15 +1,40 @@
 from odoo import Command, _, models
+from odoo.exceptions import UserError
 
 
 class StockPicking(models.Model):
     _inherit = "stock.picking"
 
     def _action_done(self):
+        if not self.env.context.get("x4u_invoice_delivery"):
+            self._x4u_check_paid_delivery()
         unpaid = self._x4u_unpaid_generator_sales()
         res = super()._action_done()
         self._x4u_log_job_orders()
         self._x4u_log_delivered_before_payment(unpaid)
         return res
+
+    def _x4u_check_paid_delivery(self):
+        """Spec v0.13 L1: paid before delivery, the goods delivered before the tax invoice stay
+        within what was paid on the PI, however they are delivered."""
+        for order in self.sudo().sale_id:
+            if not order._x4u_delivery_within_paid():
+                continue
+            moves = self.sudo().move_ids.filtered(
+                lambda m, o=order: m.picking_id.sale_id == o
+                and m.picking_id.location_dest_id.usage == "customer"
+                and m.picked
+                and m.state not in ("done", "cancel")
+                and m.sale_line_id
+            )
+            if not moves:
+                continue
+            value = order._x4u_delivered_value() + sum(
+                order._x4u_unit_total(move.sale_line_id) * move.product_uom._compute_quantity(move.quantity, move.sale_line_id.product_uom)
+                for move in moves
+            )
+            if order.currency_id.compare_amounts(value, order._x4u_amount_received()) > 0:
+                raise UserError(order._x4u_over_paid_message(value))
 
     # ------------------------------------------------------------------
     # Delivered before the final invoice is paid: allowed, written on the order
@@ -81,8 +106,9 @@ class StockPicking(models.Model):
                     order.message_post(body=_("Delivered to the customer in %s.", picking.name))
             if picking.picking_type_code == "incoming":
                 received = moves.filtered(lambda m: m.product_id.x4u_is_generator).move_line_ids.lot_id
+                names = received.mapped("name")
                 orders = self.env["x4u.ready.order"].sudo().search(
-                    [("name", "in", received.mapped("name")), ("state", "=", "waiting")]
+                    ["|", ("name", "in", names), ("engine_serial", "in", names), ("state", "=", "waiting")]
                 )
                 orders._x4u_received(received, picking)
 
@@ -92,7 +118,19 @@ class StockPicking(models.Model):
             orders = self._x4u_ready_orders_received().filtered(lambda order: not order.engine_serial)
             if orders:
                 return self._x4u_ask_ready_serials(orders)
+        self._x4u_ready_lot_names()
         return super().button_validate()
+
+    def _x4u_ready_lot_names(self):
+        """Spec v0.12 J10: a ready generator comes in with the serial of its engine as its serial."""
+        Ready = self.env["x4u.ready.order"].sudo()
+        lines = self.filtered(lambda p: p.picking_type_code == "incoming" and p.state not in ("done", "cancel")).move_ids.filtered(
+            lambda m: m.product_id.x4u_is_generator and m.state not in ("done", "cancel")
+        ).move_line_ids.filtered("lot_name")
+        for line in lines:
+            order = Ready.search([("name", "=", line.lot_name), ("state", "=", "waiting"), ("engine_serial", "!=", False)], limit=1)
+            if order:
+                line.lot_name = order.engine_serial
 
     def _x4u_ready_orders_received(self):
         """Ready Job Orders whose generator these receipts bring in (by its RG serial)."""
@@ -102,7 +140,9 @@ class StockPicking(models.Model):
         names = [name for name in lines.mapped("lot_name") + lines.lot_id.mapped("name") if name]
         if not names:
             return self.env["x4u.ready.order"]
-        return self.env["x4u.ready.order"].sudo().search([("name", "in", names), ("state", "=", "waiting")])
+        return self.env["x4u.ready.order"].sudo().search(
+            ["|", ("name", "in", names), ("engine_serial", "in", names), ("state", "=", "waiting")]
+        )
 
     def _x4u_ask_ready_serials(self, orders):
         """Spec v0.8 N7: the engine serial of each ready generator before it comes in."""

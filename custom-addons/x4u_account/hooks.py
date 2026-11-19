@@ -126,6 +126,7 @@ def x4u_setup(env):
         _pdc_received(env, company)
         _fiscal_years(env, company)
         _budget_report(env, company)
+        _monthly_pl(env, company)
     env["res.config.settings"].create(STATEMENT_SETTINGS).execute()
     # The OCA job that posts the depreciation lines that are due (it ships inactive).
     cron = env.ref("account_asset_management.ir_cron_assets_generator", raise_if_not_found=False)
@@ -163,6 +164,56 @@ def _pdc_received(env, company):
 
 
 BUDGET_REPORT_NAME = "4U P&L vs Budget"
+MONTHLY_PL_NAME = "4U Monthly P&L %s"
+
+
+def _monthly_pl(env, company, day=None):
+    """Spec §17 M1: the 4U P&L of the fiscal year that has `day` (today), a column per month and its
+    total. Made once per year; the Accountant may change its columns."""
+    report = env.ref("x4u_account.mis_report_x4u_pl", raise_if_not_found=False)
+    if not report:
+        return env["mis.report.instance"]
+    day = day or fields.Date.context_today(company)
+    dates = company.compute_fiscalyear_dates(day)
+    start, end = dates["date_from"], dates["date_to"]
+    name = MONTHLY_PL_NAME % (end.year if start.year == end.year else "%s-%s" % (start.year, end.year))
+    Instance = env["mis.report.instance"].sudo()
+    instance = Instance.search([("name", "=", name), ("company_id", "in", (company.id, False))], limit=1)
+    if instance:
+        return instance
+    periods = []
+    month = start
+    sequence = 10
+    while month <= end:
+        last = min(month + relativedelta(months=1, days=-1), end)
+        periods.append(
+            Command.create(
+                {
+                    "name": month.strftime("%b %Y"),
+                    "sequence": sequence,
+                    "mode": "fix",
+                    "manual_date_from": month,
+                    "manual_date_to": last,
+                }
+            )
+        )
+        month += relativedelta(months=1)
+        sequence += 10
+    periods.append(
+        Command.create(
+            {"name": "Total", "sequence": sequence, "mode": "fix", "manual_date_from": start, "manual_date_to": end}
+        )
+    )
+    return Instance.create(
+        {
+            "name": name,
+            "report_id": report.id,
+            "company_id": company.id,
+            "comparison_mode": True,
+            "display_columns_description": True,
+            "period_ids": periods,
+        }
+    )
 
 
 def _budget_report(env, company):

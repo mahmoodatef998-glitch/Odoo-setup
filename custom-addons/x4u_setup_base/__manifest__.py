@@ -3,7 +3,7 @@
     "summary": "Shared 4U / ATA setup: settings, categories, units, "
     "generator attributes, CRM stages, payment terms, document numbering, "
     "purchase approval to-do",
-    "version": "18.0.1.0.6",
+    "version": "18.0.1.0.7",
     "category": "Hidden",
     "license": "LGPL-3",
     "author": "4U Power Generation FZC",
@@ -23,6 +23,9 @@
         "data/payment_term_data.xml",
         "data/mail_activity_type_data.xml",
         "views/res_company_views.xml",
+        # x4u_sale spec v0.8 A1: installation and transport quoted "As requested".
+        "views/product_template_views.xml",
+        "report/sale_report_templates.xml",
     ],
     "post_init_hook": "post_init_hook",
     "installable": True,

@@ -25,20 +25,26 @@ class StockLot(models.Model):
 
     def write(self, vals):
         renamed = self.browse()
+        old_names = {}
         if "name" in vals:
             renamed = self.filtered(lambda lot: lot.name != vals["name"])
             check_edit_serials(self.env, renamed.mapped("name"))
+            old_names = {lot.id: lot.name for lot in renamed}
         res = super().write(vals)
         if renamed:
-            renamed._x4u_follow_serial()
+            renamed._x4u_follow_serial(old_names)
         return res
 
-    def _x4u_follow_serial(self):
+    def _x4u_follow_serial(self, old_names=None):
         """Spec v0.9 E3: the generator card's Engine Serial and Body Serial follow their engine (or
         CKD) and body (the card's own Serial No and the Ready Job Order link the serial, so they
-        follow by themselves)."""
+        follow by themselves). Spec v0.12 J9: so does the generator's serial, when it is the engine's."""
         Card = self.env["x4u.generator"].sudo()
+        old_names = old_names or {}
         for card in Card.search([("x4u_engine_lot_id", "in", self.ids)]):
-            card.engine_serial = card.x4u_engine_lot_id.name
+            engine = card.x4u_engine_lot_id
+            card.engine_serial = engine.name
+            if card.lot_id and card.lot_id.name == old_names.get(engine.id):
+                card.lot_id.name = engine.name
         for card in Card.search([("x4u_body_lot_id", "in", self.ids)]):
             card.x4u_body_serial = card.x4u_body_lot_id.name

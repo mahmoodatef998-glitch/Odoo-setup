@@ -13,7 +13,9 @@ class TestJobOrder(X4uJobOrderCommon):
     def test_sale_opens_job_order(self):
         order, production = self._sell()
         self.assertEqual(len(production), 1)
-        self.assertRegex(production.name, r"^MO\d{3,}$")
+        # Spec v0.12 J2: the generator is MO020/1 in the order's Job Order MO020.
+        self.assertRegex(production.x4u_job_id.name, r"^MO\d{3,}$")
+        self.assertEqual(production.name, "%s/1" % production.x4u_job_id.name)
         self.assertEqual(production.x4u_sale_order_id, order)
         self.assertEqual(production.x4u_job_state, "waiting_parts")
         self.assertEqual(
@@ -318,6 +320,20 @@ class TestJobOrder(X4uJobOrderCommon):
         self.assertEqual(len(todo), 1)
         self.assertIn("tax invoice of %s" % order.name, todo.summary)
         self.assertFalse(order.x4u_final_invoice_paid)
+        # Spec v0.13 L1 (instead of S11): nothing paid, nothing leaves before the tax invoice.
+        with self.assertRaisesRegex(UserError, "paid before delivery"):
+            delivery.with_user(self.storekeeper).button_validate()
+        payment = self.env["account.payment"].create(
+            {
+                "payment_type": "inbound",
+                "partner_type": "customer",
+                "partner_id": order.partner_id.id,
+                "amount": order.amount_total,
+                "x4u_sale_order_id": order.id,
+            }
+        )
+        payment.action_post()
+        # Paid in advance, the tax invoice still to come: it leaves, and the order says so.
         delivery.with_user(self.storekeeper).button_validate()
         self.assertEqual(delivery.state, "done")
         self.assertTrue(
@@ -339,7 +355,7 @@ class TestJobOrder(X4uJobOrderCommon):
         account = production.x4u_analytic_account_id
         self.assertTrue(account)
         self.assertEqual(account.plan_id, self.env.ref("x4u_job_order.analytic_plan_job_orders"))
-        self.assertEqual(account.code, production.name)
+        self.assertEqual(account.code, production.x4u_job_id.name, "v0.12 J7: the Job Order's account")
         self.assertEqual(account.partner_id, self.customer)
         self.assertEqual(order.order_line.analytic_distribution, {str(account.id): 100.0})
         self.assertTrue(self.env.user.has_group("analytic.group_analytic_accounting"))
@@ -396,6 +412,7 @@ class TestJobOrder(X4uJobOrderCommon):
         self.assertAlmostEqual(gdni, 0.0, msg="Goods Delivered Not Invoiced closes")
         self.assertAlmostEqual(production.x4u_job_margin, 10000.0 - 2160.0, msg="the Job Order's margin sees the cost")
 
+    # v0.12 J7: two generators of one line, one Job Order: one account for the whole line
     def test_two_generators_share_the_line(self):
         order = self.env["sale.order"].create(
             {
@@ -406,5 +423,5 @@ class TestJobOrder(X4uJobOrderCommon):
         )
         order.action_confirm()
         accounts = order.mrp_production_ids.x4u_analytic_account_id
-        self.assertEqual(len(accounts), 2)
-        self.assertEqual(order.order_line.analytic_distribution, {str(a.id): 50.0 for a in accounts})
+        self.assertEqual(accounts, order.x4u_job_ids.analytic_account_id)
+        self.assertEqual(order.order_line.analytic_distribution, {str(accounts.id): 100.0})

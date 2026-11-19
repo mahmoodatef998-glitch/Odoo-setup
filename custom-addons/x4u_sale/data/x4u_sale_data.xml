@@ -51,7 +51,7 @@
             <field name="sequence">7</field>
         </record>
 
-        <!-- S6: the Accountant sends the PI (from his own address). -->
+        <!-- v0.8 Q2: the Salesperson sends the PI (from his own address). -->
         <record id="mail_template_proforma" model="mail.template">
             <field name="name">PI: send by email</field>
             <field name="model_id" ref="model_x4u_sale_proforma"/>
@@ -66,14 +66,13 @@
     <p style="margin: 0px; padding: 0px; font-size: 13px;">
         Dear <t t-out="object.order_id.partner_invoice_id.name or ''">Customer</t>,
         <br/><br/>
-        Thank you for your payment of <strong t-out="format_amount(object.amount_payment, object.currency_id) or ''">AED 15,750.00</strong>
-        for sales order <t t-out="object.order_id.name or ''">S001</t>.
-        Please find attached proforma invoice <strong t-out="object.name or ''">S001-PI1</strong>:
-        paid to date <t t-out="format_amount(object.amount_paid, object.currency_id) or ''">AED 15,750.00</t>
-        of <t t-out="format_amount(object.amount_total, object.currency_id) or ''">AED 52,500.00</t>,
-        remaining <strong t-out="format_amount(object.amount_remaining, object.currency_id) or ''">AED 36,750.00</strong>.
+        Please find attached proforma invoice <strong t-out="object.name or ''">S001-PI</strong>
+        for sales order <t t-out="object.order_id.name or ''">S001</t>:
+        total <t t-out="format_amount(object.amount_total, object.currency_id) or ''">AED 52,500.00</t>,
+        amount due now <strong t-out="format_amount(object.amount_due, object.currency_id) or ''">AED 26,250.00</strong>.
+        Please quote <t t-out="object.name or ''">S001-PI</t> with your payment.
         <br/><br/>
-        This is not a tax invoice: the tax invoice of the whole order follows.
+        This is not a tax invoice: the tax invoice follows.
         <br/><br/>
         Best regards,
     </p>
