@@ -175,9 +175,9 @@ class TestCkd(X4uJobOrderCommon):
     def test_job_order_shows_its_pi(self):
         order, production = self._sell()
         self.assertFalse(production.x4u_proforma_names)
-        self.env["x4u.sale.proforma"].create({"order_id": order.id})
-        self.assertEqual(production.x4u_proforma_names, "%s-PI" % order.name)
-        found = self.env["mrp.production"].search([("x4u_proforma_names", "ilike", "%s-PI" % order.name)])
+        proforma = self.env["x4u.sale.proforma"].create({"order_id": order.id})
+        self.assertEqual(production.x4u_proforma_names, proforma.name)
+        found = self.env["mrp.production"].search([("x4u_proforma_names", "ilike", proforma.name)])
         self.assertEqual(found, production)
 
     # T34 (v0.10 B1-B3): the body goes by its serial too: in at the receipt, out at Deliver Materials,
@@ -240,5 +240,5 @@ class TestCkd(X4uJobOrderCommon):
             self.assertEqual(Production.search([("x4u_serial_search", "ilike", serial)]), production, serial)
             self.assertEqual(Card.search([("x4u_serial_search", "ilike", serial)]), card, serial)
         self.assertFalse(Production.search([("x4u_serial_search", "ilike", "X4U-NO-SUCH-SERIAL")]))
-        self.env["x4u.sale.proforma"].create({"order_id": order.id})
-        self.assertEqual(Card.search([("x4u_proforma_search", "ilike", "%s-PI" % order.name)]), card)
+        proforma = self.env["x4u.sale.proforma"].create({"order_id": order.id})
+        self.assertEqual(Card.search([("x4u_proforma_search", "ilike", proforma.name)]), card)

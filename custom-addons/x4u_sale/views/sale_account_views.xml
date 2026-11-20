@@ -137,6 +137,18 @@
         </field>
     </record>
 
+    <!-- v0.8 Q1: the PI of each quotation and order, in the lists -->
+    <record id="sale_order_tree_x4u_sale" model="ir.ui.view">
+        <field name="name">sale.order.list.x4u.sale</field>
+        <field name="model">sale.order</field>
+        <field name="inherit_id" ref="sale.sale_order_tree"/>
+        <field name="arch" type="xml">
+            <xpath expr="//field[@name='name']" position="after">
+                <field name="x4u_proforma_id" string="PI" optional="show"/>
+            </xpath>
+        </field>
+    </record>
+
     <record id="view_sales_order_filter_x4u_sale" model="ir.ui.view">
         <field name="name">sale.order.search.x4u.sale</field>
         <field name="model">sale.order</field>

@@ -204,7 +204,8 @@ class TestSalePayments(TransactionCase):
         self.assertEqual((payment.amount, payment.x4u_sale_order_id), (15750.0, order))
         proforma = payment.x4u_proforma_id
         self.assertEqual(proforma, order.x4u_proforma_id, "Q5: the payment goes on the order's PI")
-        self.assertEqual(proforma.name, "%s-PI2" % order.name, "the PI made again for the fixed order")
+        self.assertRegex(proforma.name, r"^PI\d{3,}$", "the PI made again for the fixed order")
+        self.assertEqual(len(order.x4u_proforma_ids), 2, "the cancelled one stays in the list")
         self.assertIn(proforma.name, payment.memo)
         self.assertEqual(
             (proforma.amount_due, proforma.amount_paid, proforma.amount_remaining), (15750.0, 15750.0, 36750.0)
@@ -231,7 +232,8 @@ class TestSalePayments(TransactionCase):
     def test_salesperson_makes_the_pi(self):
         order = self._quote(self.env.ref("x4u_setup_base.payment_term_50_50"))
         proforma = self._pi(order)
-        self.assertEqual(proforma.name, "%s-PI" % order.name)
+        # Q1 (the user, 2026-11-19): its own number, PI001, PI002...
+        self.assertRegex(proforma.name, r"^PI\d{3,}$")
         self.assertEqual(order.x4u_proforma_id, proforma)
         self.assertEqual((proforma.state, proforma.amount_due, proforma.amount_paid), ("issued", 26250.0, 0.0))
         self.assertEqual(proforma.amount_remaining, 52500.0)
@@ -250,7 +252,8 @@ class TestSalePayments(TransactionCase):
         self.assertEqual(proforma.state, "cancel")
         order.write({"order_line": [Command.update(order.order_line.id, {"product_uom_qty": 2})]})
         again = self._pi(order)
-        self.assertEqual(again.name, "%s-PI2" % order.name)
+        self.assertRegex(again.name, r"^PI\d{3,}$")
+        self.assertNotEqual(again.name, proforma.name, "the next number")
         self.assertEqual(again.amount_due, 52500.0, "50% of the new total")
         # Q7: another Salesperson does not see it.
         other = new_test_user(self.env, login="x4u_pay_other_pi", groups="base.group_user,sales_team.group_sale_salesman")
@@ -350,7 +353,7 @@ class TestSalePayments(TransactionCase):
         self.assertEqual(invoice.amount_total, 52500.0)
         self.assertEqual(invoice.amount_residual, 21000.0)
         self.assertEqual(invoice.payment_state, "partial")
-        self.assertIn("%s-PI" % order.name, invoice.message_ids[0].body)
+        self.assertIn(order.x4u_proforma_id.name, invoice.message_ids[0].body)
         self.assertEqual(set(order.x4u_proforma_ids.mapped("state")), {"invoiced"})
         self.assertEqual(order.x4u_amount_remaining, 21000.0)
         self.assertFalse(order.x4u_final_invoice_paid)

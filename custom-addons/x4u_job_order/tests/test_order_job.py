@@ -84,11 +84,23 @@ class TestOrderJob(X4uJobOrderCommon):
         for line in order.order_line:
             self.assertEqual(line.analytic_distribution, {str(account.id): 100.0})
         # Found by its PI, by a generator serial and by the model.
-        self.env["x4u.sale.proforma"].create({"order_id": order.id})
+        proforma = self.env["x4u.sale.proforma"].create({"order_id": order.id})
+        self.assertRegex(proforma.name, r"^PI\d{3,}$", "x4u_sale v0.8 Q1: its own number, PI001")
+        self.assertEqual((job.proforma_id, job.proforma_names), (proforma, proforma.name))
+        self.assertEqual(proforma.x4u_job_id, job, "the PI opens its Job Order")
         Job = self.env["x4u.job.order"].with_user(self.salesman)
-        self.assertEqual(Job.search([("proforma_names", "ilike", "%s-PI" % order.name)]), job)
+        self.assertEqual(Job.search([("proforma_names", "ilike", proforma.name)]), job)
         self.assertEqual(Job.search([("serial_search", "=", productions[0].lot_producing_id.name)]), job)
         self.assertEqual(Job.search([("production_ids.product_id", "=", self.variant_open.id)]), job)
+        # By the customer's PO and by the purchase order of the parts (the user, 2026-11-19).
+        order.client_order_ref = "X4U-LPO-77"
+        self.assertEqual(Job.search([("customer_po", "ilike", "LPO-77")]), job)
+        self.assertEqual(self.env["mrp.production"].search([("x4u_customer_po", "=", "X4U-LPO-77")]), productions)
+        purchases = self._order_parts(productions[0])
+        self.assertEqual(Job.search([("purchase_search", "ilike", purchases[0].name)]), job)
+        self.assertIn(
+            productions[0], self.env["mrp.production"].search([("x4u_purchase_search", "ilike", purchases[0].name)])
+        )
         # The slowest generator: the canopy ones get their parts, the open one still waits.
         for part, qty in ((self.engine, 3), (self.alt_stamford, 3), (self.body_canopy, 2)):
             self._stock(part, qty)

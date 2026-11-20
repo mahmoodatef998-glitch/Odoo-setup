@@ -90,7 +90,9 @@ class X4uSaleProforma(models.Model):
 
     @api.model_create_multi
     def create(self, vals_list):
-        """One PI for the order (Q1): S012-PI, then S012-PI2 if it is made again after a cancel."""
+        """One PI for the order (Q1), numbered PI001, PI002... (the user, 2026-11-19); made again after
+        a cancel, it takes the next number."""
+        Sequence = self.env["ir.sequence"].sudo()
         last = {}
         for vals in vals_list:
             order = self.env["sale.order"].browse(vals["order_id"])
@@ -100,7 +102,7 @@ class X4uSaleProforma(models.Model):
                 raise UserError(_("%s already has its PI: cancel it to make a new one.", order.name))
             sequence = max(order.sudo().x4u_proforma_ids.mapped("sequence"), default=0) + 1
             last[order.id] = sequence
-            vals.update(sequence=sequence, name="%s-PI%s" % (order.name, sequence if sequence > 1 else ""))
+            vals.update(sequence=sequence, name=Sequence.next_by_code("x4u.sale.proforma") or "%s-PI" % order.name)
         proformas = super().create(vals_list)
         for proforma in proformas:
             proforma.order_id.sudo().message_post(

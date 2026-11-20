@@ -50,9 +50,9 @@ class TestReadyGenerator(X4uJobOrderCommon):
         order = self._sell_ready()
         ready = order.x4u_ready_order_ids
         Ready = self.env["x4u.ready.order"]
-        self.env["x4u.sale.proforma"].create({"order_id": order.id})
-        self.assertEqual(ready.proforma_names, "%s-PI" % order.name)
-        self.assertEqual(Ready.search([("proforma_names", "ilike", "%s-PI" % order.name)]), ready)
+        proforma = self.env["x4u.sale.proforma"].create({"order_id": order.id})
+        self.assertEqual(ready.proforma_names, proforma.name)
+        self.assertEqual(Ready.search([("proforma_names", "ilike", proforma.name)]), ready)
         po = self._buy(order)
         self._validate(po.picking_ids)
         self.assertEqual(ready.state, "in_stock")

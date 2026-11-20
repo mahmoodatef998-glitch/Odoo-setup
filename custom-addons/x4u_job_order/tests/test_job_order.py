@@ -174,6 +174,51 @@ class TestJobOrder(X4uJobOrderCommon):
             with self.assertRaises(AccessError):
                 job.write({"origin": "changed"})
 
+    # N2 (2026-11-20): the engines' serials typed in Serials on the receipt line; without them,
+    # a clear message instead of Odoo's "Lot/Serial number is mandatory"
+    def test_engine_serials_on_the_receipt(self):
+        receipt = self._receipt(self.engine, 2).with_user(self.storekeeper)
+        move = receipt.move_ids
+        move.quantity = 2
+        move.picked = True
+        with self.assertRaisesRegex(UserError, "Serials column"):
+            receipt.button_validate()
+        move.x4u_serials = "X4U-E-S1, X4U-E-S2"
+        self.assertEqual(move.move_line_ids.mapped("lot_name"), ["X4U-E-S1", "X4U-E-S2"])
+        self.assertEqual(move.quantity, 2.0)
+        self.assertEqual(move.x4u_serials, "X4U-E-S1, X4U-E-S2")
+        receipt.button_validate()
+        self.assertEqual(receipt.state, "done")
+        self.assertEqual(sorted(self._lots(self.engine).mapped("name")), ["X4U-E-S1", "X4U-E-S2"])
+
+    # T53 (v0.15 B1): on the purchase order, what is still to buy to cover the open Job Orders
+    def test_needed_for_orders(self):
+        self._stock(self.engine, 1)
+        order = self.env["sale.order"].create(
+            {
+                "partner_id": self.customer.id,
+                "warehouse_id": self.warehouse.id,
+                "order_line": [Command.create({"product_id": self.variant.id, "product_uom_qty": 3})],
+            }
+        )
+        order.action_confirm()
+
+        def rfq(qty):
+            return self.env["purchase.order"].create(
+                {
+                    "partner_id": self.vendor_engine.id,
+                    "order_line": [Command.create({"product_id": self.engine.id, "product_qty": qty, "price_unit": 100.0})],
+                }
+            )
+
+        first = rfq(1)
+        self.assertEqual(first.order_line.x4u_needed_qty, 2.0, "3 generators need 3 engines, 1 in stock")
+        second = rfq(5)
+        self.assertEqual(second.order_line.x4u_needed_qty, 1.0, "the first RFQ brings one")
+        first.invalidate_recordset()
+        first.order_line.invalidate_recordset()
+        self.assertEqual(first.order_line.x4u_needed_qty, 0.0, "the second RFQ covers the rest")
+
     # T12: each part shows what the warehouse holds, and what is still free to use
     def test_parts_show_stock(self):
         self._stock(self.engine, 2)

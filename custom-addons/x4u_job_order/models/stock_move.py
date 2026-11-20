@@ -50,6 +50,14 @@ class StockMove(models.Model):
         help="Optional (spec v0.8.1 N4): the serials of the alternators received, separated by commas. "
         "Deliver Materials then offers them in a list.",
     )
+    # Spec v0.8 N2 (2026-11-20): the serial of each engine, CKD or canopy received, typed on the line
+    # of the receipt; the quantity follows the serials.
+    x4u_serials = fields.Char(
+        string="Serials",
+        compute="_compute_x4u_serials",
+        inverse="_inverse_x4u_serials",
+        help="One serial per unit, separated by commas (E-1001, E-1002) or one per line.",
+    )
     x4u_stock_on_hand = fields.Float(
         string="On Hand",
         compute="_compute_x4u_stock",
@@ -62,6 +70,28 @@ class StockMove(models.Model):
         digits="Product Unit of Measure",
         help="On hand minus what is reserved for deliveries. Job Orders reserve nothing (spec v0.8 F1).",
     )
+
+    @api.depends("move_line_ids.lot_name", "move_line_ids.lot_id")
+    def _compute_x4u_serials(self):
+        for move in self:
+            names = [line.lot_id.name or line.lot_name for line in move.move_line_ids if line.lot_id or line.lot_name]
+            move.x4u_serials = ", ".join(names) or False
+
+    def _inverse_x4u_serials(self):
+        for move in self:
+            if move.state in ("done", "cancel") or move.has_tracking != "serial" or move.picking_code != "incoming":
+                continue
+            names = split_serials(move.x4u_serials)
+            move.move_line_ids.unlink()
+            if names:
+                move.write(
+                    {
+                        "move_line_ids": move._generate_serial_move_line_commands(
+                            [{"lot_name": name, "quantity": 1} for name in names]
+                        ),
+                        "picked": True,
+                    }
+                )
 
     def _action_assign(self, force_qty=False):
         # Spec v0.8 F1: Job Order parts stay free in stock, not at the confirmation, not at the

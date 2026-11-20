@@ -1,4 +1,4 @@
-from odoo import api, models
+from odoo import api, fields, models
 
 
 class PurchaseOrder(models.Model):
@@ -33,6 +33,25 @@ class PurchaseOrder(models.Model):
 
 class PurchaseOrderLine(models.Model):
     _inherit = "purchase.order.line"
+
+    # Spec v0.15 B1 (the user, 2026-11-20): what is still to buy of this part to cover the open orders.
+    x4u_needed_qty = fields.Float(
+        string="Needed for Orders",
+        compute="_compute_x4u_needed_qty",
+        digits="Product Unit of Measure",
+        help="What the open Job Orders still need of this part (not delivered to the factory yet), less what is "
+        "in stock and what the other purchase orders bring.",
+    )
+
+    @api.depends("product_id", "order_id.state")
+    def _compute_x4u_needed_qty(self):
+        for line in self:
+            product = line.product_id
+            if not product or not product.is_storable:
+                line.x4u_needed_qty = 0.0
+                continue
+            need, free, incoming = product._x4u_order_needs(exclude_lines=line._origin)
+            line.x4u_needed_qty = max(need - free - incoming, 0.0)
 
     @api.model_create_multi
     def create(self, vals_list):

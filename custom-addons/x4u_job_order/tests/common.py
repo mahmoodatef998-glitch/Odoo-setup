@@ -141,6 +141,9 @@ class X4uJobOrderCommon(TransactionCase):
                 # Every engine comes in with its serial (spec v0.8 N1-N2).
                 for number, line in enumerate(move.move_line_ids.filtered(lambda ml: not ml.lot_id and not ml.lot_name), 1):
                     line.lot_name = "X4U-SN-%s-%s" % (move.id, number)
+            if move.picking_code == "incoming" and move.x4u_role == "alternator" and not move.x4u_alternator_serials:
+                # Every alternator comes in with its serial too (spec v0.15 B2).
+                move.x4u_alternator_serials = ", ".join("X4U-A-%s-%s" % (move.id, n) for n in range(1, int(move.quantity) + 1))
         picking.move_ids.picked = True
         res = picking.button_validate()
         if isinstance(res, dict) and res.get("res_model") == "x4u.ready.receipt":

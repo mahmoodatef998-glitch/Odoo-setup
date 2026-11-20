@@ -112,6 +112,13 @@ class MrpProduction(models.Model):
         help="The generator's serial, or the serial of the engine, CKD, body or alternator delivered for it.",
     )
     x4u_alternator_serial_ids = fields.One2many("x4u.alternator.serial", "production_id", string="Alternator Serials")
+    # Found by the customer's PO (the LPO of its sales order) and by the purchase order of its parts
+    # (the user, 2026-11-19).
+    x4u_customer_po = fields.Char(related="x4u_sale_order_id.client_order_ref", string="Customer PO")
+    x4u_purchase_search = fields.Char(
+        string="Purchase Order", compute="_compute_x4u_serial_search", search="_search_x4u_purchase",
+        help="The purchase order that buys a part of this generator.",
+    )
     # Spec v0.9 P1: the PI numbers of the sales order, to find the Job Order by them.
     x4u_proforma_names = fields.Char(
         string="PI", compute="_compute_x4u_proforma_names", store=True, index="trigram",
@@ -240,7 +247,17 @@ class MrpProduction(models.Model):
             production.x4u_sale_order_id = production.sale_line_id.order_id or production.procurement_group_id.sale_id
 
     def _compute_x4u_serial_search(self):
-        self.x4u_serial_search = False
+        self.x4u_serial_search = self.x4u_purchase_search = False
+
+    def _search_x4u_purchase(self, operator, value):
+        return serial_domain(self._x4u_ids_by_purchase, operator, value)
+
+    @api.model
+    def _x4u_ids_by_purchase(self, operator, value):
+        """The generators whose parts the purchase orders of that number buy (before or after the receipt)."""
+        lines = self.env["purchase.order.line"].sudo().search([("order_id.name", operator, value)])
+        moves = lines.move_dest_ids | lines.move_ids.move_dest_ids
+        return self.sudo()._x4u_from_moves(moves).ids
 
     def _search_x4u_serial(self, operator, value):
         return serial_domain(self._x4u_ids_by_serial, operator, value)

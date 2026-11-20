@@ -75,7 +75,7 @@
     <menuitem id="menu_x4u_alternator_serial" name="Alternator Serials" parent="stock.menu_stock_inventory_control"
               action="action_x4u_alternator_serial" sequence="25" groups="stock.group_stock_user"/>
 
-    <!-- The receipt: the alternator serials, optional -->
+    <!-- The receipt: the serials of the engines, CKDs, canopies and alternators (spec v0.15 B2) -->
     <record id="view_picking_form_x4u_alternator_serials" model="ir.ui.view">
         <field name="name">stock.picking.form.x4u.alternator.serials</field>
         <field name="model">stock.picking</field>
@@ -83,11 +83,31 @@
         <field name="arch" type="xml">
             <xpath expr="//field[@name='move_ids_without_package']/list/field[@name='lot_ids']" position="after">
                 <field name="x4u_role" column_invisible="True"/>
+                <!-- Spec v0.8 N2: the serial of each engine, CKD or canopy received -->
+                <field name="x4u_serials" optional="show"
+                       column_invisible="parent.picking_type_code != 'incoming'"
+                       invisible="x4u_role not in ('engine', 'ckd', 'body')"
+                       required="x4u_role in ('engine', 'ckd', 'body') and quantity and parent.state not in ('draft', 'done', 'cancel')"
+                       readonly="state in ('done', 'cancel')"
+                       placeholder="E-1001, E-1002"/>
                 <field name="x4u_alternator_serials" optional="show"
                        column_invisible="parent.picking_type_code != 'incoming'"
                        invisible="x4u_role != 'alternator'"
+                       required="x4u_role == 'alternator' and quantity and parent.state not in ('draft', 'done', 'cancel')"
                        readonly="state in ('done', 'cancel')"
-                       placeholder="Optional: A-77, A-78"/>
+                       placeholder="A-77, A-78"/>
+            </xpath>
+        </field>
+    </record>
+
+    <!-- Spec v0.15 B1: on the purchase order, what is still to buy to cover the open orders -->
+    <record id="purchase_order_form_x4u_needed" model="ir.ui.view">
+        <field name="name">purchase.order.form.x4u.needed</field>
+        <field name="model">purchase.order</field>
+        <field name="inherit_id" ref="purchase.purchase_order_form"/>
+        <field name="arch" type="xml">
+            <xpath expr="//field[@name='order_line']/list/field[@name='product_qty']" position="before">
+                <field name="x4u_needed_qty" optional="show" readonly="1"/>
             </xpath>
         </field>
     </record>

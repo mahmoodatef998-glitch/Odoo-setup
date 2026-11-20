@@ -107,17 +107,20 @@ class TestFreeParts(X4uJobOrderCommon):
         self.assertEqual(production.x4u_job_state, "material_delivered")
         self.assertFalse(production.x4u_generator_id.alternator_serial)
 
-    # T27 (v0.8.1 N4): alternator serials written at the receipt when known (optional), then
-    # picked from a list in Deliver Materials; the card gets it and it is no longer in stock
+    # T27 (v0.8.1 N4, v0.15 B2): an alternator serial for each unit at the receipt, then picked from
+    # a list in Deliver Materials; the card gets it and it is no longer in stock
     def test_alternator_serial_list(self):
         receipt = self._receipt(self.alt_stamford, 2)
         receipt.move_ids.quantity = 2
         receipt.move_ids.x4u_alternator_serials = "A-77"
         receipt.move_ids.picked = True
+        with self.assertRaisesRegex(UserError, "Alternator Serials"):
+            receipt.button_validate()
+        receipt.move_ids.x4u_alternator_serials = "A-77, A-78"
         receipt.button_validate()
-        self.assertEqual(receipt.state, "done", "one of the two has no serial: the receipt goes on")
+        self.assertEqual(receipt.state, "done")
         Serial = self.env["x4u.alternator.serial"]
-        serial = Serial.search([("product_id", "=", self.alt_stamford.id)])
+        serial = Serial.search([("product_id", "=", self.alt_stamford.id), ("name", "=", "A-77")])
         self.assertEqual((serial.name, serial.state, serial.picking_id), ("A-77", "in_stock", receipt))
         extra = self._receipt(self.alt_stamford, 1)
         extra.move_ids.quantity = 1
@@ -130,7 +133,7 @@ class TestFreeParts(X4uJobOrderCommon):
         _order, production = self._sell()
         wizard = self._wizard(production)
         alternator_line = wizard.line_ids.filtered(lambda line: line.x4u_role == "alternator")
-        self.assertEqual(alternator_line.available_alternator_ids, serial)
+        self.assertIn(serial, alternator_line.available_alternator_ids)
         alternator_line.alternator_serial_id = serial
         for line in wizard.line_ids.filtered(lambda line: line.x4u_role in ("engine", "body")):
             line.lot_id = line.available_lot_ids[:1]
@@ -138,7 +141,7 @@ class TestFreeParts(X4uJobOrderCommon):
         self.assertEqual(production.x4u_job_state, "material_delivered")
         self.assertEqual(production.x4u_generator_id.alternator_serial, "A-77")
         self.assertEqual((serial.state, serial.production_id), ("fitted", production))
-        self.assertFalse(Serial.search([("state", "=", "in_stock"), ("product_id", "=", self.alt_stamford.id)]))
+        self.assertNotIn(serial, Serial.search([("state", "=", "in_stock"), ("product_id", "=", self.alt_stamford.id)]))
 
     # T28 (v0.8.1): a Job Order that kept a reservation from before the engine serials (MO012 on
     # odoo4u_base: no serial, marked picked) still finishes, with the engine delivered to it

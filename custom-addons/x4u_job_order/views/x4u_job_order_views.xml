@@ -19,6 +19,15 @@
                 </header>
                 <sheet>
                     <div class="oe_button_box" name="button_box">
+                        <!-- x4u_sale v0.8 Q1: the order's PI -->
+                        <button name="action_open_proforma" type="object" class="oe_stat_button" icon="fa-file-text-o"
+                                invisible="not proforma_id">
+                            <div class="o_stat_info">
+                                <span class="o_stat_value"><field name="proforma_names"/></span>
+                                <span class="o_stat_text">PI</span>
+                            </div>
+                        </button>
+                        <field name="proforma_id" invisible="1"/>
                         <button name="action_open_sale" type="object" class="oe_stat_button" icon="fa-dollar"
                                 string="Sales Order" invisible="not sale_order_id"/>
                         <button name="action_open_productions" type="object" class="oe_stat_button" icon="fa-cogs"
@@ -47,9 +56,9 @@
                     </div>
                     <group>
                         <group>
+                            <field name="proforma_names" string="PI" invisible="not proforma_names"/>
                             <field name="sale_order_id"/>
                             <field name="partner_id"/>
-                            <field name="proforma_names" invisible="not proforma_names"/>
                         </group>
                         <group>
                             <field name="models_summary"/>
@@ -171,8 +180,8 @@
         <field name="arch" type="xml">
             <list string="Job Orders" decoration-danger="delay_stage" create="0">
                 <field name="name"/>
+                <field name="proforma_names" string="PI"/>
                 <field name="sale_order_id"/>
-                <field name="proforma_names" optional="show"/>
                 <field name="partner_id"/>
                 <field name="models_summary"/>
                 <field name="state" widget="badge"
@@ -223,8 +232,10 @@
                 <field name="name"/>
                 <!-- J8: by any serial of its generators or their parts, by the PI, by the model -->
                 <field name="serial_search"/>
+                <field name="proforma_names" string="PI"/>
+                <field name="customer_po"/>
+                <field name="purchase_search"/>
                 <field name="sale_order_id"/>
-                <field name="proforma_names"/>
                 <field name="partner_id"/>
                 <field name="production_ids" string="Model"
                        filter_domain="['|', ('production_ids.product_id', 'ilike', self), ('ready_order_ids.product_id', 'ilike', self)]"/>
@@ -313,6 +324,8 @@
         <field name="arch" type="xml">
             <search string="Order Profitability">
                 <field name="name"/>
+                <field name="proforma_names" string="PI"/>
+                <field name="customer_po"/>
                 <field name="sale_order_id"/>
                 <field name="partner_id"/>
                 <field name="serial_search"/>
@@ -425,6 +438,20 @@
                     <button string="Discard" class="btn-secondary" special="cancel" data-hotkey="x"/>
                 </footer>
             </form>
+        </field>
+    </record>
+
+    <!-- The PI: the Job Order of its order -->
+    <record id="x4u_sale_proforma_view_form_x4u_job_order" model="ir.ui.view">
+        <field name="name">x4u.sale.proforma.form.x4u.job.order</field>
+        <field name="model">x4u.sale.proforma</field>
+        <field name="inherit_id" ref="x4u_sale.x4u_sale_proforma_view_form"/>
+        <field name="arch" type="xml">
+            <xpath expr="//div[@name='button_box']" position="inside">
+                <field name="x4u_job_id" invisible="1"/>
+                <button name="action_x4u_open_job" type="object" class="oe_stat_button" icon="fa-cogs"
+                        string="Job Order" invisible="not x4u_job_id"/>
+            </xpath>
         </field>
     </record>
 

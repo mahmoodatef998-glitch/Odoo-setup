@@ -1,6 +1,8 @@
 from odoo import Command, _, models
 from odoo.exceptions import UserError
 
+from .x4u_alternator_serial import split_serials
+
 
 class StockPicking(models.Model):
     _inherit = "stock.picking"
@@ -113,6 +115,7 @@ class StockPicking(models.Model):
                 orders._x4u_received(received, picking)
 
     def button_validate(self):
+        self._x4u_check_receipt_serials()
         self._x4u_ready_serials()
         if not self.env.context.get("x4u_ready_serials_done"):
             orders = self._x4u_ready_orders_received().filtered(lambda order: not order.engine_serial)
@@ -120,6 +123,48 @@ class StockPicking(models.Model):
                 return self._x4u_ask_ready_serials(orders)
         self._x4u_ready_lot_names()
         return super().button_validate()
+
+    def _x4u_check_receipt_serials(self):
+        """Spec v0.8 N2: every engine, CKD or canopy received has its serial, written in Serials."""
+        missing = []
+        for move in self.filtered(lambda p: p.picking_type_code == "incoming").move_ids:
+            if move.state in ("done", "cancel") or move.has_tracking != "serial" or move.x4u_role not in ("engine", "ckd", "body"):
+                continue
+            if not move.quantity:
+                continue
+            written = len(move.move_line_ids.filtered(lambda line: line.lot_id or line.lot_name))
+            if written < len(move.move_line_ids) or not written:
+                missing.append(
+                    _(
+                        "- %(part)s: %(qty)g received, %(written)s serials",
+                        part=move.product_id.display_name,
+                        qty=move.quantity,
+                        written=written,
+                    )
+                )
+        # Spec v0.15 B2 (the user, 2026-11-20): an alternator's serial is required at the receipt too.
+        for move in self.filtered(lambda p: p.picking_type_code == "incoming").move_ids:
+            if move.state in ("done", "cancel") or move.x4u_role != "alternator" or not move.quantity:
+                continue
+            quantity = move.product_uom._compute_quantity(move.quantity, move.product_id.uom_id)
+            written = len(split_serials(move.x4u_alternator_serials))
+            if written != int(quantity):
+                missing.append(
+                    _(
+                        "- %(part)s: %(qty)g received, %(written)s serials (Alternator Serials column)",
+                        part=move.product_id.display_name,
+                        qty=quantity,
+                        written=written,
+                    )
+                )
+        if missing:
+            raise UserError(
+                _(
+                    "Write the serial of each unit in the Serials column of the line (E-1001, E-1002...); "
+                    "the quantity follows the serials.\n%s",
+                    "\n".join(missing),
+                )
+            )
 
     def _x4u_ready_lot_names(self):
         """Spec v0.12 J10: a ready generator comes in with the serial of its engine as its serial."""

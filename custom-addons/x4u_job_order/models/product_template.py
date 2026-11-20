@@ -5,6 +5,53 @@ from odoo.exceptions import ValidationError
 SERIAL_CATEGORIES = ("x4u_setup_base.categ_engines", "x4u_setup_base.categ_ckd", "x4u_setup_base.categ_bodies")
 
 
+class ProductProduct(models.Model):
+    _inherit = "product.product"
+
+    def _x4u_order_needs(self, exclude_lines=None):
+        """Spec v0.15 B1: (what the open Job Orders still need, free in WH/Stock, coming in), in the
+        product's unit. The need: Pick Components of open Job Orders not delivered yet, and the ready
+        generators still to buy."""
+        self.ensure_one()
+        product = self.sudo()
+        Move = self.env["stock.move"].sudo()
+        warehouses = self.env["stock.warehouse"].sudo().search([("company_id", "in", self.env.companies.ids)])
+        picks = Move.search(
+            [
+                ("product_id", "=", product.id),
+                ("picking_type_id", "in", warehouses.pbm_type_id.ids),
+                ("state", "not in", ("done", "cancel")),
+                ("move_dest_ids.raw_material_production_id.x4u_is_job_order", "=", True),
+            ]
+        )
+        need = sum(picks.mapped("product_qty"))
+        if product.x4u_is_generator:
+            need += self.env["x4u.ready.order"].sudo().search_count([("product_id", "=", product.id), ("state", "=", "waiting")])
+        free = sum(product.with_context(location=warehouse.lot_stock_id.id).free_qty for warehouse in warehouses)
+        lines = self.env["purchase.order.line"].sudo().search(
+            [
+                ("product_id", "=", product.id),
+                ("state", "in", ("draft", "sent", "to approve", "purchase")),
+                ("id", "not in", (exclude_lines or self.env["purchase.order.line"]).ids),
+            ]
+        )
+        incoming = sum(
+            max(line.product_uom._compute_quantity(line.product_qty - line.qty_received, product.uom_id), 0.0)
+            for line in lines
+        )
+        # Receipts without a purchase order (bought another way) count too.
+        receipts = Move.search(
+            [
+                ("product_id", "=", product.id),
+                ("picking_code", "=", "incoming"),
+                ("purchase_line_id", "=", False),
+                ("state", "not in", ("draft", "done", "cancel")),
+            ]
+        )
+        incoming += sum(receipts.mapped("product_qty"))
+        return need, free, incoming
+
+
 class ProductTemplate(models.Model):
     _inherit = "product.template"
 

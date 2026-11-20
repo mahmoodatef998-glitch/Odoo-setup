@@ -32,6 +32,8 @@ class X4uJobOrder(models.Model):
     currency_id = fields.Many2one(related="company_id.currency_id")
     production_ids = fields.One2many("mrp.production", "x4u_job_id", string="Generators")
     ready_order_ids = fields.One2many("x4u.ready.order", "job_id", string="Ready Generators")
+    # x4u_sale v0.8 Q1: the order's PI (PI001), to open it from the Job Order.
+    proforma_id = fields.Many2one(related="sale_order_id.x4u_proforma_id", string="PI Document")
     proforma_names = fields.Char(
         string="PI", compute="_compute_proforma_names", store=True, index="trigram",
         help="The proforma invoice (PI) of the sales order.",
@@ -65,6 +67,11 @@ class X4uJobOrder(models.Model):
         "account.analytic.account", string="Analytic Account", readonly=True, copy=False, index="btree_not_null"
     )
     margin = fields.Monetary(string="Margin", compute="_compute_margin")
+    customer_po = fields.Char(related="sale_order_id.client_order_ref", string="Customer PO")
+    purchase_search = fields.Char(
+        string="Purchase Order", compute="_compute_serial_search", search="_search_purchase",
+        help="A purchase order that buys a part of its generators, or a ready generator.",
+    )
     serial_search = fields.Char(
         string="Serial", compute="_compute_serial_search", search="_search_serial",
         help="The serial of a generator of the Job Order, or of its engine, CKD, canopy or alternator.",
@@ -159,7 +166,19 @@ class X4uJobOrder(models.Model):
             job.card_count = len(productions.lot_producing_id.x4u_generator_ids | job.ready_order_ids.lot_id.x4u_generator_ids)
 
     def _compute_serial_search(self):
-        self.serial_search = False
+        self.serial_search = self.purchase_search = False
+
+    def _search_purchase(self, operator, value):
+        return serial_domain(self._x4u_ids_by_purchase, operator, value)
+
+    @api.model
+    def _x4u_ids_by_purchase(self, operator, value):
+        Production = self.env["mrp.production"]
+        productions = Production.sudo().browse(Production._x4u_ids_by_purchase(operator, value))
+        lines = self.env["purchase.order.line"].sudo().search([("order_id.name", operator, value)])
+        # A ready generator is bought for the customer's delivery: its order's Job Order.
+        orders = (lines.move_dest_ids | lines.move_ids.move_dest_ids).sale_line_id.order_id
+        return (productions.x4u_job_id | orders.x4u_job_ids).ids
 
     def _search_serial(self, operator, value):
         return serial_domain(self._x4u_ids_by_serial, operator, value)
@@ -240,6 +259,10 @@ class X4uJobOrder(models.Model):
         """Storekeeper: Deliver Generators, the ones that leave now (L2)."""
         self.ensure_one()
         return self.env["x4u.job.order.ship"]._x4u_action(self)
+
+    def action_open_proforma(self):
+        self.ensure_one()
+        return self.proforma_id._x4u_open()
 
     def action_open_sale(self):
         self.ensure_one()

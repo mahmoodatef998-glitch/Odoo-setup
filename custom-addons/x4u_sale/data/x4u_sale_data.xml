@@ -51,6 +51,15 @@
             <field name="sequence">7</field>
         </record>
 
+        <!-- v0.8 Q1: the PI's own number, PI001 (the user, 2026-11-19). -->
+        <record id="seq_x4u_sale_proforma" model="ir.sequence">
+            <field name="name">Proforma Invoice (PI)</field>
+            <field name="code">x4u.sale.proforma</field>
+            <field name="prefix">PI</field>
+            <field name="padding">3</field>
+            <field name="company_id" eval="False"/>
+        </record>
+
         <!-- v0.8 Q2: the Salesperson sends the PI (from his own address). -->
         <record id="mail_template_proforma" model="mail.template">
             <field name="name">PI: send by email</field>

@@ -176,6 +176,21 @@ class SaleOrder(models.Model):
         return action
 
 
+class X4uSaleProforma(models.Model):
+    _inherit = "x4u.sale.proforma"
+
+    # The Job Order the PI's order opened (spec v0.12 J1), to open it from the PI.
+    x4u_job_id = fields.Many2one("x4u.job.order", string="Job Order", compute="_compute_x4u_job_id")
+
+    def _compute_x4u_job_id(self):
+        for proforma in self:
+            proforma.x4u_job_id = proforma.order_id.sudo().x4u_job_ids[:1]
+
+    def action_x4u_open_job(self):
+        self.ensure_one()
+        return {"type": "ir.actions.act_window", "res_model": "x4u.job.order", "res_id": self.x4u_job_id.id, "view_mode": "form"}
+
+
 class SaleOrderLine(models.Model):
     _inherit = "sale.order.line"
 
