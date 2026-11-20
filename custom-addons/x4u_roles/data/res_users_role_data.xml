@@ -63,11 +63,12 @@
     <record id="role_production" model="res.users.role">
         <field name="name">Operation Manager</field>
         <field name="sequence">60</field>
-        <field name="comment">Finish Job Order, Use CKD, and changes serials after the receipt (x4u_job_order spec v0.9).</field>
+        <field name="comment">Finish Job Order, Use CKD, changes serials after the receipt (x4u_job_order spec v0.9), and approves purchase orders like the General Manager (the user, 2026-11-20).</field>
         <field name="implied_ids" eval="[Command.set([
             ref('base.group_user'),
             ref('mrp.group_mrp_user'),
             ref('x4u_job_order.group_x4u_edit_serials'),
+            ref('purchase.group_purchase_manager'),
         ])]"/>
     </record>
     <record id="role_quality_inspector" model="res.users.role">

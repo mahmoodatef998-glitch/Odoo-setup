@@ -56,7 +56,11 @@ ROLES = {
         {"stock.group_stock_manager", "sales_team.group_sale_salesman", "mrp.group_mrp_user", EDIT_SERIALS},
     ),
     # Operation Manager (spec v0.4): finishes the Job Orders; v0.9: Use CKD, changes serials.
-    "role_production": ({"mrp.group_mrp_user", EDIT_SERIALS}, {"mrp.group_mrp_manager", "purchase.group_purchase_user"}),
+    # The Operation Manager approves purchase orders too (the user, 2026-11-20).
+    "role_production": (
+        {"mrp.group_mrp_user", EDIT_SERIALS, "purchase.group_purchase_manager"},
+        {"mrp.group_mrp_manager", "base.group_system"},
+    ),
     "role_quality_inspector": (
         {"quality_control_oca.group_quality_control_user", "x4u_job_order.group_x4u_job_order_viewer"},
         {"quality_control_oca.group_quality_control_manager", "sales_team.group_sale_salesman", "mrp.group_mrp_user"},
@@ -91,8 +95,11 @@ class TestRoles(TransactionCase):
                 self.assertFalse(user.has_group(group), "%s should not give %s" % (role, group))
 
     def test_only_the_general_manager_approves_purchases(self):
+        """The GM, the Operation Manager (2026-11-20) and the Administrator approve; the Purchasing
+        Officer who makes the RFQ does not."""
         self.assertFalse(self._user("role_purchasing_officer").has_group("purchase.group_purchase_manager"))
-        self.assertTrue(self._user("role_general_manager").has_group("purchase.group_purchase_manager"))
+        for role in ("role_general_manager", "role_production", "role_administrator"):
+            self.assertTrue(self._user(role).has_group("purchase.group_purchase_manager"), role)
 
     def test_changing_the_role_removes_the_old_rights(self):
         user = self._user("role_storekeeper")
