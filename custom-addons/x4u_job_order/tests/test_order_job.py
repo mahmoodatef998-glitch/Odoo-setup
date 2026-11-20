@@ -232,3 +232,32 @@ class TestOrderJob(X4uJobOrderCommon):
         self.assertEqual(ready.lot_id.name, "X4U-E-%s" % ready.name, "the serial of its engine")
         self.assertEqual(job.finished_count, 1)
         self.assertEqual(self.env["x4u.job.order"].search([("serial_search", "=", ready.lot_id.name)]), job)
+
+    # 2026-11-20 (full cycle): the engine and canopy went to the factory, the alternator came later;
+    # Deliver Materials sends the alternator by itself, and the generator can be finished
+    def test_alternator_delivered_later(self):
+        for part in (self.engine, self.body_canopy):
+            self._stock(part, 1)
+        order = self._order([{"product_id": self.variant.id, "product_uom_qty": 1}])
+        job = order.x4u_job_ids
+        production = job.production_ids
+        action = job.with_user(self.storekeeper).action_deliver_materials()
+        wizard = self.env[action["res_model"]].with_user(self.storekeeper).browse(action["res_id"])
+        wizard.line_ids.write({"engine_lot_id": self._lots(self.engine).id, "body_lot_id": self._lots(self.body_canopy).id})
+        wizard.action_confirm()
+        self.assertNotEqual(production.x4u_job_state, "material_delivered", "no alternator in stock yet")
+
+        receipt = self._receipt(self.alt_stamford, 1)
+        receipt.move_ids.quantity = 1
+        receipt.move_ids.x4u_alternator_serials = "J-9"
+        receipt.move_ids.picked = True
+        receipt.button_validate()
+        alternator = self.env["x4u.alternator.serial"].search([("name", "=", "J-9")])
+        action = job.with_user(self.storekeeper).action_deliver_materials()
+        wizard = self.env[action["res_model"]].with_user(self.storekeeper).browse(action["res_id"])
+        line = wizard.line_ids
+        self.assertFalse(line.engine_move_id or line.body_move_id, "only the alternator is left")
+        line.alternator_serial_id = alternator
+        wizard.action_confirm()
+        self.assertEqual(production.x4u_job_state, "material_delivered")
+        self.assertEqual(alternator.state, "fitted")

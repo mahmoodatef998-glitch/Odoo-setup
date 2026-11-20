@@ -96,7 +96,12 @@ class X4uJobOrderDeliverAll(models.TransientModel):
                     problems.append(_("- %(job)s: %(lot)s is not in stock", job=line.production_id.name, lot=lot.name))
         if problems:
             raise UserError(_("Check these serials:\n%s", "\n".join(problems)))
-        lines = self.line_ids.filtered(lambda line: line.engine_lot_id or line.body_lot_id)
+        # A generator goes when a serial is picked for it, or when its engine / CKD and canopy are
+        # already delivered and only the alternator or other parts are left (2026-11-20: a generator
+        # whose alternator stayed behind could never be finished).
+        lines = self.line_ids.filtered(
+            lambda line: line.engine_lot_id or line.body_lot_id or not (line.engine_move_id or line.body_move_id)
+        )
         if not lines:
             raise UserError(_("Pick the engine (or CKD) or canopy serial of at least one generator."))
         Deliver = self.env["x4u.job.order.deliver"]
