@@ -218,6 +218,42 @@ class TestX4uAccount(TransactionCase):
         amount = usd.with_company(company)._convert(100.0, company.currency_id, company, "2026-11-07")
         self.assertAlmostEqual(amount, 367.25, places=2)
 
+    def test_gbp_rate_through_the_usd_peg(self):
+        """Spec §18: the ECB has no AED; GBP comes against the dollar, then through the peg, and
+        USD stays at 3.6725."""
+        import io
+        from datetime import date
+        from unittest import mock
+
+        from odoo.addons.x4u_account.hooks import _gbp_rate_provider, _usd_peg
+
+        company = self.env["res.company"].create({"name": "X4U Test GBP Co", "currency_id": self.env.ref("base.AED").id})
+        _usd_peg(self.env, company)
+        _gbp_rate_provider(self.env, company)
+        _gbp_rate_provider(self.env, company)
+        provider = self.env["res.currency.rate.provider"].search([("company_id", "=", company.id)])
+        self.assertEqual(len(provider), 1)
+        self.assertEqual(provider.currency_ids.mapped("name"), ["GBP"])
+        self.assertNotIn("USD", provider._get_supported_currencies())
+
+        # Synthetic ECB file: 1 EUR = 1.15 USD = 0.88 GBP.
+        ecb = (
+            b'<gesmes:Envelope xmlns:gesmes="http://www.gesmes.org/xml/2002-08-01" '
+            b'xmlns="http://www.ecb.int/vocabulary/2002-08-01/eurofxref"><Cube><Cube time="2026-11-20">'
+            b'<Cube currency="USD" rate="1.15"/><Cube currency="GBP" rate="0.88"/></Cube></Cube></gesmes:Envelope>'
+        )
+        target = "odoo.addons.currency_rate_update.models.res_currency_rate_provider_ECB.urlopen"
+        with mock.patch(target, side_effect=lambda *args, **kwargs: io.BytesIO(ecb)):
+            provider._update(date(2026, 11, 20), date(2026, 11, 20))
+        gbp = self.env.ref("base.GBP").with_company(company)
+        amount = gbp._convert(100.0, company.currency_id, company, "2026-11-20")
+        # 100 GBP = 100 / 0.88 * 1.15 USD = 130.68 USD = 479.93 AED.
+        self.assertAlmostEqual(amount, 100 / 0.88 * 1.15 * 3.6725, places=2)
+        usd = self.env.ref("base.USD").with_company(company)
+        self.assertAlmostEqual(usd._convert(100.0, company.currency_id, company, "2026-11-20"), 367.25, places=2)
+        written = self.env["res.currency.rate"].search([("company_id", "=", company.id), ("provider_id", "=", provider.id)])
+        self.assertEqual(written.currency_id.mapped("name"), ["GBP"], "no EUR or USD rate from the ECB")
+
     def test_account_fixes_and_categories(self):
         """Q2 / Q3 on accounts with the l10n_ae codes."""
         from odoo.addons.x4u_account import hooks

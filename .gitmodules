@@ -54,3 +54,7 @@
 	path = oca-addons/server-backend
 	url = https://github.com/OCA/server-backend.git
 	branch = 18.0
+[submodule "oca-addons/currency"]
+	path = oca-addons/currency
+	url = https://github.com/OCA/currency.git
+	branch = 18.0

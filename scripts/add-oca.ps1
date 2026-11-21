@@ -20,6 +20,8 @@ $repos = [ordered]@{
     'purchase-workflow'           = '36a1601'
     # reviewed 2026-10-21: base_user_role 18.0.1.2.0 (Production/Stable) for the 4U roles (docs/modules/01-sales.md §8)
     'server-backend'              = '709a6f4'
+    # reviewed 2026-11-21: currency_rate_update 18.0.1.0.1 (ECB source) for the daily GBP rate, via the USD peg (spec x4u_account §18)
+    'currency'                    = 'e7d64f8'
 }
 foreach ($r in $repos.Keys) {
     $path = "oca-addons/$r"

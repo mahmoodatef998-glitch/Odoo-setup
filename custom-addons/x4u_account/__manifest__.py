@@ -4,7 +4,7 @@
     "name": "4U Accounting",
     "summary": "Accounting the 4U way: menus, PDC cheques to vendors, equity accounts, Petty Cash, "
     "Receivables & Payables (due lists, aging, statements) and safe automatic reconciliation",
-    "version": "18.0.1.8.0",
+    "version": "18.0.1.9.0",
     "category": "Accounting/Accounting",
     # AGPL-3 because it depends on account_asset_management (AGPL-3).
     "license": "AGPL-3",
@@ -43,6 +43,8 @@
         "mis_builder_budget",
         "account_tax_balance",
         "board",
+        # The daily GBP rate from the ECB, through the USD peg (spec §18).
+        "currency_rate_update",
     ],
     "data": [
         "security/ir.model.access.csv",

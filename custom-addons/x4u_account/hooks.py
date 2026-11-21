@@ -127,6 +127,7 @@ def x4u_setup(env):
         _fiscal_years(env, company)
         _budget_report(env, company)
         _monthly_pl(env, company)
+        _gbp_rate_provider(env, company)
     env["res.config.settings"].create(STATEMENT_SETTINGS).execute()
     # The OCA job that posts the depreciation lines that are due (it ships inactive).
     cron = env.ref("account_asset_management.ir_cron_assets_generator", raise_if_not_found=False)
@@ -448,6 +449,20 @@ def _usd_peg(env, company):
                 "rate": 1 / USD_PER_AED_PEG,
             }
         )
+
+
+def _gbp_rate_provider(env, company):
+    """Spec §18: GBP every day from the ECB through the USD peg; made once, the Accountant may change it."""
+    if company.currency_id != env.ref("base.AED"):
+        return
+    service = "X4U_ECB_USD_PEG"
+    Provider = env["res.currency.rate.provider"].sudo().with_context(active_test=False)
+    if Provider.search_count([("service", "=", service), ("company_id", "=", company.id)]):
+        return
+    gbp = env.ref("base.GBP")
+    if not gbp.active:
+        gbp.sudo().active = True
+    Provider.create({"service": service, "company_id": company.id, "currency_ids": [Command.set(gbp.ids)]})
 
 
 def _fix_accounts(env, company):
