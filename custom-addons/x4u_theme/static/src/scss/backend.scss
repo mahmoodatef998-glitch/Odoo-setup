@@ -1,0 +1,33 @@
+// The company logo in the black navbar, next to the apps menu.
+.o_main_navbar .o_x4u_navbar_logo {
+    display: flex;
+    align-items: center;
+    padding: 0 .75rem 0 .25rem;
+    margin-right: .25rem;
+    border-right: 1px solid rgba(#FFFFFF, .14);
+
+    img {
+        height: calc(var(--o-navbar-height) - 14px);
+        width: auto;
+        max-width: 110px;
+        object-fit: contain;
+    }
+
+    &:hover,
+    &:focus-visible {
+        background: rgba(#FFFFFF, .1);
+    }
+}
+
+// Yellow buttons take black text (Bootstrap picks it from the contrast); keep it black on hover too.
+.btn-primary,
+.btn-primary:hover,
+.btn-primary:focus,
+.btn-primary:active {
+    color: #000000;
+}
+
+// The apps menu icon in the navbar follows the yellow accent when open.
+.o_main_navbar .o_navbar_apps_menu .dropdown-toggle.show {
+    color: #FFDE59;
+}

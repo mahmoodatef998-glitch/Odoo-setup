@@ -78,12 +78,21 @@
     <record id="role_production" model="res.users.role">
         <field name="name">Operation Manager</field>
         <field name="sequence">60</field>
-        <field name="comment">Finish Job Order, Use CKD, changes serials after the receipt (x4u_job_order spec v0.9), and approves purchase orders like the General Manager (the user, 2026-11-20).</field>
+        <field name="comment">Runs the company day to day like the General Manager: every app as manager, approves purchase orders and discounts, Finish Job Order, Use CKD, changes serials. No Settings and no users: those stay with the Administrator (the user, 2026-11-21).</field>
         <field name="implied_ids" eval="[Command.set([
             ref('base.group_user'),
-            ref('mrp.group_mrp_user'),
-            ref('x4u_job_order.group_x4u_edit_serials'),
+            ref('sales_team.group_sale_manager'),
             ref('purchase.group_purchase_manager'),
+            ref('purchase_request.group_purchase_request_manager'),
+            ref('stock.group_stock_manager'),
+            ref('mrp.group_mrp_manager'),
+            ref('quality_control_oca.group_quality_control_manager'),
+            ref('account.group_account_manager'),
+            ref('account.group_account_user'),
+            ref('hr.group_hr_manager'),
+            ref('hr_holidays.group_hr_holidays_manager'),
+            ref('payroll.group_payroll_manager'),
+            ref('x4u_job_order.group_x4u_edit_serials'),
         ])]"/>
     </record>
     <record id="role_quality_inspector" model="res.users.role">

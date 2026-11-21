@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<templates xml:space="preserve">
+    <!-- The company logo on dark at the left of the navbar; a click goes home. -->
+    <t t-inherit="web.NavBar" t-inherit-mode="extension">
+        <xpath expr="//t[@t-call='web.NavBar.AppsMenu']" position="after">
+            <a href="/odoo" class="o_x4u_navbar_logo" title="Home">
+                <img src="/x4u_theme/navbar_logo" alt="4U Power Generation"/>
+            </a>
+        </xpath>
+    </t>
+</templates>

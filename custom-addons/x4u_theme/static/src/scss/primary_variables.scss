@@ -1,0 +1,22 @@
+// 4U brand, taken from the logo: black #010101 and yellow #FFDE59.
+// Yellow is for things you press (buttons) and for the navbar accents; on white it is too light
+// for text, so links, selected tabs and checkboxes use a dark gold (#7A6200, contrast 5.9:1).
+$x4u-black: #000000;
+$x4u-yellow: #FFDE59;
+$x4u-gold: #7A6200;
+
+$o-brand-odoo: $x4u-black;
+$o-brand-primary: $x4u-yellow;
+$o-action: $x4u-gold;
+$o-main-link-color: $x4u-gold;
+$o-input-border-required: $x4u-gold;
+
+// Navbar: black with a yellow line under it, the app name in yellow.
+$o-navbar-background: $x4u-black;
+$o-navbar-border-bottom: 3px solid $x4u-yellow;
+$o-navbar-entry-color: rgba(#FFFFFF, .86);
+$o-navbar-entry-color--hover: #FFFFFF;
+$o-navbar-entry-bg--hover: rgba(#FFFFFF, .1);
+$o-navbar-entry-color--active: $x4u-yellow;
+$o-navbar-entry-bg--active: rgba(#FFFFFF, .12);
+$o-navbar-brand-color: $x4u-yellow;

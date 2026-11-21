@@ -75,10 +75,8 @@ ROLES = {
     ),
     # Operation Manager (spec v0.4): finishes the Job Orders; v0.9: Use CKD, changes serials.
     # The Operation Manager approves purchase orders too (the user, 2026-11-20).
-    "role_production": (
-        {"mrp.group_mrp_user", EDIT_SERIALS, "purchase.group_purchase_manager"},
-        {"mrp.group_mrp_manager", "base.group_system"},
-    ),
+    # 2026-11-21: like the General Manager, everything but Settings.
+    "role_production": (MANAGERS | {EDIT_SERIALS}, {"base.group_system", "base.group_erp_manager"}),
     "role_quality_inspector": (
         {"quality_control_oca.group_quality_control_user", "x4u_job_order.group_x4u_job_order_viewer"},
         {"quality_control_oca.group_quality_control_manager", "sales_team.group_sale_salesman", "mrp.group_mrp_user"},
@@ -118,6 +116,15 @@ class TestRoles(TransactionCase):
         self.assertFalse(self._user("role_purchasing_officer").has_group("purchase.group_purchase_manager"))
         for role in ("role_general_manager", "role_production", "role_administrator"):
             self.assertTrue(self._user(role).has_group("purchase.group_purchase_manager"), role)
+
+    def test_apps_menu_for_the_administrator_only(self):
+        """Settings and Apps stay with the Administrator (2026-11-21)."""
+        apps = self.env.ref("base.menu_management")
+        self.assertIn(self.env.ref("base.group_system"), apps.groups_id)
+        for role in ("role_production", "role_general_manager"):
+            menus = self.env["ir.ui.menu"].with_user(self._user(role))._visible_menu_ids()
+            self.assertNotIn(apps.id, menus, role)
+        self.assertIn(apps.id, self.env["ir.ui.menu"].with_user(self._user("role_administrator"))._visible_menu_ids())
 
     def test_no_free_sign_up(self):
         """Pilot server (2026-11-21): nobody makes an account from the login page."""

@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <!-- Apps (install / remove modules) with Settings, for the Administrator only (the user,
+         2026-11-21: "الاعدادات معايا أنا بس"). Others could open the list but not install. -->
+    <record id="base.menu_management" model="ir.ui.menu">
+        <field name="groups_id" eval="[Command.link(ref('base.group_system'))]"/>
+    </record>
+</odoo>

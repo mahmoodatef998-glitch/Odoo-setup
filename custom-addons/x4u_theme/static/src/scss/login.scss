@@ -1,0 +1,60 @@
+// The login page: the one place the brand speaks loudly. Black page, the yellow line of the
+// navbar on top, a white card holding the logo, a yellow button with black text.
+body.o_x4u_login {
+    min-height: 100%;
+    background-color: #000000;
+    border-top: 6px solid #FFDE59;
+
+    > main,
+    #wrapwrap {
+        background: transparent;
+    }
+
+    .container {
+        min-height: calc(100vh - 6px);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+    }
+
+    .card.o_database_list {
+        max-width: 360px !important;
+        width: 100%;
+        background: #FFFFFF !important;
+        border-radius: 10px;
+        border-bottom: 4px solid #FFDE59 !important;
+        box-shadow: 0 24px 60px rgba(#000000, .6);
+
+        .card-body {
+            padding: 2rem 1.75rem 1.5rem;
+        }
+
+        img[alt="Logo"] {
+            max-height: 96px !important;
+        }
+    }
+
+    .oe_login_buttons .btn-primary {
+        background: #FFDE59;
+        border-color: #FFDE59;
+        color: #000000;
+        font-weight: 600;
+        padding: .6rem 1rem;
+
+        &:hover,
+        &:focus-visible {
+            background: #F2CC2E;
+            border-color: #F2CC2E;
+            color: #000000;
+        }
+    }
+
+    .form-control:focus {
+        border-color: #7A6200;
+        box-shadow: 0 0 0 .2rem rgba(#FFDE59, .45);
+    }
+
+    a {
+        color: #7A6200;
+    }
+}

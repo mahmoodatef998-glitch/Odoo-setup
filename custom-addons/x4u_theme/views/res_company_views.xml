@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <record id="view_company_form_x4u_theme" model="ir.ui.view">
+        <field name="name">res.company.form.x4u_theme</field>
+        <field name="model">res.company</field>
+        <field name="inherit_id" ref="base.view_company_form"/>
+        <field name="arch" type="xml">
+            <xpath expr="//field[@name='logo']" position="after">
+                <field name="x4u_navbar_logo" widget="image" class="oe_avatar bg-black" options="{'size': [0, 90]}"/>
+            </xpath>
+        </field>
+    </record>
+</odoo>

@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <!-- The login page: black page, white card with the logo, yellow button (static/src/scss/login.scss). -->
+    <template id="login_layout" inherit_id="web.login_layout" name="4U login layout">
+        <xpath expr="//t[@t-set='body_classname']" position="attributes">
+            <attribute name="t-value">'o_x4u_login'</attribute>
+        </xpath>
+    </template>
+
+    <!-- 4U users sign in with a username (shamsa, tareq...), not always an email. -->
+    <template id="login" inherit_id="web.login" name="4U login form">
+        <xpath expr="//label[@for='login']" position="replace">
+            <label for="login" class="form-label d-flex justify-content-between">Username</label>
+        </xpath>
+        <xpath expr="//input[@name='login']" position="attributes">
+            <attribute name="placeholder">Username or email</attribute>
+        </xpath>
+    </template>
+</odoo>
