@@ -24,6 +24,14 @@ The server address, passwords and the domain live only on the server (`/opt/odoo
 - One database, `odoo4u`, built with `scripts/create-db.ps1` (no demo data, no test users), no
   Database Manager on the internet (`list_db = False`, `dbfilter = ^odoo4u$`).
 
+- Settings in the database (not in Git, set once on the server):
+  - `report.url = http://localhost:8069`, so wkhtmltopdf fetches the report CSS and logo from
+    Odoo inside the container, not through the internet.
+  - Company logo and report colors (primary #1A1A1A, secondary #8C7000, a readable dark gold of
+    the logo's #FFDE59); the logo file is kept in `private/branding/` (git-ignored).
+  - No free sign-up from the login page: `x4u_roles` 18.0.1.0.9 sets
+    `auth_signup.invitation_scope = b2b` (Odoo's `auth_signup` opens b2c when it installs).
+
 ## Every day
 - 02:30 `deploy/backup-daily.sh` (root crontab): `scripts/backup.ps1` → `/opt/odoo4u/backups`,
   kept 14 days. Plus Hetzner's daily server image.

@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <!-- Odoo's auth_signup opens "Free sign up" (b2c) when it is installed: anyone on the internet
+         could make an account from the login page. 4U users are made by the Administrator with
+         their role, so accounts are on invitation only (pilot server, 2026-11-21). -->
+    <function model="ir.config_parameter" name="set_param" eval="('auth_signup.invitation_scope', 'b2b')"/>
+</odoo>

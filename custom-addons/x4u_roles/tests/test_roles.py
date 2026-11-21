@@ -101,6 +101,10 @@ class TestRoles(TransactionCase):
         for role in ("role_general_manager", "role_production", "role_administrator"):
             self.assertTrue(self._user(role).has_group("purchase.group_purchase_manager"), role)
 
+    def test_no_free_sign_up(self):
+        """Pilot server (2026-11-21): nobody makes an account from the login page."""
+        self.assertEqual(self.env["ir.config_parameter"].sudo().get_param("auth_signup.invitation_scope"), "b2b")
+
     def test_changing_the_role_removes_the_old_rights(self):
         user = self._user("role_storekeeper")
         self.assertTrue(user.has_group("stock.group_stock_user"))
