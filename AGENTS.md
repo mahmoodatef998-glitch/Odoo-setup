@@ -12,7 +12,7 @@
 1. Never edit Odoo core or OCA code. 4U code goes only in `custom-addons/` (one module per folder, technical prefix `x4u_`, e.g. `x4u_stock_generator`).
 2. OCA repos are pinned git submodules in `oca-addons/` (see `scripts/add-oca.ps1`). Change a pin only with a reason in the commit message.
 3. Secrets never go in Git, chat, or compose files: `.env`, `config/odoo.conf`, `backups/` are git-ignored. Ask the user to type secrets himself.
-4. Dev only: no published ports beyond `127.0.0.1`, no deploy to a server without explicit approval. Company details (letterhead, TRN, contacts) may be used in the local dev DB for realistic documents (user, 2026-10-21) but never go in Git: real files live in git-ignored `private/`.
+4. Dev only: no published ports beyond `127.0.0.1`, no deploy to a server without explicit approval. Pilot server approved by the user 2026-11-21: Hetzner, `compose.prod.yaml` + Caddy (HTTPS), database `odoo4u`, runbook `docs/deploy/hetzner-pilot.md`; change it only after a backup and with the user's OK, and never put its address or secrets in Git. Company details (letterhead, TRN, contacts) may be used in the local dev DB for realistic documents (user, 2026-10-21) but never go in Git: real files live in git-ignored `private/`.
 5. Never use `latest` tags; verify any new image tag / version on the official source first and cite it.
 6. Before any destructive step (drop DB, `docker compose down -v`, module uninstall, migration): run `scripts/backup.ps1`, explain impact + rollback, get explicit approval.
 7. Don't claim something works until verified (logs, `docker compose ps`, test run, UI check).

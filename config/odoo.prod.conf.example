@@ -1,0 +1,23 @@
+[options]
+; Pilot server: copy to config/odoo.conf on the server (git-ignored) and put a long random
+; admin_passwd there (docs/deploy/hetzner-pilot.md does it with openssl). Never commit it.
+addons_path = /mnt/extra-addons,/mnt/oca-addons/account-financial-tools,/mnt/oca-addons/account-financial-reporting,/mnt/oca-addons/mis-builder,/mnt/oca-addons/reporting-engine,/mnt/oca-addons/server-ux,/mnt/oca-addons/manufacture,/mnt/oca-addons/account-reconcile,/mnt/oca-addons/account-payment,/mnt/oca-addons/payroll,/mnt/oca-addons/hr-holidays,/mnt/oca-addons/hr,/mnt/oca-addons/calendar,/mnt/oca-addons/purchase-workflow,/mnt/oca-addons/server-backend,/mnt/oca-addons/currency
+data_dir = /var/lib/odoo
+admin_passwd = SET-ON-THE-SERVER
+; Behind Caddy (HTTPS): trust its X-Forwarded-* headers.
+proxy_mode = True
+; One database, no Database Manager on the internet.
+db_name = odoo4u
+dbfilter = ^odoo4u$
+list_db = False
+without_demo = all
+; 4 vCPU / 8 GB: 4 HTTP workers + 1 cron worker; live updates on the gevent port (Caddy /websocket).
+workers = 4
+max_cron_threads = 1
+gevent_port = 8072
+limit_memory_soft = 1610612736
+limit_memory_hard = 2147483648
+limit_time_cpu = 600
+limit_time_real = 1200
+limit_request = 8192
+log_level = info

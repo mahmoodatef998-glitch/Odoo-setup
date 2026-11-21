@@ -1,0 +1,44 @@
+# 4U pilot server (Hetzner, docs/deploy/hetzner-pilot.md). Used ON TOP of compose.yaml:
+#   COMPOSE_FILE=compose.yaml:compose.prod.yaml in the server's .env, so every script
+#   (create-db.ps1, backup.ps1, ...) works there unchanged.
+# Odoo stays on 127.0.0.1:8069; only Caddy (HTTPS) is reachable from the internet.
+# caddy:2.11.9-alpine checked on Docker Hub (active, 2026-11-13) and GitHub release v2.11.9 (2026-11-05).
+name: odoo4u
+
+services:
+  db:
+    restart: unless-stopped
+    shm_size: 256mb
+
+  web:
+    restart: unless-stopped
+
+  mailpit:
+    # Dev mail catcher: not on the server.
+    profiles: ["dev"]
+
+  caddy:
+    image: caddy:2.11.9-alpine
+    restart: unless-stopped
+    depends_on:
+      - web
+    environment:
+      ODOO_DOMAIN: ${ODOO_DOMAIN:?ODOO_DOMAIN is missing in .env (e.g. erp.example.com)}
+    ports:
+      - "80:80"
+      - "443:443"
+      - "443:443/udp"
+    volumes:
+      - ./deploy/Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy-data:/data
+      - caddy-config:/config
+
+volumes:
+  db-data:
+    name: odoo4u-db-data
+  filestore:
+    name: odoo4u-filestore
+  caddy-data:
+    name: odoo4u-caddy-data
+  caddy-config:
+    name: odoo4u-caddy-config
