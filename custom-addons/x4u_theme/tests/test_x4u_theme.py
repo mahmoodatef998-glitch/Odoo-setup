@@ -33,3 +33,24 @@ class TestX4uTheme(HttpCase):
         page = self.url_open("/web/login").text
         self.assertIn("o_x4u_login", page)
         self.assertIn('placeholder="Username or email"', page)
+
+
+@tagged("post_install", "-at_install")
+class TestX4uHome(HttpCase):
+    def test_home_is_the_start_page(self):
+        """Every internal user starts on the Home page, new users too; a chosen start page stays."""
+        from odoo.addons.x4u_theme.hooks import set_home_action
+
+        home = self.env.ref("x4u_theme.action_x4u_home")
+        self.assertEqual(home.tag, "x4u_home")
+        menu = self.env.ref("x4u_theme.menu_x4u_home")
+        self.assertFalse(menu.parent_id)
+        self.assertEqual(menu.action.id, home.id)
+        internal = self.env["res.users"].search([("share", "=", False)])
+        self.assertEqual(internal.action_id.ids, home.ids)
+        new = self.env["res.users"].create({"name": "X4U Home New", "login": "x4u_home_new"})
+        self.assertEqual(new.action_id.id, home.id)
+        other = self.env.ref("base.action_res_users")
+        new.action_id = other.id
+        set_home_action(self.env)
+        self.assertEqual(new.action_id.id, other.id, "a start page someone chose is kept")

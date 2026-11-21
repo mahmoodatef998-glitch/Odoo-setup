@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <!-- The 4U Home page (static/src/home): every user's start page (hooks.set_home_action). -->
+    <record id="action_x4u_home" model="ir.actions.client">
+        <field name="name">Home</field>
+        <field name="tag">x4u_home</field>
+    </record>
+    <!-- A top-level menu for the page, so the navbar says "Home" there and not the last app. -->
+    <menuitem id="menu_x4u_home" name="Home" action="action_x4u_home" sequence="-100"/>
+</odoo>

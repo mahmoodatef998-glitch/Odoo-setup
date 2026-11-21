@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<templates xml:space="preserve">
+    <t t-name="x4u_theme.Home">
+        <div class="o_x4u_home o_action h-100 overflow-auto">
+            <div class="o_x4u_home_inner">
+                <header class="o_x4u_home_header">
+                    <h1 class="o_x4u_home_title"><t t-esc="greeting"/>, <t t-esc="userName"/></h1>
+                    <input t-ref="search" type="search" class="form-control o_x4u_home_search"
+                           placeholder="Find an app" aria-label="Find an app"
+                           t-model="state.query" t-on-keydown="onSearchKeydown"/>
+                </header>
+                <div class="o_x4u_home_grid" role="list">
+                    <button t-foreach="apps" t-as="app" t-key="app.id" type="button" role="listitem"
+                            class="o_x4u_app" t-att-data-menu-xmlid="app.xmlid" t-on-click="() => this.openApp(app)">
+                        <img t-if="app.webIconData" class="o_x4u_app_icon" t-att-src="app.webIconData" alt=""/>
+                        <span t-else="" class="o_x4u_app_icon o_x4u_app_letter" t-esc="app.name[0]"/>
+                        <span class="o_x4u_app_name" t-esc="app.name"/>
+                    </button>
+                </div>
+                <p t-if="!apps.length" class="o_x4u_home_empty">No app is called “<t t-esc="state.query"/>”. Clear the search to see all your apps.</p>
+            </div>
+        </div>
+    </t>
+</templates>
