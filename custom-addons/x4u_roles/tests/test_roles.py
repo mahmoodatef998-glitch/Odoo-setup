@@ -55,6 +55,24 @@ ROLES = {
         {"stock.group_stock_user", "x4u_job_order.group_x4u_job_order_viewer"},
         {"stock.group_stock_manager", "sales_team.group_sale_salesman", "mrp.group_mrp_user", EDIT_SERIALS},
     ),
+    # One person buys and runs the store (2026-11-21): no Receipts Only, no PO approval.
+    "role_purchasing_storekeeper": (
+        {
+            "purchase.group_purchase_user",
+            "purchase_request.group_purchase_request_manager",
+            "base.group_partner_manager",
+            "stock.group_stock_user",
+            "x4u_job_order.group_x4u_job_order_viewer",
+        },
+        {
+            "purchase.group_purchase_manager",
+            "x4u_roles.group_x4u_receipts_only",
+            "stock.group_stock_manager",
+            "sales_team.group_sale_salesman",
+            "mrp.group_mrp_user",
+            EDIT_SERIALS,
+        },
+    ),
     # Operation Manager (spec v0.4): finishes the Job Orders; v0.9: Use CKD, changes serials.
     # The Operation Manager approves purchase orders too (the user, 2026-11-20).
     "role_production": (
