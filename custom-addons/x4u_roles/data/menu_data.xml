@@ -5,4 +5,9 @@
     <record id="base.menu_management" model="ir.ui.menu">
         <field name="groups_id" eval="[Command.link(ref('base.group_system'))]"/>
     </record>
+    <!-- The Manufacturing app for the read-only buyers too (group_x4u_mrp_viewer). Its Configuration
+         stays with the Manufacturing managers. -->
+    <record id="mrp.menu_mrp_root" model="ir.ui.menu">
+        <field name="groups_id" eval="[Command.link(ref('group_x4u_mrp_viewer'))]"/>
+    </record>
 </odoo>

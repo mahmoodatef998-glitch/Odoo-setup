@@ -1,0 +1,6 @@
+id,name,model_id:id,group_id:id,perm_read,perm_write,perm_create,perm_unlink
+access_mrp_bom_line_x4u_mrp_viewer,mrp.bom.line read-only buyers,mrp.model_mrp_bom_line,group_x4u_mrp_viewer,1,0,0,0
+access_mrp_bom_byproduct_x4u_mrp_viewer,mrp.bom.byproduct read-only buyers,mrp.model_mrp_bom_byproduct,group_x4u_mrp_viewer,1,0,0,0
+access_mrp_workcenter_x4u_mrp_viewer,mrp.workcenter read-only buyers,mrp.model_mrp_workcenter,group_x4u_mrp_viewer,1,0,0,0
+access_mrp_workcenter_tag_x4u_mrp_viewer,mrp.workcenter.tag read-only buyers,mrp.model_mrp_workcenter_tag,group_x4u_mrp_viewer,1,0,0,0
+access_mrp_productivity_loss_x4u_mrp_viewer,mrp.workcenter.productivity.loss read-only buyers,mrp.model_mrp_workcenter_productivity_loss,group_x4u_mrp_viewer,1,0,0,0

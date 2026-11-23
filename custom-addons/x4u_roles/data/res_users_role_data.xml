@@ -27,6 +27,7 @@
             ref('x4u_job_order.group_x4u_job_order_viewer'),
             ref('stock.group_stock_user'),
             ref('group_x4u_receipts_only'),
+            ref('group_x4u_mrp_viewer'),
         ])]"/>
     </record>
     <record id="role_general_manager" model="res.users.role">
@@ -72,6 +73,7 @@
             ref('purchase_request.group_purchase_request_manager'),
             ref('x4u_job_order.group_x4u_job_order_viewer'),
             ref('stock.group_stock_user'),
+            ref('group_x4u_mrp_viewer'),
         ])]"/>
     </record>
     <!-- Was "Production" before x4u_job_order spec v0.4 (2026-10-27); same id, same users. -->

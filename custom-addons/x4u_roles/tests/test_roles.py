@@ -4,6 +4,8 @@ from odoo.tests import TransactionCase, new_test_user, tagged
 
 # x4u_job_order spec v0.9 E1: changes a serial after the receipt.
 EDIT_SERIALS = "x4u_job_order.group_x4u_edit_serials"
+# Manufacturing app, read only, for the buyers (2026-11-23).
+MRP_VIEWER = "x4u_roles.group_x4u_mrp_viewer"
 MANAGERS = {
     "sales_team.group_sale_manager",
     "purchase.group_purchase_manager",
@@ -41,6 +43,7 @@ ROLES = {
             # Receives purchases and writes their serials (x4u_job_order spec v0.8 N2).
             "stock.group_stock_user",
             "x4u_roles.group_x4u_receipts_only",
+            MRP_VIEWER,
         },
         {
             "purchase.group_purchase_manager",
@@ -63,6 +66,7 @@ ROLES = {
             "base.group_partner_manager",
             "stock.group_stock_user",
             "x4u_job_order.group_x4u_job_order_viewer",
+            MRP_VIEWER,
         },
         {
             "purchase.group_purchase_manager",
@@ -125,6 +129,31 @@ class TestRoles(TransactionCase):
             menus = self.env["ir.ui.menu"].with_user(self._user(role))._visible_menu_ids()
             self.assertNotIn(apps.id, menus, role)
         self.assertIn(apps.id, self.env["ir.ui.menu"].with_user(self._user("role_administrator"))._visible_menu_ids())
+
+    def test_buyers_see_manufacturing_read_only(self):
+        """The buyers open the Manufacturing app and read its orders and bills of materials; they
+        change nothing (the user, 2026-11-23). Storekeeper and Salesperson do not see the app."""
+        root = self.env.ref("mrp.menu_mrp_root")
+        product = self.env["product.product"].create({"name": "X4U Test MRP Viewer", "is_storable": True})
+        component = self.env["product.product"].create({"name": "X4U Test MRP Viewer Part", "is_storable": True})
+        bom = self.env["mrp.bom"].create(
+            {
+                "product_tmpl_id": product.product_tmpl_id.id,
+                "bom_line_ids": [Command.create({"product_id": component.id, "product_qty": 2})],
+            }
+        )
+        production = self.env["mrp.production"].create({"product_id": product.id, "bom_id": bom.id})
+        for role in ("role_purchasing_officer", "role_purchasing_storekeeper"):
+            buyer = self._user(role)
+            self.assertIn(root.id, self.env["ir.ui.menu"].with_user(buyer)._visible_menu_ids(), role)
+            self.assertEqual(production.with_user(buyer).read(["name", "state"])[0]["state"], "draft")
+            self.assertTrue(bom.with_user(buyer).bom_line_ids.read(["product_qty"]))
+            with self.assertRaises(AccessError, msg=role):
+                production.with_user(buyer).write({"product_qty": 5})
+            with self.assertRaises(AccessError, msg=role):
+                bom.with_user(buyer).write({"code": "X"})
+        for role in ("role_storekeeper", "role_salesperson"):
+            self.assertNotIn(root.id, self.env["ir.ui.menu"].with_user(self._user(role))._visible_menu_ids(), role)
 
     def test_no_free_sign_up(self):
         """Pilot server (2026-11-21): nobody makes an account from the login page."""

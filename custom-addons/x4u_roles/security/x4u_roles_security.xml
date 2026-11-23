@@ -29,4 +29,14 @@
         <field name="groups" eval="[Command.link(ref('group_x4u_receipts_only'))]"/>
         <field name="perm_read" eval="False"/>
     </record>
+
+    <!-- Purchasing sees the Manufacturing app without changing anything (the user, 2026-11-23,
+         "View only"). The models are read through the Job Orders viewer group and the read rows
+         in ir.model.access.csv; the app's menu is opened to this group (data/menu_data.xml). -->
+    <record id="group_x4u_mrp_viewer" model="res.groups">
+        <field name="name">Manufacturing: Read Only</field>
+        <field name="category_id" ref="base.module_category_hidden"/>
+        <field name="implied_ids" eval="[Command.link(ref('x4u_job_order.group_x4u_job_order_viewer'))]"/>
+        <field name="comment">Sees manufacturing orders, Job Orders, bills of materials and the manufacturing reports; changes none of them.</field>
+    </record>
 </odoo>
