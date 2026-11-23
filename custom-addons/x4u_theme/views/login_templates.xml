@@ -7,6 +7,12 @@
         </xpath>
     </template>
 
+    <!-- The login page lists the pilot and training databases, but never links the Database
+         Manager (the proxy blocks it too, docs/deploy/hetzner-pilot.md). -->
+    <template id="login_layout_no_manager" inherit_id="web.login_layout" name="4U login: no Database Manager">
+        <xpath expr="//a[@href='/web/database/manager']" position="replace"/>
+    </template>
+
     <!-- 4U users sign in with a username (shamsa, tareq...), not always an email. -->
     <template id="login" inherit_id="web.login" name="4U login form">
         <xpath expr="//label[@for='login']" position="replace">

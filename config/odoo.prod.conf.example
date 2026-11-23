@@ -6,10 +6,11 @@ data_dir = /var/lib/odoo
 admin_passwd = SET-ON-THE-SERVER
 ; Behind Caddy (HTTPS): trust its X-Forwarded-* headers.
 proxy_mode = True
-; One database, no Database Manager on the internet.
+; The pilot and the training database, chosen on the login page; the Database Manager
+; pages are blocked by Caddy (deploy/Caddyfile). db_name stays the default for scripts.
 db_name = odoo4u
-dbfilter = ^odoo4u$
-list_db = False
+dbfilter = ^odoo4u(_training)?$
+list_db = True
 without_demo = all
 ; 4 vCPU / 8 GB: 4 HTTP workers + 1 cron worker; live updates on the gevent port (Caddy /websocket).
 workers = 4

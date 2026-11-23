@@ -54,3 +54,19 @@ class TestX4uHome(HttpCase):
         new.action_id = other.id
         set_home_action(self.env)
         self.assertEqual(new.action_id.id, other.id, "a start page someone chose is kept")
+
+
+@tagged("post_install", "-at_install")
+class TestX4uEnvironment(HttpCase):
+    def test_training_label(self):
+        """The training database says "Training" to the web client; the real one says nothing."""
+        ICP = self.env["ir.config_parameter"].sudo()
+        self.authenticate("admin", "admin")
+        ICP.set_param("x4u_theme.environment_label", False)
+        self.assertIn('"x4u_environment_label": ""', self.url_open("/odoo").text)
+        ICP.set_param("x4u_theme.environment_label", "Training")
+        self.assertIn('"x4u_environment_label": "Training"', self.url_open("/odoo").text)
+
+    def test_login_page_has_no_database_manager_link(self):
+        page = self.url_open("/web/login").text
+        self.assertNotIn("/web/database/manager", page)

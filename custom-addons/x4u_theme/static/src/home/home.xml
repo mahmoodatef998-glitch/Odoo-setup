@@ -9,6 +9,10 @@
                            placeholder="Find an app" aria-label="Find an app"
                            t-model="state.query" t-on-keydown="onSearchKeydown"/>
                 </header>
+                <p t-if="environmentLabel" class="o_x4u_home_env" role="note">
+                    <strong><t t-esc="environmentLabel"/> database.</strong>
+                    Practise freely: nothing you do here reaches the real company data.
+                </p>
                 <div class="o_x4u_home_grid" role="list">
                     <button t-foreach="apps" t-as="app" t-key="app.id" type="button" role="listitem"
                             class="o_x4u_app" t-att-data-menu-xmlid="app.xmlid" t-on-click="() => this.openApp(app)">

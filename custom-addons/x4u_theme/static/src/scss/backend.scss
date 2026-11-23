@@ -31,3 +31,18 @@
 .o_main_navbar .o_navbar_apps_menu .dropdown-toggle.show {
     color: #FFDE59;
 }
+
+// "Training" on the training database: black and yellow hazard stripes, impossible to miss.
+.o_main_navbar .o_x4u_env_badge {
+    align-self: center;
+    margin: 0 .5rem 0 .25rem;
+    padding: .2rem .65rem;
+    border-radius: 4px;
+    background: repeating-linear-gradient(-45deg, #FFDE59 0 10px, #000000 10px 20px);
+    color: #000000;
+    font-weight: 700;
+    letter-spacing: .04em;
+    text-transform: uppercase;
+    text-shadow: 0 0 3px #FFDE59, 0 0 3px #FFDE59, 0 0 3px #FFDE59;
+    white-space: nowrap;
+}

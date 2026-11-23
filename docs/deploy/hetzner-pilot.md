@@ -32,6 +32,27 @@ The server address, passwords and the domain live only on the server (`/opt/odoo
   - No free sign-up from the login page: `x4u_roles` 18.0.1.0.9 sets
     `auth_signup.invitation_scope = b2b` (Odoo's `auth_signup` opens b2c when it installs).
 
+## Training database (2026-11-23)
+- `odoo4u_training`: a copy of `odoo4u` (same users, passwords, look) + `scripts/training_data.py`
+  (3 generators 100/250/500 kVA with Open/Canopy and AQT/Leroy-Somer variants, their parts,
+  3 vendors, 3 customers, starting stock with serials, all "(Training)" / `TR-`). The navbar and
+  the Home page say "Training" (`x4u_theme.environment_label`). The script refuses any database
+  whose name does not end in `_training`.
+- The login page lists both (`list_db = True`, `dbfilter = ^odoo4u(_training)?$`); Caddy blocks
+  the Database Manager pages and `/xmlrpc`, `/jsonrpc` (deploy/Caddyfile).
+- Not in the nightly backup. Start again from the pilot (on the server, `cd /opt/odoo4u`):
+```bash
+deploy/backup-daily.sh </dev/null                      # odoo4u
+docker compose stop web                                # a template needs no open connection
+docker compose exec -T db dropdb -U odoo --if-exists odoo4u_training
+docker compose exec -T db createdb -U odoo -T odoo4u odoo4u_training
+docker compose start web
+docker compose exec -T web rm -rf /var/lib/odoo/filestore/odoo4u_training
+docker compose exec -T web cp -a /var/lib/odoo/filestore/odoo4u /var/lib/odoo/filestore/odoo4u_training
+docker compose run --rm -T web odoo shell -d odoo4u_training --no-http < scripts/training_data.py
+```
+- After the pilot starts: drop it and put `dbfilter = ^odoo4u$`, `list_db = False` back.
+
 ## Every day
 - 02:30 `deploy/backup-daily.sh` (root crontab): `scripts/backup.ps1` → `/opt/odoo4u/backups`,
   kept 14 days. Plus Hetzner's daily server image.

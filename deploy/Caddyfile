@@ -3,6 +3,12 @@
 {$ODOO_DOMAIN} {
 	encode zstd gzip
 
+	# The login page lists the pilot and training databases (list_db), but nobody creates,
+	# copies, drops, backs up or restores a database from the internet, and the external
+	# XML-RPC / JSON-RPC API stays closed until an integration needs it.
+	@blocked path /web/database/manager* /web/database/create* /web/database/duplicate* /web/database/drop* /web/database/backup* /web/database/restore* /web/database/change_password* /xmlrpc/* /jsonrpc*
+	respond @blocked 404
+
 	# Odoo 18 with workers: live updates (chat, notifications) go to the gevent port.
 	@websocket path /websocket*
 	reverse_proxy @websocket web:8072

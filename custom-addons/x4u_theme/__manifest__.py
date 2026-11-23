@@ -4,7 +4,7 @@
     "name": "4U Theme",
     "summary": "The 4U look: black navbar with the company logo and a yellow line, yellow main "
     "buttons, readable dark-gold links, a branded login page, and a Home page with the user's apps as cards",
-    "version": "18.0.1.1.0",
+    "version": "18.0.1.2.0",
     "category": "Hidden",
     "license": "LGPL-3",
     "author": "4U Power Generation FZC",
@@ -21,6 +21,7 @@
         ],
         "web.assets_backend": [
             "x4u_theme/static/src/scss/backend.scss",
+            "x4u_theme/static/src/webclient/navbar.js",
             "x4u_theme/static/src/webclient/navbar.xml",
             "x4u_theme/static/src/home/home.js",
             "x4u_theme/static/src/home/home.xml",

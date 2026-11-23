@@ -6,6 +6,9 @@
             <a href="/odoo" class="o_x4u_navbar_logo" title="Home">
                 <img src="/x4u_theme/navbar_logo" alt="4U Power Generation"/>
             </a>
+            <!-- The training database says so on every screen. -->
+            <span t-if="x4uEnvironmentLabel" class="o_x4u_env_badge" t-esc="x4uEnvironmentLabel"
+                  title="Practice database: nothing here is real"/>
         </xpath>
     </t>
 </templates>

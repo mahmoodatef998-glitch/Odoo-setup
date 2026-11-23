@@ -2,6 +2,7 @@ import { Component, onMounted, useRef, useState } from "@odoo/owl";
 import { _t } from "@web/core/l10n/translation";
 import { registry } from "@web/core/registry";
 import { user } from "@web/core/user";
+import { session } from "@web/session";
 import { useService } from "@web/core/utils/hooks";
 import { fuzzyLookup } from "@web/core/utils/search";
 
@@ -18,6 +19,7 @@ export class X4uHome extends Component {
         this.state = useState({ query: "" });
         this.searchRef = useRef("search");
         this.userName = user.name;
+        this.environmentLabel = session.x4u_environment_label || "";
         onMounted(() => this.searchRef.el?.focus());
     }
 
