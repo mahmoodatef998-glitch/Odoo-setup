@@ -84,7 +84,7 @@ class TestX4uControls(TransactionCase):
         self.assertEqual(self.chk.code, "CHK")
         self.assertEqual(self.chk.type, "bank")
         self.assertGreater(self.chk.sequence, self.bank.sequence, "never proposed before the real bank")
-        account = _account(self.env, self.company, "102013")
+        account = _account(self.env, self.company, "132001")
         self.assertEqual(self.in_hand.payment_account_id, account)
         self.assertTrue(account.reconcile)
         self.assertFalse(self.chk.outbound_payment_method_line_ids)
@@ -266,8 +266,8 @@ class TestX4uControls(TransactionCase):
 
     def test_management_pl(self):
         day = date(2020, 6, 15)
-        self._post("out_invoice", "500001", "income", 1000.0, day)
-        self._post("in_invoice", "400016", "expense", 300.0, day)
+        self._post("out_invoice", "410002", "income", 1000.0, day)
+        self._post("in_invoice", "530053", "expense", 300.0, day)
         self._post("in_invoice", "699999", "expense", 50.0, day)
         report = self.env.ref("x4u_account.mis_report_x4u_pl")
         values = report.evaluate(report._prepare_aep(self.company), date_from="2020-06-01", date_to="2020-06-30")

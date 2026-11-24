@@ -8,17 +8,17 @@ from odoo.addons.x4u_account.hooks import _account
 from ..hooks import ADVANCES, RULE_ACCOUNTS, x4u_payroll_setup
 
 ACCOUNT_NAMES = {
-    "400003": ("Basic Salary", "expense"),
-    "400004": ("Housing Allowance", "expense"),
-    "400005": ("Transportation Allowance", "expense"),
-    "400006": ("Leave Ticket", "expense"),
-    "400007": ("Leave Salary", "expense"),
-    "400008": ("End Of Service Indemnity", "expense"),
-    "400012": ("Staff Other Allowances", "expense"),
-    "201004": ("Accrued - Salaries", "liability_current"),
-    "201005": ("Leave Tickets Provision", "liability_current"),
-    "201006": ("Leave Days Provision", "liability_current"),
-    "202001": ("End of Service Provision", "liability_non_current"),
+    "510001": ("Basic Salary", "expense"),
+    "530016": ("Housing Allowance", "expense"),
+    "530015": ("Transportation Allowance", "expense"),
+    "530079": ("Leave Ticket", "expense"),
+    "510002": ("Leave Salary", "expense"),
+    "530074": ("End Of Service Indemnity", "expense"),
+    "530020": ("Staff Other Allowances", "expense"),
+    "215003": ("Accrued - Salaries", "liability_current"),
+    "215005": ("Leave Tickets Provision", "liability_current"),
+    "215002": ("Leave Days Provision", "liability_current"),
+    "215001": ("End of Service Provision", "liability_non_current"),
 }
 
 
@@ -89,8 +89,8 @@ class TestX4uPayroll(TransactionCase):
 
     def test_setup(self):
         self.assertEqual(self.contract.journal_id.code, "SAL", "new contracts get the Salaries journal")
-        self.assertEqual(self.env.ref("x4u_payroll.rule_net").account_credit, self.acc["201004"])
-        self.assertEqual(self.env.ref("x4u_payroll.rule_eosb").account_credit, self.acc["202001"])
+        self.assertEqual(self.env.ref("x4u_payroll.rule_net").account_credit, self.acc["215003"])
+        self.assertEqual(self.env.ref("x4u_payroll.rule_eosb").account_credit, self.acc["215001"])
 
     def test_payslip_and_entry(self):
         slip = self._payslip({"ADVANCE": 1000.0, "ABSENCE_DAYS": 2.0})
@@ -109,17 +109,17 @@ class TestX4uPayroll(TransactionCase):
         self.assertEqual(
             balances,
             {
-                "400003": 5366.67,  # basic 6,000 less the unpaid days
-                "400004": 3000.0,
-                "400005": 500.0,
+                "510001": 5366.67,  # basic 6,000 less the unpaid days
+                "530016": 3000.0,
+                "530015": 500.0,
                 ADVANCES[0]: -1000.0,
-                "201004": -7866.67,
-                "400008": 350.0,
-                "202001": -350.0,
-                "400007": 500.0,
-                "201006": -500.0,
-                "400006": 200.0,
-                "201005": -200.0,
+                "215003": -7866.67,
+                "530074": 350.0,
+                "215001": -350.0,
+                "510002": 500.0,
+                "215002": -500.0,
+                "530079": 200.0,
+                "215005": -200.0,
             },
         )
         self.assertEqual(slip.move_id.state, "posted")

@@ -1,19 +1,26 @@
 import calendar
+import logging
 from datetime import date
 
 from dateutil.relativedelta import relativedelta
 
 from odoo import Command, fields
 
-# Equity, after the Focus tree (Capital In Paid, Partner Paid, Reserves & Surplus, Profit/Loss).
-# 999999 "Undistributed Profits/Losses" stays the current year's profit (spec §3). The codes
-# are free in l10n_ae (no 3xxxxx); the Accountant may renumber them with the account tree.
+from .focus_chart import ACCOUNTS as FOCUS_ACCOUNTS
+from .focus_chart import CODE
+from .focus_chart import GROUPS as FOCUS_GROUPS
+from .focus_chart import OLD_CODES
+
+_logger = logging.getLogger(__name__)
+
+# Equity in the Focus tree, OWNERSHIP (spec §19); 900002 "Profit/Loss A/C" is the profit not yet
+# distributed (Odoo's current year earnings).
 EQUITY_ACCOUNTS = [
-    ("301001", "Share Capital", "equity"),
-    ("302001", "Partners' Current Accounts", "equity"),
-    ("303001", "Statutory Reserve", "equity"),
-    ("304001", "Retained Earnings", "equity"),
-    ("305001", "Dividends / Profit Distribution", "equity"),
+    ("240006", "Capital In Paid", "equity"),
+    ("240005", "Current Account", "equity"),
+    ("240007", "Reserves & Surplus", "equity"),
+    ("240008", "Retained Earnings", "equity"),
+    ("230003", "DIVIDENDS", "equity"),
 ]
 
 STATEMENT_SETTINGS = {"group_activity_statement": True, "group_outstanding_statement": True}
@@ -21,86 +28,89 @@ STATEMENT_SETTINGS = {"group_activity_statement": True, "group_outstanding_state
 # Spec §8 Q1: the dirham is pegged to the dollar (Central Bank of the UAE, since 1997).
 USD_PER_AED_PEG = 3.6725
 
-# Spec §8 Q2: l10n_ae accounts with the wrong type (all without journal items on 2026-11-07).
+# Spec §8 Q2: l10n_ae accounts with the wrong type, fixed while they have no journal items
+# (by their Focus codes, spec §19).
 ACCOUNT_FIXES = {
     # The VAT settlement accounts of the tax groups: owed to / by the FTA, not a customer or vendor.
-    "100103": {"account_type": "asset_current", "reconcile": False},
-    "202003": {"account_type": "liability_current", "reconcile": False},
-    # 106xxx is the fixed assets group (spec §9): the assets, their depreciation, capital WIP.
-    "106001": {"account_type": "asset_fixed"},
-    "106002": {"account_type": "asset_fixed"},
-    "106003": {"account_type": "asset_fixed"},
-    "106004": {"account_type": "asset_fixed"},
-    "106005": {"account_type": "asset_fixed"},
-    "106006": {"account_type": "asset_fixed"},
-    "106007": {"account_type": "asset_fixed"},
-    "106008": {"account_type": "asset_fixed"},
-    "106009": {"account_type": "asset_fixed"},
-    "106010": {"account_type": "asset_non_current"},
+    CODE["vat_refundable"]: {"account_type": "asset_current", "reconcile": False},
+    CODE["fta"]: {"account_type": "liability_current", "reconcile": False},
+    # 14xxxx is the fixed assets group (spec §9): the assets, their depreciation, capital WIP.
+    "140007": {"account_type": "asset_fixed"},
+    "140004": {"account_type": "asset_fixed"},
+    "140003": {"account_type": "asset_fixed"},
+    "140001": {"account_type": "asset_fixed"},
+    "140008": {"account_type": "asset_fixed"},
+    "140097": {"account_type": "asset_fixed"},
+    "140094": {"account_type": "asset_fixed"},
+    "140093": {"account_type": "asset_fixed"},
+    "140091": {"account_type": "asset_fixed"},
+    "140010": {"account_type": "asset_non_current"},
 }
 
-# Spec §9: perpetual inventory. 103xxx is the inventory / shipments group of l10n_ae.
+# Spec §9: perpetual inventory, in the Focus INVENTORY group 134 (spec §19).
 INVENTORY_ACCOUNTS = [
-    ("103001", "Inventory - Generator Components", "asset_current", False),
-    ("103002", "Inventory - Finished Generators", "asset_current", False),
-    ("103003", "Inventory - Spare Parts", "asset_current", False),
-    ("103004", "Work In Progress - Production", "asset_current", False),
-    ("103005", "Goods Delivered Not Invoiced", "asset_current", True),
-    ("201021", "Goods Received Not Invoiced", "liability_current", True),
-    ("400072", "Applied Manufacturing Overhead", "expense", False),
+    (CODE["inventory_components"], "Stock - Raw Material", "asset_current", False),
+    (CODE["inventory_generators"], "Stock - Finished Goods", "asset_current", False),
+    (CODE["inventory_spare_parts"], "Stock - Spare Parts", "asset_current", False),
+    (CODE["wip"], "Work In Progress", "asset_current", False),
+    (CODE["gdni"], "Goods Delivered Not Invoiced", "asset_current", True),
+    (CODE["grni"], "Goods Received Not Invoiced", "liability_current", True),
+    (CODE["overhead_applied"], "Overhead Applied (to generators)", "expense", False),
 ]
-INVENTORY_WRITE_OFF = "400036"
+INVENTORY_WRITE_OFF = CODE["inventory_write_off"]
 
 # Spec §11: fixed assets, straight-line, monthly, pro-rata. (name, asset, acc. depreciation, expense, years)
+# One depreciation expense, "Depreciation :EXP", as in the Focus tree.
 ASSET_JOURNAL = ("AST", "Fixed Assets")
 ASSET_PROFILES = [
-    ("Leasehold Improvements", "106001", "106006", "400063", 5),
-    ("Furniture & Office Equipment", "106002", "106007", "400064", 5),
-    ("Computer Hardware & Software", "106003", "106008", "400065", 3),
-    ("Motor Vehicles", "106004", "106009", "400066", 5),
+    ("Leasehold Improvements", "140007", "140097", CODE["depreciation"], 5),
+    ("Furniture & Office Equipment", "140004", "140094", CODE["depreciation"], 5),
+    ("Computer Hardware & Software", "140003", "140093", CODE["depreciation"], 3),
+    ("Motor Vehicles", "140001", "140091", CODE["depreciation"], 5),
+    ("Machinery & Tools", "140002", "140092", CODE["depreciation"], 5),
     # IFRS 16: each lease asset gets its own term; 5 years is only the default.
-    ("Right-of-Use Assets (IFRS 16)", "100101", "100102", "400070", 5),
+    ("Right-of-Use Assets (IFRS 16)", "140009", "140098", CODE["depreciation"], 5),
 ]
 
-# Spec §10: landed costs. category xmlid: (clearing code, name). 103016-103018 exist in l10n_ae.
+# Spec §10: landed costs. category xmlid: (clearing code, name), in the INVENTORY group.
 LANDED_COST_CATEGORIES = {
-    "x4u_account.categ_landed_freight": ("103018", "Shipment Other Charges"),
-    "x4u_account.categ_landed_insurance": ("103016", "Shipment Insurance"),
-    "x4u_account.categ_landed_clearing": ("103017", "Shipments Documentation Charges"),
-    "x4u_account.categ_landed_customs": ("103021", "Customs Duty Clearing"),
+    "x4u_account.categ_landed_freight": (CODE["landed_other"], "Shipment Other Charges"),
+    "x4u_account.categ_landed_insurance": (CODE["landed_insurance"], "Shipment Insurance"),
+    "x4u_account.categ_landed_clearing": (CODE["landed_documents"], "Shipments Documentation Charges"),
+    "x4u_account.categ_landed_customs": (CODE["landed_customs"], "Customs Duty Clearing"),
 }
 # category xmlid: inventory account code
 VALUED_CATEGORIES = {
-    "x4u_setup_base.categ_components": "103001",
-    "x4u_setup_base.categ_engines": "103001",
-    "x4u_setup_base.categ_alternators": "103001",
-    "x4u_setup_base.categ_bodies": "103001",
+    "x4u_setup_base.categ_components": CODE["inventory_components"],
+    "x4u_setup_base.categ_engines": CODE["inventory_components"],
+    "x4u_setup_base.categ_alternators": CODE["inventory_components"],
+    "x4u_setup_base.categ_bodies": CODE["inventory_components"],
     # x4u_job_order spec v0.9 C1: an engine + alternator on one serial, a part like the engine.
-    "x4u_setup_base.categ_ckd": "103001",
-    "x4u_setup_base.categ_generators": "103002",
-    "x4u_setup_base.categ_spare_parts": "103003",
+    "x4u_setup_base.categ_ckd": CODE["inventory_components"],
+    "x4u_setup_base.categ_generators": CODE["inventory_generators"],
+    "x4u_setup_base.categ_spare_parts": CODE["inventory_spare_parts"],
 }
-ACCOUNT_RENAMES = {"106005": ("Work In Progrees", "Work In Progress")}
+ACCOUNT_RENAMES = {}
 
 # Spec §8 Q3: income / expense per product category (category xmlid: (income code, expense code)).
-NEW_INCOME_ACCOUNTS = [("500015", "Spare Parts Sales", "income")]
+NEW_INCOME_ACCOUNTS = [(CODE["sales_spare_parts"], "Sales Spare Parts", "income")]
 CATEGORY_ACCOUNTS = {
-    "x4u_setup_base.categ_generators": ("500001", "400001"),
-    "x4u_setup_base.categ_components": ("500015", "400001"),
-    "x4u_setup_base.categ_engines": ("500015", "400001"),
-    "x4u_setup_base.categ_alternators": ("500015", "400001"),
-    "x4u_setup_base.categ_bodies": ("500015", "400001"),
-    "x4u_setup_base.categ_ckd": ("500015", "400001"),
-    "x4u_setup_base.categ_spare_parts": ("500015", "400001"),
-    "x4u_setup_base.categ_services": ("500008", "400001"),
+    "x4u_setup_base.categ_generators": (CODE["sales_generators"], CODE["cost_of_sales"]),
+    "x4u_setup_base.categ_components": (CODE["sales_spare_parts"], CODE["cost_of_sales"]),
+    "x4u_setup_base.categ_engines": (CODE["sales_spare_parts"], CODE["cost_of_sales"]),
+    "x4u_setup_base.categ_alternators": (CODE["sales_spare_parts"], CODE["cost_of_sales"]),
+    "x4u_setup_base.categ_bodies": (CODE["sales_spare_parts"], CODE["cost_of_sales"]),
+    "x4u_setup_base.categ_ckd": (CODE["sales_spare_parts"], CODE["cost_of_sales"]),
+    "x4u_setup_base.categ_spare_parts": (CODE["sales_spare_parts"], CODE["cost_of_sales"]),
+    "x4u_setup_base.categ_services": (CODE["sales_services"], CODE["cost_of_sales"]),
     # Rent, utilities...: an operating expense, not a cost of sales; each product can be more precise.
-    "product.cat_expense": (None, "400050"),
+    "product.cat_expense": (None, CODE["other_expenses"]),
 }
 
 MASS_RECONCILE_NAME = "4U: payments with invoices by reference"
 
-# Spec §12: customers' post-dated cheques wait in 102013 (l10n_ae) until they are deposited.
-PDC_RECEIVED_ACCOUNT = ("102013", "Post Dated Cheques Received")
+# Spec §12: customers' post-dated cheques wait in PDCR (132001) until they are deposited.
+PDC_RECEIVED_ACCOUNT = (CODE["pdc_received"], "PDCR - Post Dated Cheques Received")
 # After the real bank journals (sequence 10), so Odoo never proposes it as "the" bank.
 PDC_RECEIVED_JOURNAL = ("CHK", "PDC Received", 90)
 
@@ -110,8 +120,14 @@ def post_init_hook(env):
 
 
 def x4u_setup(env):
-    """Everything per company, safe to run again (install and upgrades)."""
-    for company in env["res.company"].search([("chart_template", "!=", False)]):
+    """Everything per company, safe to run again (install and upgrades). Each company in its own
+    context: company-dependent values (a category's accounts, an account's asset profile) land on
+    that company, not on the first one (spec §19: 4U and ATA)."""
+    main_env = env
+    for company in main_env["res.company"].search([("chart_template", "!=", False)]):
+        env = main_env(context=dict(main_env.context, allowed_company_ids=company.ids))
+        company = company.with_env(env)
+        _focus_chart(env, company)
         company._x4u_pdc_issued_account()
         _equity_accounts(env, company)
         _petty_cash(env, company)
@@ -128,6 +144,9 @@ def x4u_setup(env):
         _budget_report(env, company)
         _monthly_pl(env, company)
         _gbp_rate_provider(env, company)
+        _focus_chart_cleanup(env, company)
+    env = main_env
+    _statements_follow_the_company(env)
     env["res.config.settings"].create(STATEMENT_SETTINGS).execute()
     # The OCA job that posts the depreciation lines that are due (it ships inactive).
     cron = env.ref("account_asset_management.ir_cron_assets_generator", raise_if_not_found=False)
@@ -404,10 +423,10 @@ def _perpetual_inventory(env, company):
     if not company.anglo_saxon_accounting:
         company.anglo_saxon_accounting = True
     if not company.x4u_overhead_applied_account_id:
-        company.x4u_overhead_applied_account_id = _account(env, company, "400072")
-    grni = _account(env, company, "201021")
-    gdni = _account(env, company, "103005")
-    wip = _account(env, company, "103004")
+        company.x4u_overhead_applied_account_id = _account(env, company, CODE["overhead_applied"])
+    grni = _account(env, company, CODE["grni"])
+    gdni = _account(env, company, CODE["gdni"])
+    wip = _account(env, company, CODE["wip"])
     for xmlid, inventory_code in VALUED_CATEGORIES.items():
         category = env.ref(xmlid, raise_if_not_found=False)
         if not category:
@@ -430,6 +449,146 @@ def _perpetual_inventory(env, company):
 def _account(env, company, code):
     Account = env["account.account"].sudo().with_company(company)
     return Account.search([("code", "=", code), *Account._check_company_domain(company)], limit=1)
+
+
+def _focus_chart(env, company):
+    """Spec §19: the Focus account tree. Each l10n_ae account the tree replaces takes its Focus code
+    and name (its entries, journals and settings stay); the missing accounts are made; the groups are
+    the tree. An account that already has its Focus code is the Accountant's: left as it is."""
+    Account = env["account.account"].sudo().with_company(company)
+    domain = Account._check_company_domain(company)
+    by_code = {a.code: a for a in Account.search(domain)}
+    names = {code: (name, account_type, reconcile) for code, name, account_type, reconcile in FOCUS_ACCOUNTS}
+    Line = env["account.move.line"].sudo()
+    for old, new in OLD_CODES.items():
+        account = by_code.get(old)
+        if not account:
+            continue
+        used = Line.search_count([("account_id", "=", account.id)], limit=1)
+        if new in by_code:
+            # Several l10n_ae accounts are one Focus account: an empty one hands its settings over and
+            # goes; one with entries keeps its code (the cleanup moves it to the 99 group).
+            if not used:
+                _repoint_account(env, company, account, by_code[new])
+                try:
+                    with env.cr.savepoint():
+                        account.unlink()
+                    by_code.pop(old)
+                except Exception:  # noqa: BLE001 - still needed somewhere: the cleanup keeps it in 99
+                    _logger.info("Focus chart: %s kept next to %s", old, new)
+            continue
+        name, account_type, reconcile = names[new]
+        values = {"code": new, "name": name}
+        if not used:
+            values.update({"account_type": account_type, "reconcile": reconcile})
+        account.write(values)
+        by_code[new] = by_code.pop(old)
+    for code, (name, account_type, reconcile) in names.items():
+        if code not in by_code:
+            by_code[code] = Account.create({"code": code, "name": name, "account_type": account_type, "reconcile": reconcile})
+    Group = env["account.group"].sudo().with_company(company)
+    groups = {g.code_prefix_start: g for g in Group.search([("company_id", "=", company.id)])}
+    for prefix, name in FOCUS_GROUPS:
+        values = {"name": name, "code_prefix_start": prefix, "code_prefix_end": prefix, "company_id": company.id}
+        if prefix in groups:
+            groups[prefix].write(values)
+        else:
+            Group.create(values)
+
+
+def _account_fields(env):
+    """Every stored field that points to an account (model name, field name, type)."""
+    for model_name in env.registry:
+        Model = env[model_name]
+        if Model._transient or Model._abstract or not Model._auto or model_name == "account.account":
+            continue
+        for field_name, field in Model._fields.items():
+            if field.type in ("many2one", "many2many") and field.comodel_name == "account.account" and field.store:
+                yield model_name, field_name, field.type
+
+
+def _repoint_account(env, company, old, new):
+    """What points to `old` (a setting, a category, a profile, a tax line...) points to `new`."""
+    for model_name, field_name, field_type in _account_fields(env):
+        Model = env[model_name].sudo().with_company(company).with_context(active_test=False)
+        try:
+            records = Model.search([(field_name, "in", old.ids)])
+        except Exception:  # noqa: BLE001 - not searchable: nothing to move
+            continue
+        if not records:
+            continue
+        if field_type == "many2one":
+            records.write({field_name: new.id})
+        else:
+            records.write({field_name: [Command.unlink(old.id), Command.link(new.id)]})
+    for default in env["ir.default"].sudo().search([("field_id.relation", "=", "account.account")]):
+        if default.json_value and default.json_value.strip('"') == str(old.id):
+            default.json_value = str(new.id)
+
+
+def _account_ids_in_use(env, company, ids):
+    """The accounts of `ids` that any record or setting points to (a deleted account would leave a
+    setting empty: the company's exchange accounts, a category's income account...)."""
+    used = set()
+    for model_name, field_name, _field_type in _account_fields(env):
+        Model = env[model_name].sudo().with_company(company).with_context(active_test=False)
+        try:
+            records = Model.search([(field_name, "in", list(ids))])
+            used |= set(records.mapped(field_name).ids) & set(ids)
+        except Exception:  # noqa: BLE001 - a field that cannot be searched counts as "in use"
+            _logger.info("Focus chart: %s.%s not searchable, its accounts are kept", model_name, field_name)
+            return set(ids)
+    for default in env["ir.default"].sudo().search([("field_id.relation", "=", "account.account")]):
+        value = default.json_value and default.json_value.strip('"')
+        if value and value.isdigit() and int(value) in ids:
+            used.add(int(value))
+    return used
+
+
+def _focus_chart_cleanup(env, company):
+    """Spec §19: the l10n_ae accounts outside the tree that nothing uses go; the ones still used
+    (journal items, a journal, a tax, a setting) stay, in the group 99 "Odoo System Accounts"."""
+    Account = env["account.account"].sudo().with_company(company)
+    focus_codes = {code for code, *_rest in FOCUS_ACCOUNTS}
+    template_ids = set(
+        env["ir.model.data"].sudo().search([("model", "=", "account.account"), ("module", "=", "account")]).mapped("res_id")
+    )
+    candidates = Account.search(
+        [*Account._check_company_domain(company), ("id", "in", list(template_ids)), ("code", "not in", list(focus_codes))]
+    ).filtered(lambda a: not a.code.startswith("990"))
+    if not candidates:
+        return
+    used = _account_ids_in_use(env, company, set(candidates.ids))
+    taken = set(Account.search(Account._check_company_domain(company)).mapped("code"))
+    number = 1
+    for account in candidates:
+        if account.id not in used and not env["account.move.line"].sudo().search_count([("account_id", "=", account.id)], limit=1):
+            try:
+                with env.cr.savepoint():
+                    account.unlink()
+                continue
+            except Exception:  # noqa: BLE001 - still needed somewhere: kept below
+                _logger.info("Focus chart: %s %s kept", account.code, account.name)
+        while "99%04d" % number in taken:
+            number += 1
+        taken.add("99%04d" % number)
+        account.code = "99%04d" % number
+
+
+def _statements_follow_the_company(env):
+    """The statements of Accounting › Reporting show the company selected at the top, not the one
+    that installed the module (spec §19: 4U and ATA, the same tree)."""
+    for xmlid in ("mis_instance_x4u_pl", "mis_instance_x4u_pl_6m", "mis_instance_x4u_cash",
+                  "mis_instance_x4u_cash_flow", "mis_instance_x4u_bs"):
+        instance = env.ref("x4u_account.%s" % xmlid, raise_if_not_found=False)
+        if instance and instance.company_id and not instance.multi_company:
+            instance.sudo().company_id = False
+    # The balance sheet at a date: the balances then and the profit since the start of the year,
+    # not the profit of that one day or month (it would not balance).
+    for xmlid in ("mis_instance_x4u_bs_today", "mis_instance_x4u_bs_last_month"):
+        period = env.ref("x4u_account.%s" % xmlid, raise_if_not_found=False)
+        if period and not period.is_ytd:
+            period.sudo().is_ytd = True
 
 
 def _usd_peg(env, company):
@@ -480,7 +639,7 @@ def _category_accounts(env, company):
     """Only where the category still uses the company default, so the Accountant's choices stay."""
     Account = env["account.account"].sudo().with_company(company)
     for code, name, account_type in NEW_INCOME_ACCOUNTS:
-        if not _account(env, company, code) and _account(env, company, "500001"):
+        if not _account(env, company, code) and _account(env, company, CODE["sales_generators"]):
             Account.create({"code": code, "name": name, "account_type": account_type})
     Category = env["product.category"].sudo().with_company(company)
     default_income = Category._fields["property_account_income_categ_id"].get_company_dependent_fallback(Category)

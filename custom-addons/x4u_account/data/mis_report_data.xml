@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- Spec x4u_account §14: the 4U groups on the l10n_ae codes. When the account tree changes,
+<!-- Spec x4u_account §14, §19: the 4U groups on the Focus account tree codes (focus_chart.py). When the tree changes,
      change the codes here; the Accountant copies a report (Duplicate) to change it on screen. -->
 <odoo>
     <record id="mis_report_x4u_pl" model="mis.report">
@@ -12,7 +12,7 @@
         <field name="sequence">10</field>
         <field name="name">rev_generators</field>
         <field name="description">Generator Sales</field>
-        <field name="expression">-balp[500001]</field>
+        <field name="expression">-balp[410002]</field>
         <field name="type">num</field>
         <field name="compare_method">diff</field>
         <field name="accumulation_method">sum</field>
@@ -25,7 +25,7 @@
         <field name="sequence">20</field>
         <field name="name">rev_parts</field>
         <field name="description">Spare Parts Sales</field>
-        <field name="expression">-balp[500015]</field>
+        <field name="expression">-balp[410009]</field>
         <field name="type">num</field>
         <field name="compare_method">diff</field>
         <field name="accumulation_method">sum</field>
@@ -38,7 +38,7 @@
         <field name="sequence">30</field>
         <field name="name">rev_services</field>
         <field name="description">Service Income</field>
-        <field name="expression">-balp[500008]</field>
+        <field name="expression">-balp[410003]</field>
         <field name="type">num</field>
         <field name="compare_method">diff</field>
         <field name="accumulation_method">sum</field>
@@ -51,7 +51,7 @@
         <field name="sequence">40</field>
         <field name="name">rev_other</field>
         <field name="description">Other Operating Revenue</field>
-        <field name="expression">-balp[500002,500003,500004,500005,500006,500007]</field>
+        <field name="expression">-balp[410001,410004,410006,410008,410011]</field>
         <field name="type">num</field>
         <field name="compare_method">diff</field>
         <field name="accumulation_method">sum</field>
@@ -110,7 +110,7 @@
         <field name="sequence">90</field>
         <field name="name">staff</field>
         <field name="description">Staff Costs</field>
-        <field name="expression">balp[400003,400004,400005,400006,400007,400008,400009,400010,400011,400012,400013,400014,400015]</field>
+        <field name="expression">balp[510001,510002,510003,520001,530012,530013,530014,530015,530016,530017,530020,530021,530023,530026,530036,530071,530074,530079]</field>
         <field name="type">num</field>
         <field name="compare_method">diff</field>
         <field name="accumulation_method">sum</field>
@@ -123,7 +123,7 @@
         <field name="sequence">100</field>
         <field name="name">premises</field>
         <field name="description">Premises, Utilities &amp; Maintenance</field>
-        <field name="expression">balp[400016,400017,400018,400019,400042,400043,400044]</field>
+        <field name="expression">balp[530003,530035,530053,530054,530062,530064,530068]</field>
         <field name="type">num</field>
         <field name="compare_method">diff</field>
         <field name="accumulation_method">sum</field>
@@ -136,7 +136,7 @@
         <field name="sequence">110</field>
         <field name="name">communication</field>
         <field name="description">Communication</field>
-        <field name="expression">balp[400020,400021,400022,400023]</field>
+        <field name="expression">balp[530008,530029,530058,530059,530060,530065,530070]</field>
         <field name="type">num</field>
         <field name="compare_method">diff</field>
         <field name="accumulation_method">sum</field>
@@ -149,7 +149,7 @@
         <field name="sequence">120</field>
         <field name="name">travel</field>
         <field name="description">Travel</field>
-        <field name="expression">balp[400024,400025,400026,400027]</field>
+        <field name="expression">balp[530031,530032,530078,530081]</field>
         <field name="type">num</field>
         <field name="compare_method">diff</field>
         <field name="accumulation_method">sum</field>
@@ -162,7 +162,7 @@
         <field name="sequence">130</field>
         <field name="name">professional</field>
         <field name="description">Professional Fees &amp; Licences</field>
-        <field name="expression">balp[400029,400030,400031,400032,400033,400067]</field>
+        <field name="expression">balp[530004,530006,530007,530024,530025,530033,530047,530049,530051,530052,530067,530083]</field>
         <field name="type">num</field>
         <field name="compare_method">diff</field>
         <field name="accumulation_method">sum</field>
@@ -175,7 +175,7 @@
         <field name="sequence">140</field>
         <field name="name">marketing</field>
         <field name="description">Advertising</field>
-        <field name="expression">balp[400034]</field>
+        <field name="expression">balp[530001,530066]</field>
         <field name="type">num</field>
         <field name="compare_method">diff</field>
         <field name="accumulation_method">sum</field>
@@ -188,7 +188,7 @@
         <field name="sequence">150</field>
         <field name="name">vehicles</field>
         <field name="description">Vehicles &amp; Transport</field>
-        <field name="expression">balp[400048,400049]</field>
+        <field name="expression">balp[530002,530011,530019,530037,530038,530039,530040,530041,530042,530043,530044,530045,530046,530055,530056,530063]</field>
         <field name="type">num</field>
         <field name="compare_method">diff</field>
         <field name="accumulation_method">sum</field>
@@ -201,7 +201,7 @@
         <field name="sequence">160</field>
         <field name="name">office</field>
         <field name="description">Office &amp; Administration</field>
-        <field name="expression">balp[400028,400040,400041,400045,400046,400047,400050]</field>
+        <field name="expression">balp[530005,530010,530022,530027,530028,530030,530034,530050,530057,530061,530069,530072,530076,530077]</field>
         <field name="type">num</field>
         <field name="compare_method">diff</field>
         <field name="accumulation_method">sum</field>
@@ -214,7 +214,7 @@
         <field name="sequence">170</field>
         <field name="name">bank_charges</field>
         <field name="description">Bank Charges</field>
-        <field name="expression">balp[400051,400058,400059,400060,400061,400062]</field>
+        <field name="expression">balp[530009,530048]</field>
         <field name="type">num</field>
         <field name="compare_method">diff</field>
         <field name="accumulation_method">sum</field>
@@ -227,7 +227,7 @@
         <field name="sequence">180</field>
         <field name="name">provisions</field>
         <field name="description">Provisions &amp; Write-offs</field>
-        <field name="expression">balp[400035,400036,400038,400039,400068]</field>
+        <field name="expression">balp[530073,530084]</field>
         <field name="type">num</field>
         <field name="compare_method">diff</field>
         <field name="accumulation_method">sum</field>
@@ -240,7 +240,7 @@
         <field name="sequence">190</field>
         <field name="name">overhead_absorbed</field>
         <field name="description">Overhead Absorbed into Generators</field>
-        <field name="expression">balp[400072]</field>
+        <field name="expression">balp[530082]</field>
         <field name="type">num</field>
         <field name="compare_method">diff</field>
         <field name="accumulation_method">sum</field>
@@ -275,7 +275,7 @@
         <field name="sequence">220</field>
         <field name="name">depreciation</field>
         <field name="description">Depreciation &amp; Amortisation</field>
-        <field name="expression">balp[400037,400063,400064,400065,400066,400070]</field>
+        <field name="expression">balp[530018,530075]</field>
         <field name="type">num</field>
         <field name="compare_method">diff</field>
         <field name="accumulation_method">sum</field>
@@ -299,7 +299,7 @@
         <field name="sequence">240</field>
         <field name="name">other_income</field>
         <field name="description">Other Income</field>
-        <field name="expression">-balp[500009,500010,500011,500012,500013,500014]</field>
+        <field name="expression">-balp[410005,410007,410010,410012,410013,410014]</field>
         <field name="type">num</field>
         <field name="compare_method">diff</field>
         <field name="accumulation_method">sum</field>
@@ -312,7 +312,7 @@
         <field name="sequence">250</field>
         <field name="name">other_expenses</field>
         <field name="description">Other Expenses</field>
-        <field name="expression">balp[400052,400053,400054,400056,400057,400069,400071]</field>
+        <field name="expression">balp[530080,530085,530087]</field>
         <field name="type">num</field>
         <field name="compare_method">diff</field>
         <field name="accumulation_method">sum</field>
@@ -336,7 +336,7 @@
         <field name="sequence">270</field>
         <field name="name">corporate_tax</field>
         <field name="description">Corporate Tax</field>
-        <field name="expression">balp[400055]</field>
+        <field name="expression">balp[530086]</field>
         <field name="type">num</field>
         <field name="compare_method">diff</field>
         <field name="accumulation_method">sum</field>
@@ -400,7 +400,7 @@
         <field name="sequence">20</field>
         <field name="name">pdc_received</field>
         <field name="description">PDC Received (cheques in hand)</field>
-        <field name="expression">bale[102013]</field>
+        <field name="expression">bale[132001]</field>
         <field name="type">num</field>
         <field name="compare_method">diff</field>
         <field name="accumulation_method">none</field>
@@ -422,7 +422,7 @@
         <field name="sequence">40</field>
         <field name="name">inventory</field>
         <field name="description">Inventory &amp; Work in Progress</field>
-        <field name="expression">bale[103001,103002,103003,103004,103005]</field>
+        <field name="expression">bale[134%]</field>
         <field name="type">num</field>
         <field name="compare_method">diff</field>
         <field name="accumulation_method">none</field>
@@ -457,7 +457,7 @@
         <field name="sequence">70</field>
         <field name="name">pdc_issued</field>
         <field name="description">PDC Issued (not cleared yet)</field>
-        <field name="expression">-bale[201020]</field>
+        <field name="expression">-bale[214%]</field>
         <field name="type">num</field>
         <field name="compare_method">diff</field>
         <field name="accumulation_method">none</field>
@@ -468,7 +468,7 @@
         <field name="sequence">80</field>
         <field name="name">grni</field>
         <field name="description">Goods Received Not Invoiced</field>
-        <field name="expression">-bale[201021]</field>
+        <field name="expression">-bale[212006]</field>
         <field name="type">num</field>
         <field name="compare_method">diff</field>
         <field name="accumulation_method">none</field>

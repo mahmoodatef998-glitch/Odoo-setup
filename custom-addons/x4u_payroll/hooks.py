@@ -1,21 +1,22 @@
 from odoo.addons.x4u_account.hooks import _account
 
 SALARY_JOURNAL = ("SAL", "Salaries")
-NET_PAYABLE = "201004"  # Accrued - Salaries: what the company owes the employees until the bank pays them.
-ADVANCES = ("102016", "Staff Advances & Loans")
+# The Focus tree (x4u_account spec §19).
+NET_PAYABLE = "215003"  # Accrued Salaries: what the company owes the employees until the bank pays them.
+ADVANCES = ("136001", "Employee Advances")
 
 # rule xmlid: (debit code, credit code). Deductions are negative, so their "debit" account is credited.
 RULE_ACCOUNTS = {
-    "x4u_payroll.rule_basic": ("400003", None),
-    "x4u_payroll.rule_housing": ("400004", None),
-    "x4u_payroll.rule_transport": ("400005", None),
-    "x4u_payroll.rule_other_allowance": ("400012", None),
-    "x4u_payroll.rule_absence": ("400003", None),
-    "x4u_payroll.rule_advance": ("102016", None),
+    "x4u_payroll.rule_basic": ("510001", None),  # Salaries
+    "x4u_payroll.rule_housing": ("530016", None),  # House Allowance
+    "x4u_payroll.rule_transport": ("530015", None),  # Transportation Allowance
+    "x4u_payroll.rule_other_allowance": ("530020", None),  # Salaries & Wages Other
+    "x4u_payroll.rule_absence": ("510001", None),
+    "x4u_payroll.rule_advance": ("136001", None),  # Employee Advances
     "x4u_payroll.rule_net": (None, NET_PAYABLE),
-    "x4u_payroll.rule_eosb": ("400008", "202001"),
-    "x4u_payroll.rule_leave_salary": ("400007", "201006"),
-    "x4u_payroll.rule_air_ticket": ("400006", "201005"),
+    "x4u_payroll.rule_eosb": ("530074", "215001"),  # End Of Service EXP / ACCRUED END OF SERVICE
+    "x4u_payroll.rule_leave_salary": ("510002", "215002"),  # Leave Salary / ACCRUED LEAVE SALARY
+    "x4u_payroll.rule_air_ticket": ("530079", "215005"),  # AIR TKT EXP / ACCRUED AIR TICKET
 }
 
 

@@ -113,16 +113,33 @@ class TestX4uReporting(TransactionCase):
         )
         move.action_post()
 
+    # T7 (§19 F8): the Balance Sheet balances in every column, this year's profit included
+    def test_balance_sheet_balances(self):
+        day = fields.Date.context_today(self.env.user)
+        customer = self.env["res.partner"].create({"name": "X4U Test Balance Sheet Customer"})
+        receivable = self._accounts([("account_type", "=", "asset_receivable")])[:1]
+        self._entry(day, [(receivable, 2500.0, customer), (self._code("410002", "income"), -2500.0, None)])
+        instance = self.env.ref("x4u_account.mis_instance_x4u_bs")
+        self.assertTrue(all(instance.period_ids.filtered(lambda p: p.name != "End of Last Year").mapped("is_ytd")))
+        rows = {
+            row.kpi.name: [getattr(cell, "val", None) if cell else None for cell in row.iter_cells()]
+            for row in instance._compute_matrix().iter_rows()
+            if not getattr(row, "account_id", None)
+        }
+        for assets, other in zip(rows["assets"], rows["liability_header"]):
+            self.assertAlmostEqual(assets or 0.0, other or 0.0, 2)
+        self.assertGreaterEqual(rows["current_ue"][0], 2500.0)
+
     # T3: a sale and its payment, an asset bought, a loan: the statement explains the bank, Check = 0
     def test_cash_flow_statement(self):
         day = date(2020, 3, 15)
         customer = self.env["res.partner"].create({"name": "X4U Test Cash Flow Customer"})
         receivable = self._accounts([("account_type", "=", "asset_receivable")])[:1]
-        loan = self._accounts([("account_type", "=", "liability_non_current")])[:1] or self._code("202001", "liability_non_current")
+        loan = self._accounts([("account_type", "=", "liability_non_current")])[:1] or self._code("215001", "liability_non_current")
         bank = self.bank.default_account_id
-        self._entry(day, [(receivable, 1000.0, customer), (self._code("500001", "income"), -1000.0, None)])
+        self._entry(day, [(receivable, 1000.0, customer), (self._code("410002", "income"), -1000.0, None)])
         self._entry(day, [(bank, 600.0, None), (receivable, -600.0, customer)])
-        self._entry(day, [(self._code("106002", "asset_fixed"), 2000.0, None), (bank, -2000.0, None)])
+        self._entry(day, [(self._code("140005", "asset_fixed"), 2000.0, None), (bank, -2000.0, None)])
         self._entry(day, [(bank, 5000.0, None), (loan, -5000.0, None)])
         report = self.env.ref("x4u_account.mis_report_x4u_cash_flow")
         values = report.evaluate(report._prepare_aep(self.company), date_from="2020-03-01", date_to="2020-03-31")
@@ -151,7 +168,7 @@ class TestX4uReporting(TransactionCase):
         self.env["mis.budget.by.account.item"].create(
             {
                 "budget_id": budget.id,
-                "account_id": self._code("500001", "income").id,
+                "account_id": self._code("410002", "income").id,
                 "date_from": budget.date_from,
                 "date_to": budget.date_to,
                 "credit": 120000.0,
@@ -183,7 +200,7 @@ class TestX4uReporting(TransactionCase):
         receivable = self._accounts([("account_type", "=", "asset_receivable")])[:1]
         self._entry(
             fields.Date.add(march.manual_date_from, days=14),
-            [(receivable, 1000.0, None), (self._code("500001", "income"), -1000.0, None)],
+            [(receivable, 1000.0, None), (self._code("410002", "income"), -1000.0, None)],
         )
         after = revenue()
         self.assertAlmostEqual(after[2] - before[2], 1000.0, msg="in its month")

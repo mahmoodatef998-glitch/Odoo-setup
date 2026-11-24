@@ -11,9 +11,8 @@ SOFT_LOCK_DAY_PARAM = "x4u_account.soft_lock_day"
 SOFT_LOCK_DAY = 10
 SOFT_LOCK_FIELDS = ("sale_lock_date", "purchase_lock_date")
 
-# Next to "Post Dated Cheques Received" (102013) on the asset side; the account tree is
-# still with the Accountant (docs/modules/06-accounting.md), so only the name is fixed.
-PDC_ISSUED_CODE = "201020"
+# PDCP in the Focus tree (spec §19), next to PDCR (132001) on the asset side.
+PDC_ISSUED_CODE = "214001"
 
 
 class ResCompany(models.Model):
@@ -62,12 +61,16 @@ class ResCompany(models.Model):
         if self.x4u_pdc_issued_account_id:
             return self.x4u_pdc_issued_account_id
         Account = self.env["account.account"].sudo().with_company(self)
-        code = int(PDC_ISSUED_CODE)
-        while Account.search_count([("code", "=", str(code)), *Account._check_company_domain(self)]):
-            code += 1
+        # PDCP of the Focus tree (spec §19), when the tree made it already.
+        account = Account.search([("code", "=", PDC_ISSUED_CODE), *Account._check_company_domain(self)], limit=1)
+        if account:
+            if not account.reconcile:
+                account.reconcile = True
+            self.sudo().x4u_pdc_issued_account_id = account
+            return account
         account = Account.create(
             {
-                "code": str(code),
+                "code": PDC_ISSUED_CODE,
                 "name": _("Post Dated Cheques Issued"),
                 "account_type": "liability_current",
                 "reconcile": True,

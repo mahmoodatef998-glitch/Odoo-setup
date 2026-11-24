@@ -137,9 +137,32 @@ class TestX4uAccount(TransactionCase):
         self.assertEqual(self.env.ref("account_due_list.menu_action_invoice_payments").parent_id, rp)
         self.assertEqual(len(rp.child_id), 7)
 
+    def test_focus_chart(self):
+        """§19: the Focus tree on the company: its groups, the accounts the modules use by their
+        Focus codes, no l10n_ae code left for them, the statements following the selected company."""
+        from odoo.addons.x4u_account import hooks
+        from odoo.addons.x4u_account.focus_chart import CODE, GROUPS, OLD_CODES
+
+        Account = self.env["account.account"].with_company(self.company)
+        domain = Account._check_company_domain(self.company)
+        codes = set(Account.search(domain).mapped("code"))
+        for role, code in CODE.items():
+            self.assertIn(code, codes, role)
+        for old in ("102011", "201002", "103001", "201021", "999999"):
+            self.assertNotIn(old, codes, "%s became %s" % (old, OLD_CODES[old]))
+        groups = self.env["account.group"].search([("company_id", "=", self.company.id)])
+        self.assertEqual(set(groups.mapped("code_prefix_start")), {prefix for prefix, _name in GROUPS})
+        customers = hooks._account(self.env, self.company, CODE["receivable"])
+        self.assertEqual(customers.account_type, "asset_receivable")
+        self.assertEqual(customers.group_id.with_context(lang="en_US").name, "Customers")
+        self.assertEqual(customers.group_id.parent_id.with_context(lang="en_US").name, "CURRENT ASSETS")
+        self.assertEqual(hooks._account(self.env, self.company, "900002").account_type, "equity_unaffected")
+        self.assertEqual(self.company.x4u_pdc_issued_account_id.code, CODE["pdc_issued"])
+        self.assertFalse(self.env.ref("x4u_account.mis_instance_x4u_pl").company_id)
+
     def test_equity_and_petty_cash(self):
         Account = self.env["account.account"]
-        for code in ("301001", "302001", "303001", "304001", "305001"):
+        for code in ("240006", "240005", "240007", "240008", "230003"):
             account = Account.search([("code", "=", code), *Account._check_company_domain(self.company)])
             self.assertEqual(account.account_type, "equity", code)
         Journal = self.env["account.journal"]
@@ -266,15 +289,13 @@ class TestX4uAccount(TransactionCase):
                 return account
             return Account.create({"code": code, "name": name, "account_type": account_type})
 
-        vat_payable = ensure("202003", "VAT Payable", "liability_payable")
+        vat_payable = ensure("110001", "VAT Payable", "liability_payable")
         if not self.env["account.move.line"].search_count([("account_id", "=", vat_payable.id)]):
             vat_payable.account_type = "liability_payable"
-        wip = ensure("106005", "Work In Progrees", "asset_current")
-        wip.name = "Work In Progrees"
-        ensure("500001", "Sales Account", "income")
-        service = ensure("500008", "Service Income", "income")
-        ensure("400001", "Cost of Goods Sold in Trading", "expense_direct_cost")
-        office = ensure("400050", "Others - Office Various Expenses", "expense")
+        ensure("410002", "Sales Account", "income")
+        service = ensure("410003", "Service Income", "income")
+        ensure("421001", "Cost of Goods Sold in Trading", "expense_direct_cost")
+        office = ensure("530027", "Others - Office Various Expenses", "expense")
         services = self.env.ref("x4u_setup_base.categ_services").with_company(self.company)
         expenses = self.env.ref("product.cat_expense").with_company(self.company)
         Category = self.env["product.category"].with_company(self.company)
@@ -288,8 +309,7 @@ class TestX4uAccount(TransactionCase):
         hooks._category_accounts(self.env, self.company)
         if not self.env["account.move.line"].search_count([("account_id", "=", vat_payable.id)]):
             self.assertEqual(vat_payable.account_type, "liability_current")
-        self.assertEqual(wip.with_context(lang="en_US").name, "Work In Progress")
-        self.assertTrue(hooks._account(self.env, self.company, "500015"), "Spare Parts Sales is created")
+        self.assertTrue(hooks._account(self.env, self.company, "410009"), "Spare Parts Sales is created")
         self.assertEqual(services.property_account_income_categ_id, service)
         self.assertEqual(expenses.property_account_expense_categ_id, office)
         # The Accountant's own choice stays on the next upgrade.
@@ -322,7 +342,7 @@ class TestX4uAccount(TransactionCase):
         engines = self.env.ref("x4u_setup_base.categ_engines").with_company(self.company)
         generators = self.env.ref("x4u_setup_base.categ_generators").with_company(self.company)
         self.assertEqual(engines.property_valuation, "real_time")
-        self.assertEqual(generators.property_stock_account_input_categ_id.code, code("201021"))
+        self.assertEqual(generators.property_stock_account_input_categ_id.code, code("212006"))
         part = self.env["product.product"].create(
             {"name": "X4U Test Engine", "is_storable": True, "categ_id": engines.id}
         )
@@ -370,7 +390,7 @@ class TestX4uAccount(TransactionCase):
         self._name_serials(receipt)
         receipt.move_ids.picked = True
         receipt.button_validate()
-        self.assertEqual(self._lines(receipt.move_ids), {code("103001"): 1000.0, code("201021"): -1000.0})
+        self.assertEqual(self._lines(receipt.move_ids), {code("134004"): 1000.0, code("212006"): -1000.0})
 
         # 2. MO with 200 overhead: Dr WIP / Cr Components, then Dr Finished / Cr WIP 1000 + Cr Applied Overhead 200.
         mo.action_assign()
@@ -383,10 +403,10 @@ class TestX4uAccount(TransactionCase):
         mo.button_mark_done()
         self.assertEqual(mo.state, "done")
         lines = self._lines(mo.move_raw_ids | mo.move_finished_ids)
-        self.assertEqual(lines.get(code("103001")), -1000.0)
-        self.assertEqual(lines.get(code("103002")), 1200.0)
-        self.assertEqual(lines.get(code("400072")), -200.0)
-        self.assertFalse(lines.get(code("103004")), "WIP closes at zero")
+        self.assertEqual(lines.get(code("134004")), -1000.0)
+        self.assertEqual(lines.get(code("134001")), 1200.0)
+        self.assertEqual(lines.get(code("530082")), -200.0)
+        self.assertFalse(lines.get(code("134002")), "WIP closes at zero")
 
         # 3. Delivery: Dr Goods Delivered Not Invoiced / Cr Inventory - Finished Generators.
         customer = self.env["res.partner"].create({"name": "X4U Test Genset Customer"})
@@ -415,7 +435,7 @@ class TestX4uAccount(TransactionCase):
         delivery.move_ids.quantity = 1
         delivery.move_ids.picked = True
         delivery.button_validate()
-        self.assertEqual(self._lines(delivery.move_ids), {code("103005"): 1200.0, code("103002"): -1200.0})
+        self.assertEqual(self._lines(delivery.move_ids), {code("134006"): 1200.0, code("134001"): -1200.0})
 
         # 4. Customer invoice (Anglo-Saxon): Dr Cost of Goods Sold / Cr Goods Delivered Not Invoiced.
         invoice = self.env["account.move"].create(
@@ -434,7 +454,7 @@ class TestX4uAccount(TransactionCase):
         cogs = invoice.line_ids.filtered(lambda line: line.display_type == "cogs")
         expense = generators.property_account_expense_categ_id
         self.assertEqual(sum(cogs.filtered(lambda line: line.account_id == expense).mapped("balance")), 1200.0)
-        self.assertEqual(sum(cogs.filtered(lambda line: line.account_id.code == code("103005")).mapped("balance")), -1200.0)
+        self.assertEqual(sum(cogs.filtered(lambda line: line.account_id.code == code("134006")).mapped("balance")), -1200.0)
 
     def test_switch_with_serial_valued_stock(self):
         """§9 S1: a periodic category with a serial-valued product in stock switches: Dr Inventory / Cr expense."""
@@ -445,9 +465,9 @@ class TestX4uAccount(TransactionCase):
         category.write({"property_cost_method": "fifo", "property_valuation": "manual_periodic"})
         expense = category.property_account_expense_categ_id
         inventory = Account.create({"code": "199901", "name": "X4U Test Inventory", "account_type": "asset_current"})
-        grni = hooks._account(self.env, self.company, "201021")
-        gdni = hooks._account(self.env, self.company, "103005")
-        wip = hooks._account(self.env, self.company, "103004")
+        grni = hooks._account(self.env, self.company, "212006")
+        gdni = hooks._account(self.env, self.company, "134006")
+        wip = hooks._account(self.env, self.company, "134002")
         template = self.env["product.template"].create(
             {
                 "name": "X4U Test Serial Genset",
@@ -480,7 +500,7 @@ class TestX4uAccount(TransactionCase):
         from odoo.addons.x4u_account import hooks
 
         freight = self.env.ref("x4u_account.product_landed_freight")
-        clearing = hooks._account(self.env, self.company, "103018")
+        clearing = hooks._account(self.env, self.company, "134009")
         self.assertTrue(freight.landed_cost_ok)
         self.assertEqual(freight.product_tmpl_id.get_product_accounts()["expense"], clearing)
         self.assertEqual(freight.product_tmpl_id.get_product_accounts()["stock_input"], clearing)
@@ -546,8 +566,8 @@ class TestX4uAccount(TransactionCase):
         self.assertEqual(sum(landed.account_move_id.line_ids.filtered(lambda l: l.account_id == inventory).mapped("balance")), 300.0)
 
     def test_fixed_asset_from_vendor_bill(self):
-        """§11: a computer bought on 106003 becomes an asset with its profile; 3 years straight-line;
-        each depreciation posts Dr 400065 / Cr 106008."""
+        """§11: a computer bought on 140003 becomes an asset with its profile; 3 years straight-line;
+        each depreciation posts Dr 530075 / Cr 106008."""
         from odoo.addons.x4u_account import hooks
 
         Account = self.env["account.account"].with_company(self.company)
@@ -557,9 +577,9 @@ class TestX4uAccount(TransactionCase):
                 {"code": code, "name": name, "account_type": account_type}
             )
 
-        computer = ensure("106003", "Computer Hardware & Software", "asset_fixed")
-        accumulated = ensure("106008", "Acc. Deprn.Computer Hardware & Software", "asset_fixed")
-        expense = ensure("400065", "Depreciation Of Computer Hard & Soft", "expense_depreciation")
+        computer = ensure("140003", "Computer Hardware & Software", "asset_fixed")
+        accumulated = ensure("140093", "Acc. Deprn.Computer Hardware & Software", "asset_fixed")
+        expense = ensure("530075", "Depreciation Of Computer Hard & Soft", "expense_depreciation")
         hooks._asset_profiles(self.env, self.company)
         profile = computer.with_company(self.company).asset_profile_id
         self.assertEqual(profile.name, "Computer Hardware & Software")
@@ -599,8 +619,8 @@ class TestX4uAccount(TransactionCase):
         from odoo.addons.x4u_account import hooks
 
         Account = self.env["account.account"].with_company(self.company)
-        account = hooks._account(self.env, self.company, "106002") or Account.create(
-            {"code": "106002", "name": "Furniture and Equipment", "account_type": "asset_current"}
+        account = hooks._account(self.env, self.company, "140004") or Account.create(
+            {"code": "140004", "name": "Furniture and Equipment", "account_type": "asset_current"}
         )
         if not self.env["account.move.line"].search_count([("account_id", "=", account.id)]):
             account.account_type = "asset_current"

@@ -26,19 +26,19 @@
         <field name="sequence">20</field>
         <field name="name">depreciation</field>
         <field name="description">Add: Depreciation</field>
-        <field name="expression">-balp[100102,106006,106007,106008,106009]</field>
+        <field name="expression">-balp[14009%]</field>
         <field name="type">num</field>
         <field name="compare_method">diff</field>
         <field name="accumulation_method">sum</field>
         <field name="style_id" ref="mis_template_financial_report.style_details"/>
     </record>
-    <!-- Customers' cheques in hand (102013) are still owed by the customer for the cash. -->
+    <!-- Customers' cheques in hand (PDCR 132001) are still owed by the customer for the cash. -->
     <record id="mis_report_x4u_cash_flow_kpi_receivables" model="mis.report.kpi">
         <field name="report_id" ref="mis_report_x4u_cash_flow"/>
         <field name="sequence">30</field>
         <field name="name">receivables</field>
         <field name="description">(Increase) / Decrease in Receivables and Cheques in Hand</field>
-        <field name="expression">-balp[('account_type', '=', 'asset_receivable')] - balp[102013]</field>
+        <field name="expression">-balp[('account_type', '=', 'asset_receivable')] - balp[132001]</field>
         <field name="type">num</field>
         <field name="compare_method">diff</field>
         <field name="accumulation_method">sum</field>
@@ -51,7 +51,7 @@
         <field name="sequence">40</field>
         <field name="name">inventory</field>
         <field name="description">(Increase) / Decrease in Inventory</field>
-        <field name="expression">-balp[103%]</field>
+        <field name="expression">-balp[134%]</field>
         <field name="type">num</field>
         <field name="compare_method">diff</field>
         <field name="accumulation_method">sum</field>
@@ -64,7 +64,7 @@
         <field name="sequence">50</field>
         <field name="name">other_assets</field>
         <field name="description">(Increase) / Decrease in Other Current Assets</field>
-        <field name="expression">-balp[('account_type', 'in', ('asset_current', 'asset_prepayments'))] + balp[103%] + balp[102013]</field>
+        <field name="expression">-balp[('account_type', 'in', ('asset_current', 'asset_prepayments'))] + balp[134%] + balp[132001]</field>
         <field name="type">num</field>
         <field name="compare_method">diff</field>
         <field name="accumulation_method">sum</field>
