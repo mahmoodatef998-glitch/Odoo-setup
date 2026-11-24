@@ -90,6 +90,9 @@ class TestX4uReporting(TransactionCase):
         self.assertTrue(day.journal_ids)
         pl = self.Report.action_x4u_mis("x4u_account.mis_instance_x4u_pl")
         self.assertEqual(pl["res_id"], self.env.ref("x4u_account.mis_instance_x4u_pl").id)
+        # OCA's report widget reads its report from the context: without it the page shows "Oops!".
+        self.assertEqual(pl["context"]["active_model"], "mis.report.instance")
+        self.assertEqual(pl["context"]["active_id"], pl["res_id"])
         # The screens print: the OCA buttons work on them.
         self.assertEqual(book.button_export_xlsx()["report_type"], "xlsx")
 
@@ -189,6 +192,7 @@ class TestX4uReporting(TransactionCase):
         self.assertEqual(periods[-1].name, "Total")
         action = self.Report.action_x4u_monthly_pl()
         self.assertEqual(action["res_id"], instance.id)
+        self.assertEqual(action["context"]["active_id"], instance.id)
 
         def revenue():
             matrix = instance._compute_matrix()

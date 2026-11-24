@@ -88,6 +88,14 @@ class X4uAccountingReport(models.AbstractModel):
         return self._x4u_open_items("liability_payable", _("Accounts Payable (Excel)"))
 
     @api.model
+    def _x4u_preview(self, instance):
+        """The figures of a MIS report. OCA's report widget finds its report in the context
+        (active_model / active_id), which Odoo only adds for a button on the report itself: a menu
+        opens it through a server action, so they are added here (else "Invalid ids list")."""
+        return instance.with_context(
+            active_model="mis.report.instance", active_id=instance.id, active_ids=instance.ids
+        ).preview()
+
     @api.model
     def action_x4u_monthly_pl(self):
         """Spec §17 M2: the P&L of this year, month by month (made the first time it is opened)."""
@@ -96,7 +104,7 @@ class X4uAccountingReport(models.AbstractModel):
         instance = _monthly_pl(self.env, self.env.company)
         if not instance:
             raise UserError(_("The 4U P&L report was removed: open MIS Reporting › MIS Reports."))
-        return instance.preview()
+        return self._x4u_preview(instance)
 
     @api.model
     def _cron_x4u_monthly_pl(self):
@@ -111,4 +119,4 @@ class X4uAccountingReport(models.AbstractModel):
         instance = self.env.ref(xmlid, raise_if_not_found=False)
         if not instance:
             raise UserError(_("This report was removed: open MIS Reporting › MIS Reports."))
-        return instance.preview()
+        return self._x4u_preview(instance)
