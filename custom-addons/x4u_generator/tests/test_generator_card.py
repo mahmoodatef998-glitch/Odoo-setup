@@ -94,6 +94,9 @@ class TestGeneratorCard(X4uGeneratorCommon):
     def test_product_form_onchange_sets_serial_tracking(self):
         with Form(self.env["product.template"]) as form:
             form.name = "X4U Form Genset"
+            generators = self.env.ref("x4u_setup_base.categ_generators", raise_if_not_found=False)
+            if generators:
+                form.categ_id = generators
             form.x4u_is_generator = True
             self.assertTrue(form.is_storable)
             self.assertEqual(form.tracking, "serial")

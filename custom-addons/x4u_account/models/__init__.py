@@ -4,6 +4,7 @@ from . import account_payment
 from . import account_move
 from . import account_check_deposit
 from . import stock_move
+from . import product_template
 from . import sale_order_line
 from . import x4u_accounting_report
 from . import res_currency_rate_provider

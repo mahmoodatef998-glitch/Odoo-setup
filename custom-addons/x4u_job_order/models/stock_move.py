@@ -98,6 +98,31 @@ class StockMove(models.Model):
         # receipt; Deliver Materials takes them for the Job Order you choose.
         return super(StockMove, self - self._x4u_job_order_parts())._action_assign(force_qty=force_qty)
 
+    def _generate_valuation_lines_data(
+        self, partner_id, qty, debit_value, credit_value, debit_account_id, credit_account_id, svl_id, description
+    ):
+        """x4u_account spec §20 P3: an alternator's serial in the label of its stock entry too (it is
+        kept on the receipt line and on the Job Order, not as an Odoo serial)."""
+        names = self._x4u_alternator_serial_names()
+        if names:
+            description = "%s - SN %s" % (description, ", ".join(names))
+        return super()._generate_valuation_lines_data(
+            partner_id, qty, debit_value, credit_value, debit_account_id, credit_account_id, svl_id, description
+        )
+
+    def _x4u_alternator_serial_names(self):
+        self.ensure_one()
+        if self.product_id.tracking != "none":
+            return []
+        if self.x4u_alternator_serials:
+            return split_serials(self.x4u_alternator_serials)
+        production = self.raw_material_production_id
+        if production:
+            return self.env["x4u.alternator.serial"].sudo().search(
+                [("production_id", "=", production.id), ("product_id", "=", self.product_id.id)], order="id"
+            ).mapped("name")
+        return []
+
     def _action_done(self, cancel_backorder=False):
         # Spec v0.8.1 N4: the alternator serials written on a receipt (optional) go to the list
         # that Deliver Materials offers.

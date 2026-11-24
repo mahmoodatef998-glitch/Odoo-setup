@@ -17,8 +17,12 @@ class X4uGeneratorCommon(TransactionCase):
         cls.alternator_brand = Brand.create(
             {"name": "X4U Test Alternator", "brand_type": "alternator"}
         )
+        # x4u_account spec §20 P1 (when installed): a product kept in stock is in a stock category.
+        generators = cls.env.ref("x4u_setup_base.categ_generators", raise_if_not_found=False)
+        spare_parts = cls.env.ref("x4u_setup_base.categ_spare_parts", raise_if_not_found=False)
         cls.generator_product = cls.env["product.product"].create(
             {
+                **({"categ_id": generators.id} if generators else {}),
                 "name": "X4U Test Genset 100 kVA",
                 "type": "consu",
                 "is_storable": True,
@@ -36,6 +40,7 @@ class X4uGeneratorCommon(TransactionCase):
         )
         cls.part_product = cls.env["product.product"].create(
             {
+                **({"categ_id": spare_parts.id} if spare_parts else {}),
                 "name": "X4U Test Spare Part",
                 "type": "consu",
                 "is_storable": True,

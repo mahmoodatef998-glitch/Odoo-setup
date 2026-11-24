@@ -60,8 +60,9 @@ docker compose up -d
 - Accounting in training (2026-11-24): 4U on the Focus account tree (x4u_account 18.0.1.10.0) with
   20 customers in every situation (`scripts/training_accounting.py`), and a second company
   **ATA SAIF ZONE** with its Focus books (admin and the Accountant only; files in
-  `/opt/odoo4u/private/ata`, chmod 600). The pilot `odoo4u` is still on 18.0.1.9.0: the tree goes
-  there with 4U's own Focus reports. Check every report:
+  `/opt/odoo4u/private/ata`, chmod 600). The pilot `odoo4u` has the tree since 18.0.1.11.0
+  (2026-11-24, Phase 1 after the UAT: average cost, cost of sales at the delivery, serials; the
+  owner's OK "Yes, deploy"). Check every report:
   `docker compose run --rm -T -e X4U_COMPANY="ATA SAIF ZONE" -e X4U_DATE_TO=2026-09-30 web odoo shell -d odoo4u_training --no-http < scripts/accounting_reports_check.py`
 - After the pilot starts: drop it and put `dbfilter = ^odoo4u$`, `list_db = False` back.
 

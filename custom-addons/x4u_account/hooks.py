@@ -24,6 +24,13 @@ EQUITY_ACCOUNTS = [
 ]
 
 STATEMENT_SETTINGS = {"group_activity_statement": True, "group_outstanding_statement": True}
+# Spec §20 P3: the serial of every unit printed on the delivery slip.
+SERIAL_SETTINGS = {"group_lot_on_delivery_slip": True}
+
+# Spec §20 P1 (UAT 2026-11-24): every stock item at the average of what was paid for it (AVCO);
+# an item valued per serial (engine, CKD, body, generator) keeps its own cost, and its product
+# shows the average of the serials in stock.
+COST_METHOD = "average"
 
 # Spec §8 Q1: the dirham is pegged to the dollar (Central Bank of the UAE, since 1997).
 USD_PER_AED_PEG = 3.6725
@@ -148,6 +155,7 @@ def x4u_setup(env):
     env = main_env
     _statements_follow_the_company(env)
     env["res.config.settings"].create(STATEMENT_SETTINGS).execute()
+    env["res.config.settings"].create(SERIAL_SETTINGS).execute()
     # The OCA job that posts the depreciation lines that are due (it ships inactive).
     cron = env.ref("account_asset_management.ir_cron_assets_generator", raise_if_not_found=False)
     if cron and not cron.active:
@@ -434,6 +442,9 @@ def _perpetual_inventory(env, company):
         category = category.sudo().with_company(company)
         if category.property_valuation != "real_time":
             _switch_to_real_time(env, category, _account(env, company, inventory_code), wip, grni, gdni)
+        _average_cost(env, category)
+        _cogs_at_delivery(category)
+    _gdni_to_cogs(env, company)
     write_off = _account(env, company, INVENTORY_WRITE_OFF)
     if write_off:
         Location = env["stock.location"].sudo().with_context(active_test=False)
@@ -444,6 +455,92 @@ def _perpetual_inventory(env, company):
                     "valuation_out_account_id": location.valuation_out_account_id.id or write_off.id,
                 }
             )
+
+
+def _average_cost(env, category):
+    """Spec §20 P1: the category at the average cost. Without stock it is Odoo's own change.
+
+    With stock, Odoo would empty and refill it (and refuses to when products are valued per serial):
+    from FIFO to average nothing has to be re-valued, the stock keeps the value it has. So only the
+    method changes, and each serial and product cost is set to its value / quantity in stock, which
+    is what the average method takes for the next issue. No journal entry: the value is unchanged."""
+    from odoo.models import BaseModel
+
+    if category.property_cost_method == COST_METHOD:
+        return
+    products = (
+        env["product.product"].sudo().with_company(category.env.company).with_context(active_test=False)
+        .search([("categ_id", "=", category.id), ("is_storable", "=", True)])
+    )
+    # Odoo also refuses when a serial-valued product only has history (all of it issued).
+    if not products.stock_valuation_layer_ids:
+        category.property_cost_method = COST_METHOD
+        return
+    in_stock = products.filtered(lambda product: product.quantity_svl)
+    BaseModel.write(category, {"property_cost_method": COST_METHOD})
+    currency = category.env.company.currency_id
+    for product in in_stock:
+        if product.lot_valuated:
+            lots = env["stock.lot"].sudo().with_company(category.env.company).search([("product_id", "=", product.id)])
+            for lot in lots.filtered(lambda lot: lot.quantity_svl):
+                BaseModel.write(lot, {"standard_price": currency.round(lot.value_svl / lot.quantity_svl)})
+        BaseModel.write(product, {"standard_price": currency.round(product.value_svl / product.quantity_svl)})
+    _logger.info("x4u_account: %s at the average cost, %s products in stock kept at their value", category.display_name, len(in_stock))
+
+
+def _cogs_at_delivery(category):
+    """Spec §20 P2 (UAT 2026-11-24): the cost of sales when the goods leave, Dr Cost of Sales /
+    Cr Inventory, not with the invoice: the stock output account is the category's cost of sales."""
+    expense = category.property_account_expense_categ_id
+    if expense and category.property_stock_account_output_categ_id != expense:
+        category.property_stock_account_output_categ_id = expense
+
+
+def _gdni_to_cogs(env, company):
+    """Spec §20 P2: what was left in Goods Delivered Not Invoiced when the cost of sales moved to the
+    delivery goes to the cost of sales, per product and sales line (with its analytic). Delivered,
+    not invoiced: the cost of sales now. Invoiced, not delivered: the invoice's cost of sales comes
+    back, the delivery posts it."""
+    gdni = _account(env, company, CODE["gdni"])
+    if not gdni:
+        return
+    Line = env["account.move.line"].sudo()
+    lines = Line.search(
+        [("account_id", "=", gdni.id), ("parent_state", "=", "posted"), ("company_id", "=", company.id), ("reconciled", "=", False)]
+    )
+    groups = {}
+    for line in lines:
+        sale_line = (
+            line.move_id.stock_move_id.sale_line_id or line.cogs_origin_id.sale_line_ids[:1] or line.x4u_cogs_sale_line_id
+        )
+        groups.setdefault((line.product_id, sale_line), Line)
+        groups[(line.product_id, sale_line)] |= line
+    for (product, sale_line), group in groups.items():
+        balance = company.currency_id.round(sum(group.mapped("amount_residual")))
+        expense = product.product_tmpl_id.with_company(company).get_product_accounts()["expense"] if product else False
+        if company.currency_id.is_zero(balance) or not expense or expense == gdni:
+            if company.currency_id.is_zero(balance) and len(group) > 1:
+                group.reconcile()
+            continue
+        label = "GDNI to cost of sales (cost of sales at delivery) - %s" % (product.display_name,)
+        common = {"name": label, "product_id": product.id, "partner_id": group.partner_id[:1].id}
+        move = env["account.move"].sudo().create(
+            {
+                "move_type": "entry",
+                "journal_id": product.categ_id.with_company(company).property_stock_journal.id
+                or env["account.journal"].sudo().search([("type", "=", "general"), ("company_id", "=", company.id)], limit=1).id,
+                "company_id": company.id,
+                "ref": label,
+                "line_ids": [
+                    Command.create(dict(common, account_id=expense.id, balance=balance,
+                                        analytic_distribution=sale_line.analytic_distribution or False)),
+                    Command.create(dict(common, account_id=gdni.id, balance=-balance, x4u_cogs_sale_line_id=sale_line.id or False)),
+                ],
+            }
+        )
+        move.action_post()
+        (group | move.line_ids.filtered(lambda aml: aml.account_id == gdni)).reconcile()
+        _logger.info("x4u_account: GDNI %s of %s moved to the cost of sales (%s)", balance, product.display_name, move.name)
 
 
 def _account(env, company, code):

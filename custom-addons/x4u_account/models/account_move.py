@@ -31,6 +31,16 @@ class AccountMove(models.Model):
                 move.payment_state = "in_payment"
         return res
 
+    def _stock_account_prepare_anglo_saxon_out_lines_vals(self):
+        """Spec §20 P2: the cost of sales is posted by the delivery (Dr Cost of Sales / Cr Inventory),
+        so the stock output account is the cost of sales itself. Odoo would still add Dr and Cr Cost
+        of Sales on the invoice, the same amount on the same account: they are left out."""
+        vals_list = super()._stock_account_prepare_anglo_saxon_out_lines_vals()
+        accounts = {}
+        for vals in vals_list:
+            accounts.setdefault(vals.get("cogs_origin_id"), set()).add(vals.get("account_id"))
+        return [vals for vals in vals_list if len(accounts[vals.get("cogs_origin_id")]) > 1]
+
     def _post(self, soft=True):
         posted = super()._post(soft)
         # Spec §9 S6: a line delivered before its invoice is settled by Odoo's own cost of sales;

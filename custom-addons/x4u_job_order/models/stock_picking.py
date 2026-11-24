@@ -1,4 +1,4 @@
-from odoo import Command, _, models
+from odoo import Command, _, fields, models
 from odoo.exceptions import UserError
 
 from .x4u_alternator_serial import split_serials
@@ -6,6 +6,25 @@ from .x4u_alternator_serial import split_serials
 
 class StockPicking(models.Model):
     _inherit = "stock.picking"
+
+    x4u_serials = fields.Char(
+        string="Serial Numbers",
+        compute="_compute_x4u_picking_serials",
+        search="_search_x4u_picking_serials",
+        help="The serial of every unit on the transfer, alternators included (x4u_account spec §20 P3).",
+    )
+
+    def _compute_x4u_picking_serials(self):
+        for picking in self:
+            names = [line.lot_id.name or line.lot_name for line in picking.move_line_ids if line.lot_id or line.lot_name]
+            for move in picking.move_ids:
+                names += [name for name in split_serials(move.x4u_alternator_serials) if name not in names]
+            picking.x4u_serials = ", ".join(names) or False
+
+    def _search_x4u_picking_serials(self, operator, value):
+        if operator not in ("ilike", "=", "=ilike", "like"):
+            return [("id", "=", 0)]
+        return ["|", ("move_line_ids.lot_id.name", operator, value), ("move_line_ids.lot_name", operator, value)]
 
     def _action_done(self):
         if not self.env.context.get("x4u_invoice_delivery"):

@@ -2,7 +2,12 @@ from odoo import _, api, models
 from odoo.exceptions import ValidationError
 
 # Spec v0.8 N1 / v0.9 C1 / v0.10 B1: parts that go in and out by their serial, each valued at its own price.
-SERIAL_CATEGORIES = ("x4u_setup_base.categ_engines", "x4u_setup_base.categ_ckd", "x4u_setup_base.categ_bodies")
+# x4u_account spec §20 P3 (UAT 2026-11-24): a product of the Generators category too (a ready
+# generator bought complete was made in "All" without its serial).
+SERIAL_CATEGORIES = (
+    "x4u_setup_base.categ_engines", "x4u_setup_base.categ_ckd", "x4u_setup_base.categ_bodies",
+    "x4u_setup_base.categ_generators",
+)
 
 
 class ProductProduct(models.Model):
@@ -99,7 +104,7 @@ class ProductTemplate(models.Model):
             if template.is_storable and template.tracking != "serial" and template._x4u_by_serial():
                 raise ValidationError(
                     _(
-                        "%s is an engine, a CKD or a genset body: each one is tracked by its serial number "
+                        "%s is an engine, a CKD, a genset body or a generator: each one is tracked by its serial number "
                         "(Tracking: By Unique Serial Number).",
                         template.display_name,
                     )

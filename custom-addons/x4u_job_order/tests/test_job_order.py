@@ -321,10 +321,10 @@ class TestJobOrder(X4uJobOrderCommon):
 
     # T17: the Operation Manager finishes the Job Order; the generator is worth its parts + 20% (v0.4 V4 / V5)
     def test_finish_job_order_values_the_generator(self):
-        # Generators and their parts are FIFO (set on install); the test generator joins its category.
+        # Generators and their parts at the average cost, each serial at its own (x4u_account §20 P1).
         self.template.categ_id = self.env.ref("x4u_setup_base.categ_generators")
-        self.assertEqual(self.template.cost_method, "fifo")
-        self.assertEqual(self.engine.cost_method, "fifo")
+        self.assertEqual(self.template.cost_method, "average")
+        self.assertEqual(self.engine.cost_method, "average")
         for part, price in ((self.engine, 1000.0), (self.alt_stamford, 500.0), (self.body_canopy, 300.0)):
             self._stock(part, 1, price=price)
         _order, production = self._sell()
@@ -454,7 +454,11 @@ class TestJobOrder(X4uJobOrderCommon):
         cogs = sum(Line.search(domain + [("account_id", "=", expense.id)]).mapped("balance"))
         gdni = sum(Line.search(domain + [("account_id", "=", output.id)]).mapped("balance"))
         self.assertAlmostEqual(cogs, 2160.0, msg="cost of sales = parts 1800 + 20%")
-        self.assertAlmostEqual(gdni, 0.0, msg="Goods Delivered Not Invoiced closes")
+        if output != expense:
+            self.assertAlmostEqual(gdni, 0.0, msg="Goods Delivered Not Invoiced closes")
+        else:
+            # x4u_account §20 P2: the delivery posts the cost of sales, the invoice none.
+            self.assertFalse(invoice.line_ids.filtered(lambda line: line.display_type == "cogs"))
         self.assertAlmostEqual(production.x4u_job_margin, 10000.0 - 2160.0, msg="the Job Order's margin sees the cost")
 
     # v0.12 J7: two generators of one line, one Job Order: one account for the whole line

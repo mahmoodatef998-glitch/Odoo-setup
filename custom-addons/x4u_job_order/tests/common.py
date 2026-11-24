@@ -41,6 +41,8 @@ class X4uJobOrderCommon(TransactionCase):
         cls.template = cls.env["product.template"].create(
             {
                 "name": "X4U Test AQT-500",
+                # x4u_account spec §20 P1: a product kept in stock is in a stock category.
+                "categ_id": ref("x4u_setup_base.categ_generators").id,
                 "is_storable": True,
                 "tracking": "serial",
                 "x4u_is_generator": True,

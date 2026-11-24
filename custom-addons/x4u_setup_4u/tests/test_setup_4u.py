@@ -15,8 +15,10 @@ class TestSetup4U(TransactionCase):
         partner = self.env["res.partner"].create({"name": "X4U Test Customer"})
         order = self.env["sale.order"].create({"partner_id": partner.id})
         self.assertRegex(order.name, r"^S\d{3,}$")
-        product = self.env["product.product"].create({"name": "X4U Test Assembly", "is_storable": True})
-        part = self.env["product.product"].create({"name": "X4U Test Component", "is_storable": True})
+        # x4u_account spec §20 P1 (when installed): a product kept in stock is in a stock category.
+        categ = self.env.ref("x4u_setup_base.categ_components")
+        product = self.env["product.product"].create({"name": "X4U Test Assembly", "is_storable": True, "categ_id": categ.id})
+        part = self.env["product.product"].create({"name": "X4U Test Component", "is_storable": True, "categ_id": categ.id})
         self.env["mrp.bom"].create(
             {
                 "product_tmpl_id": product.product_tmpl_id.id,

@@ -331,6 +331,12 @@ class TestX4uAccount(TransactionCase):
         for number, line in enumerate(receipt.move_line_ids, 1):
             if line.product_id.tracking == "serial" and not line.lot_name:
                 line.lot_name = "X4U-ACC-%s-%s" % (receipt.id, number)
+        # And every alternator with its serial (x4u_job_order spec v0.15 B2).
+        for move in receipt.move_ids:
+            if "x4u_alternator_serials" in move._fields and move.x4u_role == "alternator" and not move.x4u_alternator_serials:
+                move.x4u_alternator_serials = ", ".join(
+                    "X4U-ALT-%s-%s" % (move.id, unit) for unit in range(1, int(move.quantity) + 1)
+                )
 
     def test_perpetual_inventory_cycle(self):
         """§9: receipt, MO with overhead, delivery and invoice each post their entry; WIP and GDNI close at zero."""
@@ -391,6 +397,12 @@ class TestX4uAccount(TransactionCase):
         receipt.move_ids.picked = True
         receipt.button_validate()
         self.assertEqual(self._lines(receipt.move_ids), {code("134004"): 1000.0, code("212006"): -1000.0})
+        # §20 P3: the serial is in the entry's label.
+        if part.tracking == "serial":  # with x4u_job_order
+            serial = receipt.move_line_ids.lot_id.name
+            entry = receipt.move_ids.stock_valuation_layer_ids.account_move_id
+            self.assertTrue(all(serial in line.name for line in entry.line_ids))
+        self.assertEqual(engines.property_cost_method, "average", "§20 P1: the average of what was paid")
 
         # 2. MO with 200 overhead: Dr WIP / Cr Components, then Dr Finished / Cr WIP 1000 + Cr Applied Overhead 200.
         mo.action_assign()
@@ -398,6 +410,8 @@ class TestX4uAccount(TransactionCase):
         mo_form = Form(mo)
         mo_form.qty_producing = 1
         mo = mo_form.save()
+        if generator.tracking == "serial":  # §20 P3, with x4u_job_order: a generator has its serial
+            mo.action_generate_serial()
         mo.move_raw_ids.quantity = 1
         mo.move_raw_ids.picked = True
         mo.button_mark_done()
@@ -408,7 +422,7 @@ class TestX4uAccount(TransactionCase):
         self.assertEqual(lines.get(code("530082")), -200.0)
         self.assertFalse(lines.get(code("134002")), "WIP closes at zero")
 
-        # 3. Delivery: Dr Goods Delivered Not Invoiced / Cr Inventory - Finished Generators.
+        # 3. Delivery (§20 P2): Dr Cost of Goods Sold / Cr Inventory - Finished Generators.
         customer = self.env["res.partner"].create({"name": "X4U Test Genset Customer"})
         delivery = self.env["stock.picking"].create(
             {
@@ -435,9 +449,11 @@ class TestX4uAccount(TransactionCase):
         delivery.move_ids.quantity = 1
         delivery.move_ids.picked = True
         delivery.button_validate()
-        self.assertEqual(self._lines(delivery.move_ids), {code("134006"): 1200.0, code("134001"): -1200.0})
+        expense = generators.property_account_expense_categ_id
+        self.assertEqual(generators.property_stock_account_output_categ_id, expense)
+        self.assertEqual(self._lines(delivery.move_ids), {expense.code: 1200.0, code("134001"): -1200.0})
 
-        # 4. Customer invoice (Anglo-Saxon): Dr Cost of Goods Sold / Cr Goods Delivered Not Invoiced.
+        # 4. Customer invoice: the revenue only, the cost of sales came with the delivery.
         invoice = self.env["account.move"].create(
             {
                 "move_type": "out_invoice",
@@ -451,10 +467,10 @@ class TestX4uAccount(TransactionCase):
             }
         )
         invoice.action_post()
-        cogs = invoice.line_ids.filtered(lambda line: line.display_type == "cogs")
-        expense = generators.property_account_expense_categ_id
-        self.assertEqual(sum(cogs.filtered(lambda line: line.account_id == expense).mapped("balance")), 1200.0)
-        self.assertEqual(sum(cogs.filtered(lambda line: line.account_id.code == code("134006")).mapped("balance")), -1200.0)
+        self.assertFalse(invoice.line_ids.filtered(lambda line: line.display_type == "cogs"))
+        sold = self.env["account.move.line"].search([("product_id", "=", generator.id), ("parent_state", "=", "posted")])
+        self.assertEqual(sum(sold.filtered(lambda line: line.account_id == expense).mapped("balance")), 1200.0)
+        self.assertFalse(sold.filtered(lambda line: line.account_id.code == code("134006")), "no GDNI")
 
     def test_switch_with_serial_valued_stock(self):
         """§9 S1: a periodic category with a serial-valued product in stock switches: Dr Inventory / Cr expense."""
@@ -468,7 +484,8 @@ class TestX4uAccount(TransactionCase):
         grni = hooks._account(self.env, self.company, "212006")
         gdni = hooks._account(self.env, self.company, "134006")
         wip = hooks._account(self.env, self.company, "134002")
-        template = self.env["product.template"].create(
+        # An old periodic case, as it was before §9: allowed past the §20 P1 check.
+        template = self.env["product.template"].with_context(x4u_any_category=True).create(
             {
                 "name": "X4U Test Serial Genset",
                 "is_storable": True,
@@ -494,6 +511,135 @@ class TestX4uAccount(TransactionCase):
         self.assertEqual(sum(lines.filtered(lambda line: line.account_id == inventory).mapped("balance")), 500.0)
         self.assertEqual(sum(lines.filtered(lambda line: line.account_id == expense).mapped("balance")), -500.0)
         self.assertEqual(product.value_svl, 500.0)
+
+    # §20 P1 (UAT 2026-11-24): the pilot's CKD, canopy and ready generator were made in "All"
+    def test_stock_product_needs_a_stock_category(self):
+        from odoo.exceptions import ValidationError
+
+        everything = self.env.ref("product.product_category_all")
+        with self.assertRaises(ValidationError):
+            self.env["product.product"].create({"name": "X4U Test CKD in All", "is_storable": True, "categ_id": everything.id})
+        product = self.env["product.product"].create({"name": "X4U Test Office Paper", "type": "consu", "categ_id": everything.id})
+        with self.assertRaises(ValidationError):
+            product.is_storable = True
+        components = self.env.ref("x4u_setup_base.categ_components")
+        # As the product form saves it: both on the product at once.
+        product.product_tmpl_id.write({"is_storable": True, "categ_id": components.id})
+        with self.assertRaises(ValidationError):
+            product.categ_id = everything
+
+    def _receive(self, product, qty, price, location=None):
+        warehouse = self.env["stock.warehouse"].search([("company_id", "=", self.company.id)], limit=1)
+        suppliers = self.env.ref("stock.stock_location_suppliers")
+        location = location or warehouse.lot_stock_id
+        receipt = self.env["stock.picking"].create(
+            {
+                "partner_id": self.vendor.id,
+                "picking_type_id": warehouse.in_type_id.id,
+                "location_id": suppliers.id,
+                "location_dest_id": location.id,
+                "move_ids": [
+                    Command.create(
+                        {
+                            "name": product.name,
+                            "product_id": product.id,
+                            "product_uom_qty": qty,
+                            "product_uom": product.uom_id.id,
+                            "price_unit": price,
+                            "location_id": suppliers.id,
+                            "location_dest_id": location.id,
+                        }
+                    )
+                ],
+            }
+        )
+        receipt.action_confirm()
+        receipt.move_ids.quantity = qty
+        self._name_serials(receipt)
+        receipt.move_ids.picked = True
+        receipt.button_validate()
+        return receipt
+
+    # §20 P1: the materials at the average of what was paid, each serial at its own price
+    def test_average_cost(self):
+        alternators = self.env.ref("x4u_setup_base.categ_alternators").with_company(self.company)
+        self.assertEqual(alternators.property_cost_method, "average")
+        alternator = self.env["product.product"].create(
+            {"name": "X4U Test Average Alternator", "is_storable": True, "categ_id": alternators.id}
+        )
+        self._receive(alternator, 1, 1000.0)
+        self._receive(alternator, 1, 1200.0)
+        self.assertAlmostEqual(alternator.standard_price, 1100.0)
+        self.assertAlmostEqual(alternator.value_svl, 2200.0)
+
+        engines = self.env.ref("x4u_setup_base.categ_engines").with_company(self.company)
+        engine = self.env["product.product"].create({"name": "X4U Test Average Engine", "is_storable": True, "categ_id": engines.id})
+        if engine.tracking != "serial":
+            return  # the serials come with x4u_job_order
+        self.assertTrue(engine.lot_valuated)
+        first = self._receive(engine, 1, 1000.0).move_line_ids.lot_id
+        second = self._receive(engine, 1, 1400.0).move_line_ids.lot_id
+        self.assertAlmostEqual(first.standard_price, 1000.0, msg="each serial at what was paid for it")
+        self.assertAlmostEqual(second.standard_price, 1400.0)
+        self.assertAlmostEqual(engine.standard_price, 1200.0, msg="the product shows the average")
+
+    # §20 P1 on a database with stock: FIFO to average keeps every value, posts nothing
+    def test_fifo_to_average_keeps_the_values(self):
+        from odoo.addons.x4u_account import hooks
+
+        Account = self.env["account.account"].with_company(self.company)
+        inventory = Account.create({"code": "199902", "name": "X4U Test Inventory 2", "account_type": "asset_current"})
+        category = self.env["product.category"].with_company(self.company).create({"name": "X4U Test FIFO"})
+        category.write(
+            {
+                "property_cost_method": "fifo",
+                "property_valuation": "real_time",
+                "property_stock_valuation_account_id": inventory.id,
+                "property_stock_account_input_categ_id": hooks._account(self.env, self.company, "212006").id,
+                "property_stock_account_output_categ_id": category.property_account_expense_categ_id.id,
+            }
+        )
+        template = self.env["product.template"].create(
+            {"name": "X4U Test FIFO Genset", "is_storable": True, "tracking": "serial", "categ_id": category.id}
+        )
+        template.lot_valuated = True
+        product = template.product_variant_id
+        self._receive(product, 1, 500.0)
+        self._receive(product, 1, 700.0)
+        lots = product.stock_valuation_layer_ids.lot_id
+        self.assertEqual(len(lots), 2)
+        layers = product.stock_valuation_layer_ids
+        hooks._average_cost(self.env, category)
+        self.assertEqual(category.property_cost_method, "average")
+        self.assertEqual(product.stock_valuation_layer_ids, layers, "nothing re-valued")
+        self.assertEqual(sorted(lots.mapped("standard_price")), [500.0, 700.0])
+        self.assertAlmostEqual(product.standard_price, 600.0)
+        self.assertAlmostEqual(product.value_svl, 1200.0)
+
+    # §20 P2: what was left in GDNI goes to the cost of sales
+    def test_gdni_to_cost_of_sales(self):
+        from odoo.addons.x4u_account import hooks
+
+        generators = self.env.ref("x4u_setup_base.categ_generators").with_company(self.company)
+        product = self.env["product.product"].create(
+            {"name": "X4U Test GDNI Genset", "is_storable": True, "tracking": "serial", "categ_id": generators.id}
+        )
+        gdni = hooks._account(self.env, self.company, "134006")
+        expense = generators.property_account_expense_categ_id
+        entry = self.env["account.move"].create(
+            {
+                "journal_id": self.misc.id,
+                "line_ids": [
+                    Command.create({"account_id": gdni.id, "debit": 300.0, "product_id": product.id}),
+                    Command.create({"account_id": hooks._account(self.env, self.company, "134001").id, "credit": 300.0}),
+                ],
+            }
+        )
+        entry.action_post()
+        hooks._gdni_to_cogs(self.env, self.company)
+        lines = self.env["account.move.line"].search([("product_id", "=", product.id), ("parent_state", "=", "posted")])
+        self.assertAlmostEqual(sum(lines.filtered(lambda line: line.account_id == gdni).mapped("balance")), 0.0)
+        self.assertAlmostEqual(sum(lines.filtered(lambda line: line.account_id == expense).mapped("balance")), 300.0)
 
     def test_landed_costs(self):
         """§10: the forwarder's freight goes into the engines' value; the clearing account closes at zero."""

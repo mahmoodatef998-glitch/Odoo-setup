@@ -134,8 +134,11 @@ class TestRoles(TransactionCase):
         """The buyers open the Manufacturing app and read its orders and bills of materials; they
         change nothing (the user, 2026-11-23). Storekeeper and Salesperson do not see the app."""
         root = self.env.ref("mrp.menu_mrp_root")
-        product = self.env["product.product"].create({"name": "X4U Test MRP Viewer", "is_storable": True})
-        component = self.env["product.product"].create({"name": "X4U Test MRP Viewer Part", "is_storable": True})
+        # x4u_account spec §20 P1 (when installed): a product kept in stock is in a stock category.
+        categ = self.env.ref("x4u_setup_base.categ_components", raise_if_not_found=False)
+        values = {"is_storable": True, **({"categ_id": categ.id} if categ else {})}
+        product = self.env["product.product"].create({"name": "X4U Test MRP Viewer", **values})
+        component = self.env["product.product"].create({"name": "X4U Test MRP Viewer Part", **values})
         bom = self.env["mrp.bom"].create(
             {
                 "product_tmpl_id": product.product_tmpl_id.id,

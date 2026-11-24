@@ -4,12 +4,14 @@ COSTED_CATEGORIES = (
 
 
 def set_costing(env):
-    """Parts at what was paid for them (FIFO), so a generator's value is its parts plus
-    the overhead (spec v0.4 V5 / V6). Each generator keeps its own value (per serial)."""
+    """Parts at what was paid for them, so a generator's value is its parts plus the overhead
+    (spec v0.4 V5 / V6). Each engine, CKD, body and generator keeps its own value (per serial); the
+    others at the average of what was paid (x4u_account spec §20 P1, which also moves FIFO to average
+    on a database with stock)."""
     for xmlid in COSTED_CATEGORIES:
         category = env.ref("x4u_setup_base." + xmlid, raise_if_not_found=False)
-        if category and category.property_cost_method != "fifo":
-            category.property_cost_method = "fifo"
+        if category and category.property_cost_method not in ("fifo", "average"):
+            category.property_cost_method = "average"
     env["product.template"].with_context(active_test=False).search(
         [("x4u_is_generator", "=", True), ("tracking", "=", "serial"), ("lot_valuated", "=", False)]
     ).lot_valuated = True
