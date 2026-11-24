@@ -16,7 +16,11 @@ def remove_default_pricelist(env):
     Contractors / Distributors ones of 18.0.1.0.1) goes while no sales order uses it.
     """
     Pricelist = env["product.pricelist"].with_context(active_test=False)
-    ours = Pricelist.browse([env.ref("x4u_setup_4u." + xmlid).id for xmlid in PRICELISTS])
+    # Ours: the pricelists of the 4U modules (x4u_job_order adds Export (AED) and the Perkins GBP
+    # lists of the generator catalog, empty until it is imported).
+    ours = Pricelist.browse(
+        env["ir.model.data"].search([("module", "=like", "x4u\\_%"), ("model", "=", "product.pricelist")]).mapped("res_id")
+    )
     extra = Pricelist.search(
         [("id", "not in", ours.ids), ("company_id", "in", ours.company_id.ids), ("item_ids", "=", False)]
     )

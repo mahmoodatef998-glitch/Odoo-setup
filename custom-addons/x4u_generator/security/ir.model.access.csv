@@ -9,3 +9,6 @@ access_x4u_generator_hour_reading_salesman,x4u.generator.hour.reading salesman,m
 access_x4u_generator_hour_reading_qc_user,x4u.generator.hour.reading quality user,model_x4u_generator_hour_reading,quality_control_oca.group_quality_control_user,1,0,0,0
 access_x4u_generator_brand_user,x4u.generator.brand user,model_x4u_generator_brand,base.group_user,1,0,0,0
 access_x4u_generator_brand_stock_manager,x4u.generator.brand stock manager,model_x4u_generator_brand,stock.group_stock_manager,1,1,1,1
+access_x4u_generator_datasheet_line_user,x4u.generator.datasheet.line user,model_x4u_generator_datasheet_line,base.group_user,1,0,0,0
+access_x4u_generator_datasheet_line_manager,x4u.generator.datasheet.line manager,model_x4u_generator_datasheet_line,sales_team.group_sale_manager,1,1,1,1
+access_x4u_generator_datasheet_line_stock_manager,x4u.generator.datasheet.line stock manager,model_x4u_generator_datasheet_line,stock.group_stock_manager,1,1,1,1

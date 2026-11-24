@@ -1,6 +1,7 @@
 from . import x4u_generator_brand
 from . import x4u_generator
 from . import x4u_generator_hour_reading
+from . import x4u_generator_datasheet_line
 from . import product_template
 from . import product_product
 from . import stock_lot

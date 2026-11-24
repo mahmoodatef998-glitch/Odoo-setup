@@ -1,6 +1,26 @@
-# Spec — بيانات الـ datasheet على المولد + الـ importer — v0.2
+# Spec — بيانات الـ datasheet على المولد + الـ importer — v0.3
 
-- الحالة: **v0.2 ⏸ موقوفة** (2026-11-13): الموقع لسه عليه تعديلات وإضافات كتير قبل الداتا الحقيقية (المستخدم)، فالـ importer بيستنى لحد ما الموقع يخلص. القرارات الأربعة من v0.1 اتاخدت (§0). مفيش كود لحد دلوقتي.
+- الحالة: **v0.3 ✅ اتنفّذت** (2026-11-24، المستخدم: "لي مش منضافه ؟" والـ pilot شغال؛ اختار: **الأسعار من الـ price lists بتاعة 2026**، **الإضافات جوه سطر المولد**، **الكتالوج الأول وبعده شكل QT 1112**، "**ما في open**"، و **Stamford = Price on request**، وخانة للإضافات بتأثر على السعر والسعر يفضل يتعدّل). اتنفّذت في `x4u_generator` 18.0.1.1.0 و `x4u_job_order` 18.0.1.17.0 و `scripts/fetch_datasheets.py`، `scripts/generator_catalog.py`، `scripts/import_generators.py`. شكل QT 1112 (Options A / B / C وملخص الأسعار) هو الخطوة الجاية ([x4u_reports](x4u_reports.md)).
+- v0.2 ⏸ (2026-11-13): كانت موقوفة لحد ما الموقع يخلص.
+
+## 0b. v0.3 (2026-11-24) ✅
+| # | القاعدة |
+|---|---|
+| V1 | **المصدر**: صفحات الموقع (JSON-LD لكل موديل)، وهي نفس الـ datasheets اللي على الدرايف (4U-DS-xxx، الموقع هو اللي بيطلعها). 156 موديل: Cummins 41، Perkins 41، Lister Petter 39، Baudouin 26، Kubota 9. الملفات في `private/datasheets/` (برا Git) |
+| V2 | **Silent canopy بس** (مفيش open). الـ variant = الـ Alternator: **4U** (صفوف KWISE / CHINA / LP في الـ price list)، **Leroy-Somer** (صفوف TAL)، **Stamford** (لو له frame في الـ datasheet) |
+| V3 | **الأسعار** من `UAE_PRICE_LIST_2026` و `EXPORT_PRICE_LIST_2026` (الدرايف): **Standard** = الإمارات، **Export (AED)** = التصدير زي QT 1112، و **Export** (USD) بيتبع Export (AED) بالربط. Perkins بالإسترليني في قايمتين GBP، وبيدخل الدرهم بسعر اليوم، متقرّب لقرشين. الصف بيتلاقى بالمحرك (Baudouin: المحرك + الـ frame) |
+| V4 | **Price on request**: Stamford، و 37 موديل مالهمش صف في قوايم 2026 (أغلب سلسلة L، و Perkins الكبيرة 4012 / 4016، و C26، و B820...). السطر بيطلع **"As requested"**، والـ PI مابيطلعش غير لما السعر يتكتب |
+| V5 | **سطر عرض السعر**: الوصف بيتكتب لوحده من الـ datasheet زي QT 1112 (المحرك، والـ alternator بالـ frame بتاعه، والكنترولر، والـ breaker، والتانك، والكانوبي). عمود **Extras** (نص بيتكتب في آخر الوصف) و **Extras Price** (بيتزوّد على السعر)، والسعر يتعدّل باليد، والخصم في عمود Disc.% |
+| V6 | **المكونات والـ BoM** لكل موديل: المحرك (Engines، بالسيريال، مشترك بين الموديلات)، والـ alternator لكل اختيار (Alternators)، والـ Silent Canopy (Genset Bodies، المورد AQT لو موجود)، عشان الـ Job Order يشتغل. BoM معمولة باليد مابتتلمسش |
+| V7 | **الـ importer بيتعاد** في أي وقت (لما الـ price list أو الموقع يتغير): الموديل بكوده، وبيحدّث البيانات والأسعار، ومابيمسحش حاجة |
+
+| # | الاختبار (`x4u_job_order/tests/test_generator_catalog.py`) |
+|---|---|
+| T1 / T7 | موديل بالـ 3 alternators والكود والـ datasheet والـ BoM، والاختيار اسمه "4U" |
+| T2 | الأسعار: UAE و Export (AED) و Export (USD) بالربط، و Perkins من GBP بسعر اليوم، و Stamford من غير سعر |
+| T3 | استيراد تاني بيحدّث الموديل والـ datasheet والسعر من غير تكرار |
+| T4 | زي QT 1112: سعر القايمة + Extras 3,300 (أرقام تجريبية في الـ test، الأسعار الحقيقية في private/ بس)، والوصف فيه المحرك والـ frame والإضافات، والسعر المكتوب باليد بيفضل |
+| T5 | Stamford: "As requested"، والـ PI بيترفض لحد ما السعر يتكتب |
 - المرجع: [docs/modules/01-sales.md](../modules/01-sales.md) (D5، D8) و [x4u_setup_sales.md](x4u_setup_sales.md) §6، و [x4u_job_order v0.8](x4u_job_order.md) (المحرك بالسيريال، والـ alternator اختياري).
 - يتعمل فين: **`x4u_generator` v1.1** (المولد نفسه)، و `scripts/` (السحب من الموقع والاستيراد).
 - العلامات: ✅ متفق عليه · 🟡 اقتراح مستني موافقتك

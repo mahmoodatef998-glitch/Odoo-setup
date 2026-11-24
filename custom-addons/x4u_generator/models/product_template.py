@@ -27,6 +27,17 @@ class ProductTemplate(models.Model):
     x4u_warranty_hours = fields.Float(
         string="Warranty (Running Hours)", help="0 means no running-hours limit."
     )
+    # Spec x4u_generator_datasheet §3: the model's datasheet (from the website / the Drive PDFs).
+    x4u_model_code = fields.Char(
+        string="Model Code", index=True, copy=False,
+        help="The 4U model, e.g. 4U-C300. The importer finds the model by it; every variant has it as its code.",
+    )
+    x4u_datasheet_code = fields.Char(string="Datasheet No.", help="e.g. 4U-DS-C300")
+    x4u_datasheet_url = fields.Char(string="Datasheet Link")
+    x4u_controller = fields.Char(string="Controller")
+    x4u_leroy_frame = fields.Char(string="Leroy-Somer Frame")
+    x4u_stamford_frame = fields.Char(string="Stamford Frame")
+    x4u_datasheet_line_ids = fields.One2many("x4u.generator.datasheet.line", "template_id", string="Datasheet")
     x4u_warranty_max_delivery_months = fields.Integer(
         string="Max Warranty from Delivery (Months)",
         help="Optional cap: the warranty also ends this many months after delivery, "

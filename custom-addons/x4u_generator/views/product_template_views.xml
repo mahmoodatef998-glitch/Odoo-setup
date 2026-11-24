@@ -30,8 +30,26 @@
                         <group string="Alternator" name="x4u_alternator">
                             <field name="x4u_alternator_brand_id" options="{'no_create': True}"/>
                             <field name="x4u_alternator_model"/>
+                            <field name="x4u_leroy_frame"/>
+                            <field name="x4u_stamford_frame"/>
+                        </group>
+                        <group string="Datasheet" name="x4u_datasheet_header">
+                            <field name="x4u_model_code"/>
+                            <field name="x4u_datasheet_code"/>
+                            <field name="x4u_datasheet_url" widget="url"/>
+                            <field name="x4u_controller"/>
                         </group>
                     </group>
+                </page>
+                <page string="Datasheet" name="x4u_datasheet" invisible="not x4u_is_generator">
+                    <field name="x4u_datasheet_line_ids">
+                        <list editable="bottom">
+                            <field name="sequence" widget="handle"/>
+                            <field name="section"/>
+                            <field name="name"/>
+                            <field name="value"/>
+                        </list>
+                    </field>
                 </page>
             </xpath>
         </field>

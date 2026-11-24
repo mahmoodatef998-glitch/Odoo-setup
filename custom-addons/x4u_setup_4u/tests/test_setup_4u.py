@@ -141,7 +141,7 @@ class TestSetup4U(TransactionCase):
         partner = self.env["res.partner"].create({"name": "X4U Test Customer"})
         self.assertEqual(partner.property_product_pricelist, standard)
         ours = self.env["ir.model.data"].search(
-            [("module", "=", "x4u_setup_4u"), ("model", "=", "product.pricelist")]
+            [("module", "=like", "x4u\\_%"), ("model", "=", "product.pricelist")]
         ).mapped("res_id")
         unused_extra = Pricelist.search(
             [("id", "not in", ours), ("company_id", "=", self.env.company.id), ("item_ids", "=", False)]

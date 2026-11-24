@@ -131,6 +131,11 @@
                 <field name="x4u_supply" optional="show" invisible="not x4u_is_generator" placeholder="Choose"
                        readonly="state not in ('draft', 'sent')"/>
             </xpath>
+            <!-- x4u_generator_datasheet §5: extras on the line, before the price they change -->
+            <xpath expr="//field[@name='order_line']/list/field[@name='price_unit']" position="before">
+                <field name="x4u_extras" optional="show" placeholder="Extras" readonly="state not in ('draft', 'sent')"/>
+                <field name="x4u_extras_price" optional="show" readonly="state not in ('draft', 'sent')"/>
+            </xpath>
         </field>
     </record>
 </odoo>

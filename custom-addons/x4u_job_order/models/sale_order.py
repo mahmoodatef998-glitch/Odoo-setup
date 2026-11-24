@@ -151,6 +151,22 @@ class SaleOrder(models.Model):
             picking.with_context(skip_backorder=True, x4u_invoice_delivery=from_invoice).button_validate()
         return lots - remaining
 
+    def action_x4u_create_proforma(self):
+        """x4u_generator_datasheet §5: a generator without a price (Stamford, or a model the 2026
+        price list does not have) is "price on request": the Salesperson types its price before the PI."""
+        for order in self:
+            unpriced = order.order_line.filtered(
+                lambda line: line.x4u_is_generator and not line.display_type and order.currency_id.is_zero(line.price_unit)
+            )
+            if unpriced:
+                raise UserError(
+                    _(
+                        "Type the price of %s first: it is price on request (not in the 2026 price list).",
+                        ", ".join(unpriced.mapped("product_id.display_name")),
+                    )
+                )
+        return super().action_x4u_create_proforma()
+
     def action_x4u_create_tax_invoice(self):
         """L3: the tax invoice has every generator, so it comes when they are all ready."""
         for order in self:
@@ -201,6 +217,45 @@ class SaleOrderLine(models.Model):
         help="Assembly: a Job Order with its parts (engine, alternator, body). "
         "Ready Product: the complete generator is bought from a supplier and goes to stock as a finished good.",
     )
+
+    # x4u_generator_datasheet §5 (the user, 2026-11-24): extras on the generator line, like QT 1112 -
+    # their text goes into the description, their price into the unit price. The price stays editable.
+    x4u_extras = fields.Text(
+        string="Extras",
+        help="Added to this line (e.g. water jacket heater, anti-condensation heater, MCCB): printed in the description.",
+    )
+    x4u_extras_price = fields.Monetary(
+        string="Extras Price", currency_field="currency_id",
+        help="Added to the unit price. The unit price can still be changed by hand.",
+    )
+
+    def _reset_price_unit(self):
+        """The pricelist price plus the extras (the line keeps following the pricelist)."""
+        res = super()._reset_price_unit()
+        if self.x4u_extras_price:
+            self.price_unit += self.x4u_extras_price
+            self.technical_price_unit = self.price_unit
+        return res
+
+    @api.onchange("x4u_extras_price")
+    def _onchange_x4u_extras_price(self):
+        for line in self:
+            change = line.x4u_extras_price - (line._origin.x4u_extras_price or 0.0)
+            if change:
+                manual = line.currency_id.compare_amounts(line.technical_price_unit, line.price_unit)
+                line.price_unit += change
+                if not manual:
+                    line.technical_price_unit = line.price_unit
+
+    @api.onchange("x4u_extras")
+    def _onchange_x4u_extras(self):
+        for line in self:
+            name = line.name or ""
+            old = (line._origin.x4u_extras or "").strip()
+            if old and name.endswith(old):
+                name = name[: -len(old)].rstrip("\n")
+            new = (line.x4u_extras or "").strip()
+            line.name = "%s\n%s" % (name, new) if new else name
 
     @api.constrains("x4u_supply", "product_id")
     def _check_x4u_supply(self):

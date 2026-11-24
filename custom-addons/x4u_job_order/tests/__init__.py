@@ -6,3 +6,4 @@ from . import test_order_serials
 from . import test_order_job
 from . import test_order_delivery
 from . import test_order_profit
+from . import test_generator_catalog

@@ -1,0 +1,27 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <!-- x4u_generator_datasheet §5 (the user, 2026-11-24): the 2026 price lists.
+         Standard (x4u_setup_4u) = the UAE list; Export (AED) = the export list, as quoted in QT 1112;
+         Export (USD, x4u_setup_4u) follows Export (AED) at the peg. Perkins is priced in GBP: its
+         prices sit in the two GBP lists and come into the AED lists at the day's GBP rate. -->
+    <data noupdate="1">
+        <record id="pricelist_export_aed" model="product.pricelist">
+            <field name="name">Export (AED)</field>
+            <field name="currency_id" ref="base.AED"/>
+            <field name="company_id" ref="base.main_company"/>
+            <field name="sequence">3</field>
+        </record>
+        <record id="pricelist_perkins_uae_gbp" model="product.pricelist">
+            <field name="name">Perkins UAE 2026 (GBP base)</field>
+            <field name="currency_id" ref="base.GBP"/>
+            <field name="company_id" ref="base.main_company"/>
+            <field name="sequence">20</field>
+        </record>
+        <record id="pricelist_perkins_export_gbp" model="product.pricelist">
+            <field name="name">Perkins Export 2026 (GBP base)</field>
+            <field name="currency_id" ref="base.GBP"/>
+            <field name="company_id" ref="base.main_company"/>
+            <field name="sequence">21</field>
+        </record>
+    </data>
+</odoo>

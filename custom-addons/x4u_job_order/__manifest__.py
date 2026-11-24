@@ -4,7 +4,7 @@
     "name": "4U Job Orders",
     "summary": "Generator Job Orders: status, parts tracking, material "
     "requests, timeline of every step and where the delay is",
-    "version": "18.0.1.16.0",
+    "version": "18.0.1.17.0",
     "category": "Manufacturing/Manufacturing",
     # AGPL-3 because it depends on x4u_generator (AGPL-3).
     "license": "AGPL-3",
@@ -29,6 +29,8 @@
         # Profitability per Job Order (spec v0.5 A1-A3).
         "data/analytic_data.xml",
         "data/x4u_ready_order_data.xml",
+        # x4u_generator_datasheet §5: the 2026 price lists (Export AED, Perkins in GBP).
+        "data/x4u_catalog_pricelist_data.xml",
         "views/x4u_job_profitability_views.xml",
         "views/x4u_job_order_deliver_views.xml",
         "views/x4u_ready_order_views.xml",

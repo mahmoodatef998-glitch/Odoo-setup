@@ -21,3 +21,4 @@ from . import x4u_ready_order
 from . import x4u_ready_receipt
 from . import purchase_request
 from . import res_config_settings
+from . import x4u_generator_catalog
