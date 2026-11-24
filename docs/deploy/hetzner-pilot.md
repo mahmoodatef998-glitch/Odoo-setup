@@ -50,7 +50,19 @@ docker compose start web
 docker compose exec -T web rm -rf /var/lib/odoo/filestore/odoo4u_training
 docker compose exec -T web cp -a /var/lib/odoo/filestore/odoo4u /var/lib/odoo/filestore/odoo4u_training
 docker compose run --rm -T web odoo shell -d odoo4u_training --no-http < scripts/training_data.py
+docker compose run --rm -T web odoo shell -d odoo4u_training --no-http < scripts/training_scenarios.py
+docker compose stop web
+docker compose run --rm -T web odoo -d odoo4u_training -u x4u_account --stop-after-init   # the Focus tree (until the pilot has it)
+./private/ata/run_ata_load.sh odoo4u_training        # ATA's Focus books Jan-Sep 2026 (private files, not in Git)
+docker compose run --rm -T web odoo shell -d odoo4u_training --no-http < scripts/training_accounting.py
+docker compose up -d
 ```
+- Accounting in training (2026-11-24): 4U on the Focus account tree (x4u_account 18.0.1.10.0) with
+  20 customers in every situation (`scripts/training_accounting.py`), and a second company
+  **ATA SAIF ZONE** with its Focus books (admin and the Accountant only; files in
+  `/opt/odoo4u/private/ata`, chmod 600). The pilot `odoo4u` is still on 18.0.1.9.0: the tree goes
+  there with 4U's own Focus reports. Check every report:
+  `docker compose run --rm -T -e X4U_COMPANY="ATA SAIF ZONE" -e X4U_DATE_TO=2026-09-30 web odoo shell -d odoo4u_training --no-http < scripts/accounting_reports_check.py`
 - After the pilot starts: drop it and put `dbfilter = ^odoo4u$`, `list_db = False` back.
 
 ## Every day
