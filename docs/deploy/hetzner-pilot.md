@@ -88,6 +88,11 @@ docker compose run --rm -T -v /opt/odoo4u/private/datasheets:/tmp/x4u_catalog:ro
 # /opt/odoo4u/private/branding/ (owner uid 100, chmod 600), then
 docker compose run --rm -T -v /opt/odoo4u/private/branding:/tmp/x4u_branding:ro web \
   odoo shell -d odoo4u --no-http < scripts/set_letterhead.py
+# Start the pilot again (the user, 2026-11-25): delete every movement (orders, receipts, stock,
+# serials, Job Orders, invoices, bills, payments, entries), numbering from 1, the setup kept.
+# After a backup, with web stopped; first without X4U_RESET_COMMIT=1 (a dry run that reports).
+docker compose run --rm -T -e X4U_RESET_DB=odoo4u -e X4U_RESET_COMMIT=1 web \
+  odoo shell -d odoo4u --no-http < scripts/reset_movements.py
 # A user's forgotten password (the owner types the new one):
 pwsh scripts/reset-password.ps1 -Database odoo4u -Login <login>
 # Change the domain: edit ODOO_DOMAIN in .env, then
