@@ -28,6 +28,33 @@ def remove_default_pricelist(env):
     extra.unlink()
 
 
+# 4U's terms, as on QT 1112 (the user, 2026-11-25): the same text as data/sale_order_template_data.xml.
+QUOTATION_TERMS = (
+    "<p><strong>1. Payment Terms</strong><br/>Fifty percent (50%) of the total order value is payable in advance "
+    "upon order confirmation. The remaining balance shall be settled prior to delivery, following notification "
+    "that the products are ready.</p>"
+    "<p><strong>2. Warranty</strong><br/>12 months or 1,000 running hours, whichever occurs first, from the date "
+    "of delivery. Annual Maintenance Contracts (AMC) are available on request.</p>"
+    "<p><strong>3. Taxes</strong><br/>Prices in the UAE are subject to VAT at 5%. Export prices are VAT 0%; import "
+    "duties and taxes in the country of destination are borne by the Customer.</p>"
+    "<p><strong>4. Validity</strong><br/>This offer is valid for 30 days. Due to the continuous changes in the "
+    "prices of the materials and components we purchase, resulting from current market conditions, we are unable "
+    "to hold prices for a longer period.</p>"
+    "<p><strong>5. Scope</strong><br/>Freight, installation, testing &amp; commissioning are not included and will "
+    "be quoted after approval. ATS panels and fuel tanks are available on request.</p>"
+    "<p><em>In line with continuous product development, we reserve the right to modify specifications without "
+    "prior notice, ensuring an equal or superior level of quality and efficiency.</em></p>"
+)
+
+
+def set_quotation_terms(env):
+    """The Generator Supply template gets 4U's terms, unless they were already changed by hand
+    (only the first placeholder, which named the AQT datasheet, is replaced)."""
+    template = env.ref("x4u_setup_4u.template_generator_supply", raise_if_not_found=False)
+    if template and (not template.note or "AQT datasheet" in str(template.note)):
+        template.note = QUOTATION_TERMS
+
+
 SERVICES = ("product_installation", "product_transport", "product_commissioning")
 # x4u_sale spec v0.8 A1: priced only when the customer asks, quoted "As requested".
 PRICE_ON_REQUEST = ("product_installation", "product_transport")
