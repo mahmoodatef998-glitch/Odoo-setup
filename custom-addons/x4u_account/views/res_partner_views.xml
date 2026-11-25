@@ -1,0 +1,43 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <!-- Spec §21 (UAT Phase 3): the TRN at the top of the contact, with VAT Registered next to it. -->
+    <record id="view_partner_form_x4u_trn" model="ir.ui.view">
+        <field name="name">res.partner.form.x4u.trn</field>
+        <field name="model">res.partner</field>
+        <field name="inherit_id" ref="base.view_partner_form"/>
+        <field name="arch" type="xml">
+            <xpath expr="//sheet//group//field[@name='vat']" position="attributes">
+                <attribute name="string">TRN</attribute>
+                <attribute name="placeholder">15 digits, e.g. 100123456700003</attribute>
+            </xpath>
+            <xpath expr="//sheet//group//field[@name='vat']" position="after">
+                <field name="x4u_vat_registered" readonly="parent_id"/>
+            </xpath>
+        </field>
+    </record>
+
+    <record id="view_partner_tree_x4u_trn" model="ir.ui.view">
+        <field name="name">res.partner.list.x4u.trn</field>
+        <field name="model">res.partner</field>
+        <field name="inherit_id" ref="base.view_partner_tree"/>
+        <field name="arch" type="xml">
+            <field name="vat" position="attributes">
+                <attribute name="string">TRN</attribute>
+                <attribute name="optional">show</attribute>
+            </field>
+        </field>
+    </record>
+
+    <record id="view_res_partner_filter_x4u_trn" model="ir.ui.view">
+        <field name="name">res.partner.search.x4u.trn</field>
+        <field name="model">res.partner</field>
+        <field name="inherit_id" ref="base.view_res_partner_filter"/>
+        <field name="arch" type="xml">
+            <xpath expr="//search" position="inside">
+                <field name="vat" string="TRN"/>
+                <filter name="x4u_trn_missing" string="VAT Registered without TRN"
+                        domain="[('x4u_vat_registered', '=', True), ('vat', '=', False)]"/>
+            </xpath>
+        </field>
+    </record>
+</odoo>

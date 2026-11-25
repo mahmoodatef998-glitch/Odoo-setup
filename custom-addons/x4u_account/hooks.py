@@ -154,12 +154,21 @@ def x4u_setup(env):
         _focus_chart_cleanup(env, company)
     env = main_env
     _statements_follow_the_company(env)
+    _trn_label(env)
     env["res.config.settings"].create(STATEMENT_SETTINGS).execute()
     env["res.config.settings"].create(SERIAL_SETTINGS).execute()
     # The OCA job that posts the depreciation lines that are due (it ships inactive).
     cron = env.ref("account_asset_management.ir_cron_assets_generator", raise_if_not_found=False)
     if cron and not cron.active:
         cron.sudo().active = True
+
+
+def _trn_label(env):
+    """Spec §21 V3: the UAE tax number is called TRN on the tax invoice and bill (Odoo prints the
+    label of the company's country, and the UAE has none, so it said "Tax ID")."""
+    uae = env.ref("base.ae")
+    if uae.vat_label != "TRN":
+        uae.vat_label = "TRN"
 
 
 def _pdc_received(env, company):

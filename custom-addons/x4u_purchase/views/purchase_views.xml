@@ -8,6 +8,11 @@
         <field name="inherit_id" ref="purchase.purchase_order_form"/>
         <field name="arch" type="xml">
             <xpath expr="//header" position="inside">
+                <!-- UAT Phase 3 (spec §9 D1): Odoo shows Print RFQ only in RFQ / RFQ Sent; a confirmed
+                     order is printed from the header too, not only from the gear menu. -->
+                <button name="%(purchase.action_report_purchase_order)d" type="action" string="Print PO"
+                        groups="base.group_user" data-hotkey="k"
+                        invisible="state not in ('to approve', 'purchase', 'done')"/>
                 <button name="action_x4u_record_vendor_pi" type="object" string="Record Vendor PI" class="btn-primary"
                         groups="account.group_account_invoice"
                         invisible="state not in ('purchase', 'done') or x4u_proforma_state in ('to_check', 'mismatch', 'open', 'paid', 'billed')"/>

@@ -121,6 +121,39 @@ class TestSetup4U(TransactionCase):
         self.assertEqual(second.name, "4U-INV-%d-0002" % year)
         self.assertEqual(post("out_refund").name, "4U-CN-%d-0001" % year)
 
+    def test_vendor_bill_numbers_carry_the_company(self):
+        """UAT Phase 3: vendor bills 4U-BILL-<year>-0001, vendor credit notes 4U-VCN-<year>-0001, also in a
+        journal that already has Odoo's BILL/<year>/<month>/00001 (those keep their numbers)."""
+        company = self.env.company
+        journal = self.env["account.journal"].create({"name": "X4U Test Purchases", "type": "purchase", "code": "X4UP"})
+        vendor = self.env["res.partner"].create({"name": "X4U Test Vendor"})
+        product = self.env.ref("x4u_setup_4u.product_installation")
+
+        def post(move_type):
+            move = self.env["account.move"].create(
+                {
+                    "move_type": move_type,
+                    "journal_id": journal.id,
+                    "partner_id": vendor.id,
+                    "invoice_date": fields.Date.today(),
+                    "invoice_line_ids": [Command.create({"product_id": product.id, "quantity": 1, "price_unit": 100.0})],
+                }
+            )
+            move.action_post()
+            return move
+
+        company.x4u_document_prefix = False
+        old = post("in_invoice")
+        self.assertTrue(old.name.startswith("X4UP/"), old.name)
+        company.x4u_document_prefix = "4U"
+        year = fields.Date.today().year
+        first, second = post("in_invoice"), post("in_invoice")
+        self.assertEqual(first.name, "4U-BILL-%d-0001" % year)
+        self.assertEqual(second.name, "4U-BILL-%d-0002" % year)
+        self.assertTrue(old.name.startswith("X4UP/"), "an old number is kept")
+        self.assertEqual(post("in_refund").name, "4U-VCN-%d-0001" % year)
+        self.assertEqual(post("in_invoice").name, "4U-BILL-%d-0003" % year)
+
     def test_default_sales_tax_sharjah(self):
         """5% Sharjah until the accountant decides (01-sales.md D12), on the company and our services."""
         company = self.env.company

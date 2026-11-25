@@ -6,5 +6,5 @@ class ResCompany(models.Model):
 
     x4u_document_prefix = fields.Char(
         string="Document Prefix",
-        help="Company code at the start of document numbers, e.g. 4U gives invoices 4U-INV-2026-0001.",
+        help="Company code at the start of document numbers, e.g. 4U gives invoices 4U-INV-2026-0001 and vendor bills 4U-BILL-2026-0001.",
     )
