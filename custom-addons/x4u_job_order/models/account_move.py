@@ -4,6 +4,24 @@ from odoo import fields, models
 class AccountMove(models.Model):
     _inherit = "account.move"
 
+    # UAT Phase 2.1 (the user, 2026-11-25: the tax invoice keeps delivering): the invoice and its
+    # delivery notes point to each other.
+    x4u_delivery_ids = fields.Many2many("stock.picking", string="Delivery Notes", compute="_compute_x4u_delivery_ids")
+
+    def _compute_x4u_delivery_ids(self):
+        for move in self:
+            pickings = move.sudo().invoice_line_ids.sale_line_ids.move_ids.picking_id
+            move.x4u_delivery_ids = pickings.filtered(
+                lambda p: p.picking_type_code == "outgoing" and p.state != "cancel"
+            ) if move.move_type in ("out_invoice", "out_refund") else False
+
+    def action_x4u_view_deliveries(self):
+        self.ensure_one()
+        action = self.env["ir.actions.actions"]._for_xml_id("stock.action_picking_tree_all")
+        action["domain"] = [("id", "in", self.x4u_delivery_ids.ids)]
+        action["context"] = {"create": False}
+        return action
+
     def _post(self, soft=True):
         """Spec v0.13 L4: the tax invoice of the order takes its generators still in the warehouse
         out to the customer, before it is posted, so the cost of sales is each generator's value."""

@@ -75,6 +75,33 @@
         </field>
     </record>
 
+    <!-- UAT Phase 2.1: the tax invoice and its delivery notes point to each other -->
+    <record id="view_move_form_x4u_deliveries" model="ir.ui.view">
+        <field name="name">account.move.form.x4u.deliveries</field>
+        <field name="model">account.move</field>
+        <field name="inherit_id" ref="account.view_move_form"/>
+        <field name="arch" type="xml">
+            <xpath expr="//div[@name='button_box']" position="inside">
+                <button name="action_x4u_view_deliveries" type="object" class="oe_stat_button" icon="fa-truck"
+                        invisible="move_type not in ('out_invoice', 'out_refund') or not x4u_delivery_ids">
+                    <field name="x4u_delivery_ids" invisible="1"/>
+                    <span class="o_stat_text">Delivery Notes</span>
+                </button>
+            </xpath>
+        </field>
+    </record>
+    <record id="view_picking_form_x4u_invoice" model="ir.ui.view">
+        <field name="name">stock.picking.form.x4u.invoice</field>
+        <field name="model">stock.picking</field>
+        <field name="inherit_id" ref="stock.view_picking_form"/>
+        <field name="arch" type="xml">
+            <xpath expr="//field[@name='origin']" position="after">
+                <field name="x4u_invoice_ids" widget="many2many_tags" readonly="1" invisible="not x4u_invoice_ids"
+                       groups="account.group_account_invoice,account.group_account_readonly,stock.group_stock_user"/>
+            </xpath>
+        </field>
+    </record>
+
     <!-- x4u_generator_datasheet §9: the letterhead of the 4U quotation -->
     <record id="view_company_form_x4u_letterhead" model="ir.ui.view">
         <field name="name">res.company.form.x4u.letterhead</field>

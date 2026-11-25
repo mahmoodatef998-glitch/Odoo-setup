@@ -215,8 +215,13 @@ class TestRoles(TransactionCase):
 
         receipt = transfer(warehouse.in_type_id, suppliers, warehouse.lot_stock_id).with_user(buyer)
         receipt.move_ids.quantity = 1
-        receipt.move_ids.move_line_ids.lot_name = "X4U-ROLE-E-1"
         receipt.move_ids.picked = True
+        if "x4u_delivery_note_ids" in receipt._fields:  # x4u_purchase: the vendor's Delivery Note
+            receipt.sudo().x4u_delivery_note_ids = [Command.create({"name": "DN.jpg", "raw": b"dn"})]
+        # The user, 2026-11-25: Purchasing (also the storekeeper) receives, with the serial of each unit.
+        with self.assertRaisesRegex(UserError, "serial"):
+            receipt.button_validate()
+        receipt.move_ids.move_line_ids.lot_name = "X4U-ROLE-E-1"
         receipt.button_validate()
         self.assertEqual(receipt.state, "done")
 

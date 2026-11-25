@@ -14,6 +14,16 @@ class StockPicking(models.Model):
         help="The serial of every unit on the transfer, alternators included (x4u_account spec §20 P3).",
     )
 
+    # UAT Phase 2.1: a delivery shows the customer's tax invoice of its order.
+    x4u_invoice_ids = fields.Many2many("account.move", string="Tax Invoice", compute="_compute_x4u_invoice_ids")
+
+    def _compute_x4u_invoice_ids(self):
+        for picking in self:
+            invoices = picking.sudo().sale_id.invoice_ids if picking.picking_type_code == "outgoing" else False
+            picking.x4u_invoice_ids = invoices.filtered(
+                lambda m: m.move_type == "out_invoice" and m.state != "cancel"
+            ) if invoices else False
+
     def _compute_x4u_picking_serials(self):
         for picking in self:
             names = [line.lot_id.name or line.lot_name for line in picking.move_line_ids if line.lot_id or line.lot_name]

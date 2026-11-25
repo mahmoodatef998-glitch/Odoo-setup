@@ -1,0 +1,47 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <!-- UAT Phase 2.2: the vendor's Delivery Note on the receipt (required to validate it). Purchasing
+         receives too (the user, 2026-11-25: the buyer is the storekeeper), with every serial. -->
+    <record id="view_picking_form_x4u_delivery_note" model="ir.ui.view">
+        <field name="name">stock.picking.form.x4u.delivery.note</field>
+        <field name="model">stock.picking</field>
+        <field name="inherit_id" ref="stock.view_picking_form"/>
+        <field name="arch" type="xml">
+            <xpath expr="//field[@name='origin']" position="after">
+                <field name="x4u_is_vendor_receipt" invisible="1"/>
+                <field name="x4u_vendor_ref" invisible="not x4u_is_vendor_receipt" readonly="state == 'cancel'"
+                       placeholder="On the vendor's papers"/>
+                <field name="x4u_delivery_note_ids" widget="many2many_binary" invisible="not x4u_is_vendor_receipt"
+                       readonly="state == 'cancel'"/>
+                <field name="x4u_bill_ids" widget="many2many_tags" invisible="not x4u_bill_ids" readonly="1"
+                       groups="account.group_account_invoice,account.group_account_readonly"/>
+            </xpath>
+        </field>
+    </record>
+
+    <!-- UAT Phase 2.3: the bill of a receipt. -->
+    <record id="view_move_form_x4u_receipt" model="ir.ui.view">
+        <field name="name">account.move.form.x4u.receipt</field>
+        <field name="model">account.move</field>
+        <field name="inherit_id" ref="account.view_move_form"/>
+        <field name="arch" type="xml">
+            <field name="invoice_vendor_bill_id" position="before">
+                <field name="x4u_receipt_id" invisible="move_type != 'in_invoice'" readonly="state != 'draft'"
+                       placeholder="A validated receipt of this vendor" options="{'no_create': True}"/>
+            </field>
+        </field>
+    </record>
+
+    <record id="res_config_settings_view_form_x4u_receipt" model="ir.ui.view">
+        <field name="name">res.config.settings.form.x4u.receipt</field>
+        <field name="model">res.config.settings</field>
+        <field name="inherit_id" ref="purchase.res_config_settings_view_form_purchase"/>
+        <field name="arch" type="xml">
+            <xpath expr="//block[@name='purchase_setting_container']" position="inside">
+                <setting string="Delivery Note on receipts" help="A receipt from a vendor is validated only with the vendor's Delivery Note attached.">
+                    <field name="x4u_receipt_dn_required"/>
+                </setting>
+            </xpath>
+        </field>
+    </record>
+</odoo>

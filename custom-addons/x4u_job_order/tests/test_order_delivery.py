@@ -113,6 +113,10 @@ class TestOrderDelivery(X4uJobOrderCommon):
         self.assertEqual(job.state, "delivered")
         self.assertEqual(invoice.amount_residual, 10500.0, "the payment applied")
         self.assertFalse(order._x4u_generator_lots_in_stock())
+        # UAT Phase 2.1: the tax invoice and its delivery notes point to each other.
+        deliveries = order.picking_ids.filtered(lambda p: p.picking_type_code == "outgoing" and p.state == "done")
+        self.assertEqual(invoice.x4u_delivery_ids & deliveries, deliveries)
+        self.assertIn(invoice, deliveries[:1].x4u_invoice_ids)
 
     # T49 (L1): credit terms: delivered before any payment
     def test_credit_terms_deliver_unpaid(self):

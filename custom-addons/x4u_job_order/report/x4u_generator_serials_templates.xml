@@ -30,6 +30,13 @@
     <!-- The generators of this delivery -->
     <template id="report_delivery_document_x4u_serials" inherit_id="stock.report_delivery_document">
         <xpath expr="//div[@name='signature']" position="after">
+            <!-- UAT Phase 2.1: the delivery note names its tax invoice. After the signature: it is the
+                 t-else of the block before it, nothing may come between them. -->
+            <p t-if="o.x4u_invoice_ids.filtered(lambda m: m.name and m.name != '/')" class="mt-3">
+                <strong>Tax Invoice:</strong> <t t-out="', '.join(o.x4u_invoice_ids.filtered(lambda m: m.name and m.name != '/').mapped('name'))"/>
+            </p>
+        </xpath>
+        <xpath expr="//div[@name='signature']" position="after">
             <t t-call="x4u_job_order.generator_serials_table">
                 <t t-set="cards" t-value="o._x4u_generator_cards()"/>
             </t>
@@ -38,6 +45,12 @@
 
     <!-- The generators of the order invoiced -->
     <template id="report_invoice_document_x4u_serials" inherit_id="account.report_invoice_document">
+        <xpath expr="//div[@name='comment']" position="before">
+            <!-- UAT Phase 2.1: the tax invoice names its delivery notes -->
+            <p t-if="o.x4u_delivery_ids" class="mt-2">
+                <strong>Delivery Note:</strong> <t t-out="', '.join(o.x4u_delivery_ids.mapped('name'))"/>
+            </p>
+        </xpath>
         <xpath expr="//div[@name='comment']" position="before">
             <t t-call="x4u_job_order.generator_serials_table">
                 <t t-set="cards" t-value="o._x4u_generator_cards()"/>
