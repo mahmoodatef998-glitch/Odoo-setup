@@ -4,7 +4,7 @@
     "name": "4U Accounting",
     "summary": "Accounting the 4U way: menus, PDC cheques to vendors, equity accounts, Petty Cash, "
     "Receivables & Payables (due lists, aging, statements) and safe automatic reconciliation",
-    "version": "18.0.1.12.0",
+    "version": "18.0.1.13.0",
     "category": "Accounting/Accounting",
     # AGPL-3 because it depends on account_asset_management (AGPL-3).
     "license": "AGPL-3",
@@ -62,7 +62,13 @@
         "views/res_partner_views.xml",
         "views/menus.xml",
         "views/reporting_menus.xml",
+        # Spec §22: Counterpart, Dr / Cr and drill-down in the General Ledger family.
+        "report/general_ledger_templates.xml",
+        "views/account_move_line_views.xml",
     ],
+    "assets": {
+        "web.assets_backend": ["x4u_account/static/src/js/report_drilldown.esm.js"],
+    },
     "post_init_hook": "post_init_hook",
     "uninstall_hook": "uninstall_hook",
     "installable": True,

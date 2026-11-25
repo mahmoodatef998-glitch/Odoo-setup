@@ -76,6 +76,11 @@ class AccountMoveLine(models.Model):
         "account.payment", string="Deposited Cheque", copy=False, index="btree_not_null", readonly=True,
         help="On a cheque deposit entry: the customer cheque of this bank line (spec §12 K4).",
     )
+    x4u_counterpart = fields.Char(
+        string="Counterpart", compute="_compute_x4u_counterpart",
+        help="The other side of the entry: where the amount came from or went (spec §22 G1), e.g. a petty cash "
+        "payment shows 530xxx Fuel. The largest amounts first.",
+    )
     x4u_cogs_sale_line_id = fields.Many2one(
         "sale.order.line", string="Cost of Sales For", copy=False, index="btree_not_null", readonly=True,
         help="Cost of sales posted when the delivery came after the invoice (spec §9 S6).",
@@ -92,3 +97,16 @@ class AccountMoveLine(models.Model):
                 if product.landed_cost_ok and product.type == "service":
                     vals["is_landed_costs_line"] = True
         return super().create(vals_list)
+
+    @api.depends("move_id.line_ids.account_id", "move_id.line_ids.balance")
+    def _compute_x4u_counterpart(self):
+        for line in self:
+            others = line.move_id.line_ids - line
+            # The opposite side (debit for a credit line); a zero line takes every other line.
+            opposite = others.filtered(lambda other, l=line: (other.balance > 0) != (l.balance > 0) and other.balance)
+            names = []
+            for other in (opposite if line.balance else others).sorted(lambda o: -abs(o.balance)):
+                name = "%s %s" % (other.account_id.code, other.account_id.name)
+                if other.account_id != line.account_id and name not in names:
+                    names.append(name)
+            line.x4u_counterpart = ", ".join(names[:3]) + (" +%d" % (len(names) - 3) if len(names) > 3 else "")

@@ -29,6 +29,10 @@
               sequence="3" groups="account.group_account_user,account.group_account_manager"/>
     <menuitem id="menu_x4u_report_partner_ledger" name="Partner Ledger" parent="menu_x4u_partner_reports"
               action="action_x4u_report_partner_ledger" sequence="10"/>
+    <menuitem id="menu_x4u_report_customer_ledger" name="Customer Ledger" parent="menu_x4u_partner_reports"
+              action="action_x4u_report_customer_ledger" sequence="11"/>
+    <menuitem id="menu_x4u_report_vendor_ledger" name="Vendor Ledger" parent="menu_x4u_partner_reports"
+              action="action_x4u_report_vendor_ledger" sequence="12"/>
     <record id="account_financial_report.menu_aged_partner_balance_wizard" model="ir.ui.menu">
         <field name="parent_id" ref="menu_x4u_partner_reports"/>
         <field name="sequence">20</field>

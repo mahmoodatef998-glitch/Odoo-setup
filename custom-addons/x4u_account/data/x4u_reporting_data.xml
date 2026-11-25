@@ -50,6 +50,18 @@
         <field name="state">code</field>
         <field name="code">action = env["x4u.accounting.report"].action_x4u_partner_ledger()</field>
     </record>
+    <record id="action_x4u_report_customer_ledger" model="ir.actions.server">
+        <field name="name">Customer Ledger</field>
+        <field name="model_id" ref="account.model_account_account"/>
+        <field name="state">code</field>
+        <field name="code">action = env["x4u.accounting.report"].action_x4u_customer_ledger()</field>
+    </record>
+    <record id="action_x4u_report_vendor_ledger" model="ir.actions.server">
+        <field name="name">Vendor Ledger</field>
+        <field name="model_id" ref="account.model_account_account"/>
+        <field name="state">code</field>
+        <field name="code">action = env["x4u.accounting.report"].action_x4u_vendor_ledger()</field>
+    </record>
     <record id="action_x4u_report_receivable_excel" model="ir.actions.server">
         <field name="name">Accounts Receivable (Excel)</field>
         <field name="model_id" ref="account.model_account_account"/>

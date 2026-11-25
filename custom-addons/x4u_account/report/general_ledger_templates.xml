@@ -1,0 +1,70 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <!-- Spec §22 (UAT Phase 4): the General Ledger family (General Ledger, Partner / Customer / Vendor
+         Ledger, Bank and Cash Books) shows the Counterpart account of each line (G1) and every balance
+         as Dr / Cr instead of a minus sign (G2). OCA account_financial_report's own template stays. -->
+    <template id="report_general_ledger_lines_x4u" inherit_id="account_financial_report.report_general_ledger_lines">
+        <!-- G1: the column, taken from Ref - Label's width so the table keeps its size. -->
+        <xpath expr="//div[hasclass('act_as_thead')]/div/div[6]" position="after">
+            <div class="act_as_cell" style="width: 7%;">Counterpart</div>
+        </xpath>
+        <xpath expr="//div[hasclass('act_as_thead')]/div/div[7]" position="attributes">
+            <attribute name="style">width: 9.9%;</attribute>
+        </xpath>
+        <xpath expr="//div[@t-if=&quot;account['include_initial_balance']&quot;]/div[6]" position="after">
+            <div class="act_as_cell"/>
+        </xpath>
+        <xpath expr="//t[@t-as='line']/div/div[6]" position="after">
+            <div class="act_as_cell left">
+                <span t-if="line.get('x4u_counterpart')" t-out="line['x4u_counterpart']"/>
+            </div>
+        </xpath>
+        <!-- G2: Dr / Cr. The initial balance and the running balance, each twice in the template. -->
+        <xpath expr="(//t[@t-out=&quot;account_or_group_item_object['init_bal']['balance']&quot;])[1]" position="replace">
+            <t t-set="x4u_bal" t-value="account_or_group_item_object['init_bal']['balance']"/>
+            <span style="white-space: nowrap;">
+                <t t-out="abs(x4u_bal)" t-options="{'widget': 'monetary', 'display_currency': company_currency}"/>
+                <t t-out="' Dr' if x4u_bal &gt; 0.005 else (' Cr' if x4u_bal &lt; -0.005 else '')"/>
+            </span>
+        </xpath>
+        <xpath expr="(//t[@t-out=&quot;account_or_group_item_object['init_bal']['balance']&quot;])[1]" position="replace">
+            <t t-set="x4u_bal" t-value="account_or_group_item_object['init_bal']['balance']"/>
+            <span style="white-space: nowrap;">
+                <t t-out="abs(x4u_bal)" t-options="{'widget': 'monetary', 'display_currency': company_currency}"/>
+                <t t-out="' Dr' if x4u_bal &gt; 0.005 else (' Cr' if x4u_bal &lt; -0.005 else '')"/>
+            </span>
+        </xpath>
+        <xpath expr="(//t[@t-out=&quot;line['balance']&quot;])[1]" position="replace">
+            <span style="white-space: nowrap;">
+                <t t-out="abs(line['balance'])" t-options="{'widget': 'monetary', 'display_currency': res_company.currency_id}"/>
+                <t t-out="' Dr' if line['balance'] &gt; 0.005 else (' Cr' if line['balance'] &lt; -0.005 else '')"/>
+            </span>
+        </xpath>
+        <xpath expr="(//t[@t-out=&quot;line['balance']&quot;])[1]" position="replace">
+            <span style="white-space: nowrap;">
+                <t t-out="abs(line['balance'])" t-options="{'widget': 'monetary', 'display_currency': res_company.currency_id}"/>
+                <t t-out="' Dr' if line['balance'] &gt; 0.005 else (' Cr' if line['balance'] &lt; -0.005 else '')"/>
+            </span>
+        </xpath>
+    </template>
+
+    <template id="report_general_ledger_ending_cumul_x4u" inherit_id="account_financial_report.report_general_ledger_ending_cumul">
+        <!-- The ending line spans the Counterpart column too (G1). -->
+        <xpath expr="//t[@t-if='type == &quot;account_type&quot;']/div[1]" position="attributes">
+            <attribute name="style">width: 48.32%;</attribute>
+        </xpath>
+        <xpath expr="//t[@t-if='type == &quot;account_type&quot;']/div[2]" position="attributes">
+            <attribute name="style">width: 9.9%;</attribute>
+        </xpath>
+        <xpath expr="//t[@t-if='type == &quot;grouped_type&quot;']/div[1]" position="attributes">
+            <attribute name="style">width: 48.32%;</attribute>
+        </xpath>
+        <xpath expr="//t[@t-if='type == &quot;grouped_type&quot;']/div[2]" position="attributes">
+            <attribute name="style">width: 9.9%;</attribute>
+        </xpath>
+        <xpath expr="//span[@t-out=&quot;account_or_group_item_object['fin_bal']['balance']&quot;]" position="replace">
+            <t t-set="x4u_bal" t-value="account_or_group_item_object['fin_bal']['balance']"/>
+            <span style="white-space: nowrap;"><span t-out="abs(x4u_bal)" t-options="{'widget': 'monetary', 'display_currency': company_currency}"/><span t-out="' Dr' if x4u_bal &gt; 0.005 else (' Cr' if x4u_bal &lt; -0.005 else '')"/></span>
+        </xpath>
+    </template>
+</odoo>

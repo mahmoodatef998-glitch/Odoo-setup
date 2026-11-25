@@ -9,6 +9,7 @@
 - v0.11 (2026-11-24، ✅ المستخدم: "الاتنين بيستخدموا نفس شجره الحسابات فعاوزك تطبقها علي الفور يو بردو وبعدين هنعمل زيها علي ال ata"، و "علشان نطبها ونسحب منها تقارير"): **شجرة حسابات Focus** على 4U و ATA (§19). بتتنفّذ في `x4u_account` 18.0.1.10.0.
 - v0.12 (2026-11-24، UAT مع المحاسبين على الـ pilot، Phase 1؛ ✅ المستخدم: "خليه زي ماهم عاوزين"، و "عاوز سعرها الماتيريال الي موجوده تتسعر بالقيمه الي بنشتريها من الموردين والسعر العام يكون هو المتوسط"، و "سيبك من ال ATA خالص دلوقت"): **تقييم المخزون والتصنيع والسيريال** (§20). بتتنفّذ في `x4u_account` 18.0.1.11.0 و `x4u_job_order` 18.0.1.16.0، على 4U بس.
 - v0.13 (2026-11-25، UAT Phase 3؛ ✅ المستخدم: TRN "وقت ال confirm"، والترقيم "خليه الأنسب بالنسبالك"، و `4U-INV` "تمام"): **الترقيم، والـ TRN، والـ VAT 5%** (§21). بتتنفّذ في `x4u_account` 18.0.1.12.0، و `x4u_setup_base` 18.0.1.0.8، و `x4u_purchase` 18.0.1.2.0.
+- v0.14 (2026-11-25، UAT Phase 4؛ ✅ المستخدم: "عاوزين نبدا في المرحله الرابعه والاخيره"): **الحساب المقابل، و Dr / Cr، والضغط على السطر يفتح المستند، وتجربة كل role** (§22). بتتنفّذ في `x4u_account` 18.0.1.13.0 و tests في `x4u_roles`.
 - المرجع: [docs/modules/06-accounting.md](../modules/06-accounting.md).
 - العلامات: ✅ متفق عليه · 🟡 مستني قرارك · 🔵 مستني المحاسب
 
@@ -401,3 +402,27 @@ Create Landed Costs ← تختار الاستلام (Receipt) ← Compute ← Va
 | T15 (`x4u_setup_4u`) | Bill و Bill ورا بعض: `4U-BILL-<السنة>-0001` و `0002`، في journal فيه Bill قديم بترقيم Odoo (بيفضل برقمه)، وإشعار المورد `4U-VCN-<السنة>-0001` |
 
 سكربت الـ UAT: [docs/uat/phase3-numbering-vat.md](../uat/phase3-numbering-vat.md).
+
+## 22. Phase 4 بعد الـ UAT: الـ General Ledger والـ Partner Ledger وتجربة كل role (v0.14، 2026-11-25) ✅
+من خطة الـ UAT (Phase 4: General Ledger Reporting & Role-Based UAT Setup). التقارير دي كلها شاشة OCA واحدة (`account_financial_report` General Ledger): **General Ledger**، و **Partner / Customer / Vendor Ledger**، و **Bank Book**، و **Cash Book** (الـ Petty Cash). فالتعديل بيوصل لهم كلهم، في الشاشة والـ PDF والـ Excel، من غير ما نلمس كود OCA.
+
+| # | القاعدة | الحالة |
+|---|---|---|
+| G1 | **عمود Counterpart** (الحساب المقابل) بعد Partner: الحساب اللي على الناحية التانية من القيد. يعني الـ 2,000 اللي خرجت من الـ Petty Cash بيبان جنبها إنها راحت على `530046 Petrol`. لو أكتر من حساب: الأكبر مبلغ الأول، ولحد 3 حسابات وبعدها "+N". موجود كمان كعمود في **Journal Items** (بيتشال من Optional columns) | ✅ |
+| G2 | **Dr / Cr بدل السالب**: كل رصيد (الافتتاحي، والجاري، والختامي) بيتكتب `2,000.00 AED Cr` أو `Dr` بدل `-2,000.00`. في الـ Excel الرقم بيفضل رقم (الجمع شغال) والشكل بس `Dr` / `Cr` | ✅ |
+| G3 | **الضغط على أي سطر يفتح المستند**: التاريخ، أو الوصف، أو المبلغ، كله بيفتح **القيد نفسه** (الفاتورة أو الـ Bill أو الـ Journal Entry)، مش سطر الـ Journal Item لوحده زي Odoo. ورقم القيد والحساب والشريك والـ journal بيفتحوا نفسهم زي الأول. شغال في كل تقارير OCA (General Ledger، Open Items، Aged، Journal Ledger…). ضغطة واحدة تكفي | ✅ |
+| G4 | **العميل اللي هو مورد كمان**: الـ Partner Ledger مقسوم بالحساب (133001 Customers لوحده و 211001 Suppliers لوحده، وتحت كل واحد الشركاء). وجديد في Accounting ← Reporting ← Partner Reports: **Customer Ledger** (الذمم المدينة بس) و **Vendor Ledger** (الذمم الدائنة بس) | ✅ |
+| G5 | **تجربة كل role**: مستخدم تجربة لكل role (`scripts/dev-users.ps1`، من غير باسورد)، وtest لكل واحد من الأربعة: **Purchasing Officer** (RFQ و PO والطباعة، مفيش Accounting ولا تعديل تصنيع)، و **Storekeeper** (يستلم ويركّب الـ Delivery Note ويسلّم، مايشتريش ومايفوترش)، و **Operation Manager** (يعمل الـ MO ويخلّصه ويصرف الخامات)، و **Accountant** (الفواتير والـ Bills، والـ Receipts قراءة، والتقارير، مايبيعش ومايشتريش). الـ Purchasing بيستلم كمان بشرط السيريال (قرار Phase 2) | ✅ |
+
+| # | الاختبار |
+|---|---|
+| T16 | قيد Petty Cash: 2,000 Fuel / Petty Cash. سطر الـ Petty Cash الحساب المقابل بتاعه الـ Fuel، والعكس |
+| T17 | الـ Cash Book (HTML): عمود Counterpart فيه الـ Fuel، و `2,000.00 … Cr`، ومفيش `-2,000.00` |
+| T18 | الـ Excel: عمود Counterpart، وشكل الرقم `#,##0.00 "Dr";#,##0.00 "Cr"` |
+| T19 | Customer Ledger فيه حسابات الذمم المدينة بس، و Vendor Ledger الدائنة بس، والاتنين مقسومين بالشركاء |
+| T20 (`x4u_roles`) | الأربع roles: كل واحد يقدر يعمل شغله ومايقدرش يعمل شغل غيره |
+| يدوي (Playwright) | Cash Book ← الضغط على التاريخ وعلى المبلغ بيفتح `account.move` بتاع القيد، ومفيش أخطاء JS |
+
+- 🟡 **Purchasing يقدر يعمل Bill**: Odoo بيدّي المشتريات زرار **Create Bill** على الـ PO. ومن Phase 2، فاتورة المورد شغل المحاسب. نقفلها على المشتريات؟
+
+سكربت الـ UAT: [docs/uat/phase4-ledgers-roles.md](../uat/phase4-ledgers-roles.md).

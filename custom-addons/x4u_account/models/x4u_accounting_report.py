@@ -62,6 +62,21 @@ class X4uAccountingReport(models.AbstractModel):
         )
 
     @api.model
+    def action_x4u_customer_ledger(self):
+        """Spec §22 G4: a partner that is customer and vendor is read one side at a time."""
+        return self._x4u_ledger(
+            self._x4u_partner_accounts(("asset_receivable",)), _("Customer Ledger"), grouped_by="partners",
+            receivable_accounts_only=True,
+        )
+
+    @api.model
+    def action_x4u_vendor_ledger(self):
+        return self._x4u_ledger(
+            self._x4u_partner_accounts(("liability_payable",)), _("Vendor Ledger"), grouped_by="partners",
+            payable_accounts_only=True,
+        )
+
+    @api.model
     def action_x4u_day_book(self):
         today = fields.Date.context_today(self)
         Journal = self.env["account.journal"]
