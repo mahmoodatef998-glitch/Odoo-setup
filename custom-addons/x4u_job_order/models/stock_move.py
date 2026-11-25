@@ -71,15 +71,34 @@ class StockMove(models.Model):
         help="On hand minus what is reserved for deliveries. Job Orders reserve nothing (spec v0.8 F1).",
     )
 
-    @api.depends("move_line_ids.lot_name", "move_line_ids.lot_id")
+    @api.depends("move_line_ids.lot_name", "move_line_ids.lot_id", "x4u_alternator_serials", "product_id")
     def _compute_x4u_serials(self):
         for move in self:
+            if move._x4u_alternator_in_serials():
+                move.x4u_serials = ", ".join(split_serials(move.x4u_alternator_serials)) or False
+                continue
             names = [line.lot_id.name or line.lot_name for line in move.move_line_ids if line.lot_id or line.lot_name]
             move.x4u_serials = ", ".join(names) or False
 
+    def _x4u_alternator_in_serials(self):
+        """The user, 2026-11-25: an alternator's serials are typed in the same Serials column as the
+        engine's. It has no Odoo serial: they are kept in Alternator Serials, as before."""
+        self.ensure_one()
+        return self.x4u_role == "alternator" and self.product_id.tracking == "none"
+
     def _inverse_x4u_serials(self):
         for move in self:
-            if move.state in ("done", "cancel") or move.has_tracking != "serial" or move.picking_code != "incoming":
+            if move.state in ("done", "cancel") or move.picking_code != "incoming":
+                continue
+            if move._x4u_alternator_in_serials():
+                # Like an engine: the quantity follows the serials and the line is received. Before,
+                # an alternator line stayed unpicked and Validate offered a backorder for it.
+                names = split_serials(move.x4u_serials)
+                move.x4u_alternator_serials = ", ".join(names) or False
+                if names:
+                    move.write({"quantity": len(names), "picked": True})
+                continue
+            if move.has_tracking != "serial":
                 continue
             names = split_serials(move.x4u_serials)
             move.move_line_ids.unlink()

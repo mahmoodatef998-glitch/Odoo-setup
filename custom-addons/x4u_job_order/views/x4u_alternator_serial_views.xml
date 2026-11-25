@@ -83,19 +83,14 @@
         <field name="arch" type="xml">
             <xpath expr="//field[@name='move_ids_without_package']/list/field[@name='lot_ids']" position="after">
                 <field name="x4u_role" column_invisible="True"/>
-                <!-- Spec v0.8 N2: the serial of each engine, CKD or canopy received -->
+                <!-- Spec v0.8 N2: the serial of each engine, CKD, canopy or alternator received, all in
+                     one Serials column (the user, 2026-11-25: no separate column for the alternator) -->
                 <field name="x4u_serials" optional="show"
                        column_invisible="parent.picking_type_code != 'incoming'"
-                       invisible="x4u_role not in ('engine', 'ckd', 'body')"
-                       required="x4u_role in ('engine', 'ckd', 'body') and quantity and parent.state not in ('draft', 'done', 'cancel')"
+                       invisible="x4u_role not in ('engine', 'ckd', 'body', 'alternator')"
+                       required="x4u_role in ('engine', 'ckd', 'body', 'alternator') and quantity and parent.state not in ('draft', 'done', 'cancel')"
                        readonly="state in ('done', 'cancel')"
                        placeholder="E-1001, E-1002"/>
-                <field name="x4u_alternator_serials" optional="show"
-                       column_invisible="parent.picking_type_code != 'incoming'"
-                       invisible="x4u_role != 'alternator'"
-                       required="x4u_role == 'alternator' and quantity and parent.state not in ('draft', 'done', 'cancel')"
-                       readonly="state in ('done', 'cancel')"
-                       placeholder="A-77, A-78"/>
             </xpath>
         </field>
     </record>

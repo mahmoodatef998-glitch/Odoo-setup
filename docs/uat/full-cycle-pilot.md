@@ -9,7 +9,7 @@
 - الأسعار في المثال **أرقام تجربة**، مش أسعار حقيقية. اكتبها زي ما هي علشان القيود تطلع زي الجداول تحت.
 - المولد: **Cummins Diesel Generator Set 100 kVA** (`4U-C100`)، الدينامو **4U**. الـ BoM بتاعه من الكتالوج:
   - ماتور `ENG-6BT5.9-G1` (Engines، سيريال إجباري)
-  - دينامو `ALT-4U-100` (Alternators، السيريال في عمود Alternator Serials)
+  - دينامو `ALT-4U-100` (Alternators، السيريال في نفس عمود Serials)
   - Canopy `CAN-C100` (Genset Bodies، سيريال إجباري)
 - الـ Overhead العام **20%** (Settings ← Manufacturing ← Generator overhead).
 - بعد كل خطوة فيه ✅ بالتقرير اللي تفتحوه والرقم اللي لازم يطلع. القيود كلها في Accounting ← Accounting ← **Journal Items** (فلتر بالمرجع)، وفيها عمود **Counterpart**.
@@ -38,7 +38,7 @@ Purchase ← Orders ← New، المورد: **مورد تجربة**:
 
 ## الخطوة 2: الاستلام (Purchasing & Storekeeper)
 Receive Products من الـ PO (أو Inventory ← Receipts ← **WH/IN/00001**):
-- سيريال كل ماتور (مثلًا `ENG-T-0001` للي بـ 22,000 و `ENG-T-0002` للي بـ 23,000) وسيريال الـ Canopy (`CAN-T-0001`) في عمود **Serials**، وسيريالات الدينامو في **Alternator Serials** (`ALT-T-0001, ALT-T-0002`).
+- سيريال كل ماتور (مثلًا `ENG-T-0001` للي بـ 22,000 و `ENG-T-0002` للي بـ 23,000) وسيريال الـ Canopy (`CAN-T-0001`) وسيريالات الدينامو (`ALT-T-0001, ALT-T-0002`) كلهم في نفس عمود **Serials**.
 - **Vendor Invoice No.**: `TEST-INV-001`.
 - Validate من غير Delivery Note ← ✅ بيرفض: *Attach the vendor's Delivery Note*. ركّب صورة أو PDF في خانة **Delivery Note** ← Validate.
 

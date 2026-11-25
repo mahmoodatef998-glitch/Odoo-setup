@@ -9,7 +9,7 @@
 
 ## 2. الاستلام (المشتريات / أمين المخزن)
 - من الـ PO (Receive Products) أو Inventory ← Receipts.
-- وصل **2 بس** من 3: اكتب الكمية 2، وسيريال كل وحدة (الدينامو في Alternator Serials). من غير السيريال الـ Validate بيترفض.
+- وصل **2 بس** من 3: اكتب الكمية 2، وسيريال كل وحدة في عمود Serials (الدينامو كمان). من غير السيريال الـ Validate بيترفض.
 - اكتب رقم فاتورة المورد في **Vendor Invoice No.**
 - دوس **Validate** من غير ما تركّب حاجة ← ✅ لازم يقول: *Attach the vendor's Delivery Note … before validating it*.
 - في خانة **Delivery Note** فوق، ركّب صورة أو سكان الـ Delivery Note بتاع المورد ← Validate ← Create Backorder (الوحدة التالتة لما توصل).

@@ -13,7 +13,7 @@
 | الماتور | All / Generator Components / **Engines** | إجباري |
 | الـ CKD (ماتور + دينامو على سيريال واحد) | All / Generator Components / **CKD** | إجباري |
 | الـ Canopy / الشاسيه | All / Generator Components / **Genset Bodies** | إجباري |
-| الدينامو | All / Generator Components / **Alternators** | في عمود Alternator Serials وقت الاستلام |
+| الدينامو | All / Generator Components / **Alternators** | في نفس عمود Serials وقت الاستلام |
 | المولد | All / **Generators** | إجباري (سيريال الماتور بتاعه) |
 | قطع الغيار | All / **Spare Parts** | — |
 
@@ -24,7 +24,7 @@
 | الخطوة | مين | فين في Odoo | اللي بيحصل |
 |---|---|---|---|
 | 1. شراء 5 وحدات | Purchasing | Purchase ← Orders ← New | ماتورين (22,000 و 23,000)، ودينامو اتنين (7,200 و 7,600)، و Canopy واحد (8,800) = **68,600** ← Confirm (والـ GM / Operation Manager يعمل Approve لو طلب) |
-| 2. الاستلام | Storekeeper | Inventory ← Receipts ← الاستلام بتاع الـ PO | سيريال كل ماتور و Canopy في عمود **Serials**، والدينامو في **Alternator Serials** ← Validate |
+| 2. الاستلام | Storekeeper | Inventory ← Receipts ← الاستلام بتاع الـ PO | سيريال كل ماتور و Canopy ودينامو في نفس عمود **Serials** ← Validate |
 | 3. فاتورة المورد | Accountant | الـ PO ← Create Bill | Bill Date ← Confirm |
 | 4. عرض السعر والـ PI | Salesperson | Sales ← New: مولد 100 kVA، Supply: Assemble | Create PI ← أمر الشراء بتاع العميل وإيصال التحويل ← Send to Accountant |
 | 5. الدفع والتأكيد | Accountant | أوردر البيع | PO Matches ← Register Payment ← Confirm ← الـ Job Order بيتعمل |

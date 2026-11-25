@@ -180,7 +180,7 @@ class StockPicking(models.Model):
             if written != int(quantity):
                 missing.append(
                     _(
-                        "- %(part)s: %(qty)g received, %(written)s serials (Alternator Serials column)",
+                        "- %(part)s: %(qty)g received, %(written)s serials",
                         part=move.product_id.display_name,
                         qty=quantity,
                         written=written,

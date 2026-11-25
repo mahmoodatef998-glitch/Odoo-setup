@@ -107,6 +107,45 @@ class TestFreeParts(X4uJobOrderCommon):
         self.assertEqual(production.x4u_job_state, "material_delivered")
         self.assertFalse(production.x4u_generator_id.alternator_serial)
 
+    # The user, 2026-11-25 (pilot): the alternator's serials typed in the same Serials column as the
+    # engine's, and its line received with them. It stayed unpicked before, so Validate offered a
+    # backorder for the alternators (and "No Backorder" would have dropped them).
+    def test_alternator_serials_in_the_serials_column(self):
+        suppliers = self.env.ref("stock.stock_location_suppliers")
+        stock = self.warehouse.lot_stock_id
+        receipt = self.env["stock.picking"].create(
+            {
+                "picking_type_id": self.warehouse.in_type_id.id,
+                "location_id": suppliers.id,
+                "location_dest_id": stock.id,
+                "move_ids": [
+                    Command.create(
+                        {
+                            "name": product.name, "product_id": product.id, "product_uom_qty": quantity,
+                            "product_uom": product.uom_id.id, "location_id": suppliers.id, "location_dest_id": stock.id,
+                        }
+                    )
+                    for product, quantity in ((self.engine, 1), (self.alt_stamford, 2))
+                ],
+            }
+        )
+        receipt.action_confirm()
+        receipt = receipt.with_user(self.storekeeper)
+        engine = receipt.move_ids.filtered(lambda move: move.product_id == self.engine)
+        alternator = receipt.move_ids - engine
+        engine.x4u_serials = "X4U-E-C1"
+        alternator.x4u_serials = "A-91\nA-92"
+        self.assertEqual(alternator.x4u_alternator_serials, "A-91, A-92")
+        alternator.invalidate_recordset(["x4u_serials"])
+        self.assertEqual(alternator.x4u_serials, "A-91, A-92", "the column shows them again after a save")
+        self.assertEqual(alternator.quantity, 2.0, "the quantity follows the serials")
+        self.assertTrue(engine.picked and alternator.picked)
+        self.assertIs(receipt.button_validate(), True, "no backorder offered")
+        self.assertEqual(receipt.state, "done")
+        self.assertFalse(receipt.backorder_ids)
+        serials = self.env["x4u.alternator.serial"].search([("picking_id", "=", receipt.id)])
+        self.assertEqual(sorted(serials.mapped("name")), ["A-91", "A-92"], "Deliver Materials offers them")
+
     # T27 (v0.8.1 N4, v0.15 B2): an alternator serial for each unit at the receipt, then picked from
     # a list in Deliver Materials; the card gets it and it is no longer in stock
     def test_alternator_serial_list(self):
@@ -114,7 +153,7 @@ class TestFreeParts(X4uJobOrderCommon):
         receipt.move_ids.quantity = 2
         receipt.move_ids.x4u_alternator_serials = "A-77"
         receipt.move_ids.picked = True
-        with self.assertRaisesRegex(UserError, "Alternator Serials"):
+        with self.assertRaisesRegex(UserError, "Serials column"):
             receipt.button_validate()
         receipt.move_ids.x4u_alternator_serials = "A-77, A-78"
         receipt.button_validate()
