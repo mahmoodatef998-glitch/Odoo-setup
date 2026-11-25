@@ -131,6 +131,37 @@
                 <field name="x4u_supply" optional="show" invisible="not x4u_is_generator" placeholder="Choose"
                        readonly="state not in ('draft', 'sent')"/>
             </xpath>
+            <!-- x4u_generator_datasheet §9 (QT 1112): a quotation of options -->
+            <xpath expr="//field[@name='partner_id']" position="after">
+                <field name="x4u_attention" placeholder="e.g. Purchasing Department"/>
+            </xpath>
+            <xpath expr="//notebook" position="inside">
+                <page string="Quotation (4U)" name="x4u_quotation">
+                    <group>
+                        <group>
+                            <field name="x4u_quote_options" readonly="state not in ('draft', 'sent')"/>
+                        </group>
+                        <group>
+                            <div class="text-muted" colspan="2">
+                                Options: each generator is an option (A, B, C) with its own total on the printed quotation.
+                                When the customer chooses, press Choose on that line: the other options leave the quotation.
+                            </div>
+                        </group>
+                    </group>
+                    <label for="x4u_requirement"/>
+                    <field name="x4u_requirement" placeholder="Requirement: ... / Option A (4U recommendation): ... / Option B (alternative): ..."/>
+                    <label for="x4u_delivery_note"/>
+                    <field name="x4u_delivery_note" placeholder="Ex-Works SAIF Zone, Sharjah, U.A.E. / Shipping quoted after approval / Lead time ..."/>
+                </page>
+            </xpath>
+            <xpath expr="//field[@name='order_line']/list/field[@name='product_template_id']" position="after">
+                <field name="x4u_option_tag" optional="show" invisible="not x4u_is_generator" column_invisible="not parent.x4u_quote_options"/>
+                <field name="x4u_option_title" optional="hide" invisible="not x4u_is_generator" column_invisible="not parent.x4u_quote_options"/>
+                <button name="action_x4u_choose_option" type="object" string="Choose" icon="fa-check"
+                        invisible="not x4u_is_generator or parent.state not in ('draft', 'sent')"
+                        column_invisible="not parent.x4u_quote_options"
+                        confirm="Keep this option and remove the other options from the quotation?"/>
+            </xpath>
             <!-- x4u_generator_datasheet §5: extras on the line, before the price they change -->
             <xpath expr="//field[@name='order_line']/list/field[@name='price_unit']" position="before">
                 <field name="x4u_extras" optional="show" placeholder="Extras" readonly="state not in ('draft', 'sent')"/>

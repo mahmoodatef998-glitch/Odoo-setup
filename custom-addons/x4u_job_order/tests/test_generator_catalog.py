@@ -131,6 +131,40 @@ class TestGeneratorCatalog(TransactionCase):
                 row.x4u_extras_price = 3000
         self.assertEqual(order.order_line.price_unit, 99700.0, "a price typed by hand stays; the extras change moves it")
 
+    # T8 (§9, QT 1112): a quotation of options - printed A / B / C, each its own total; the PI waits
+    # for the customer's choice; Choose keeps one option.
+    def test_quote_options(self):
+        self.Catalog._x4u_import([copy.deepcopy(ENTRY)])
+        template = self._template()
+        order = self.env["sale.order"].create(
+            {
+                "partner_id": self.customer.id,
+                "pricelist_id": self.env.ref("x4u_job_order.pricelist_export_aed").id,
+                "x4u_quote_options": True,
+                "x4u_requirement": "<p>300 kVA prime</p>",
+                "x4u_delivery_note": "Ex-Works SAIF Zone",
+                "order_line": [
+                    (0, 0, {"product_id": self._variant(template, "Leroy-Somer").id, "x4u_option_tag": "recommended", "tax_id": False}),
+                    (0, 0, {"product_id": self._variant(template, "4U").id, "x4u_option_tag": "alternative", "tax_id": False}),
+                ],
+            }
+        )
+        first, second = order._x4u_option_lines()
+        self.assertEqual((first._x4u_option_letter(), second._x4u_option_letter()), ("A", "B"))
+        self.assertEqual(first._x4u_option_heading(), "Cummins with Leroy-Somer alternator (4U recommendation)")
+        self.assertTrue(first._x4u_print_title_body()[0].startswith("4U-T300 — Cummins Diesel Generator Set"))
+        html = self.env["ir.actions.report"]._render_qweb_html("x4u_job_order.action_report_x4u_quotation", order.ids)[0].decode()
+        for text in ("Option A", "Option B", "RECOMMENDED", "EACH OPTION IS A SEPARATE TOTAL", "Ex-Works SAIF Zone", "97,000.00"):
+            self.assertIn(text, html)
+        with self.assertRaisesRegex(UserError, "quotation of options"):
+            order.action_x4u_create_proforma()
+        self.assertEqual(self.env.ref("sale.email_template_edi_sale").report_template_ids,
+                         self.env.ref("x4u_job_order.action_report_x4u_quotation"), "the 4U quotation goes by email")
+        second.action_x4u_choose_option()
+        self.assertEqual(order.order_line, second, "the other option left the quotation")
+        self.assertFalse(order.x4u_quote_options)
+        self.assertFalse(order._x4u_options_problem())
+
     # T5: Stamford has no list price: "As requested", and no PI before its price is typed
     def test_price_on_request(self):
         self.Catalog._x4u_import([copy.deepcopy(ENTRY)])

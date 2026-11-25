@@ -75,6 +75,23 @@
         </field>
     </record>
 
+    <!-- x4u_generator_datasheet §9: the letterhead of the 4U quotation -->
+    <record id="view_company_form_x4u_letterhead" model="ir.ui.view">
+        <field name="name">res.company.form.x4u.letterhead</field>
+        <field name="model">res.company</field>
+        <field name="inherit_id" ref="base.view_company_form"/>
+        <field name="arch" type="xml">
+            <xpath expr="//notebook" position="inside">
+                <page string="4U Letterhead" name="x4u_letterhead">
+                    <group>
+                        <field name="x4u_letterhead_header" widget="image" options="{'size': [0, 90]}"/>
+                        <field name="x4u_letterhead_footer" widget="image" options="{'size': [0, 40]}"/>
+                    </group>
+                </page>
+            </xpath>
+        </field>
+    </record>
+
     <!-- x4u_account spec §20 P3: the serials on the Receipts / Deliveries list, searchable -->
     <record id="vpicktree_x4u_serials" model="ir.ui.view">
         <field name="name">stock.picking.list.x4u.serials</field>

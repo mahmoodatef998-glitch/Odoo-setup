@@ -21,6 +21,20 @@
 | T3 | استيراد تاني بيحدّث الموديل والـ datasheet والسعر من غير تكرار |
 | T4 | زي QT 1112: سعر القايمة + Extras 3,300 (أرقام تجريبية في الـ test، الأسعار الحقيقية في private/ بس)، والوصف فيه المحرك والـ frame والإضافات، والسعر المكتوب باليد بيفضل |
 | T5 | Stamford: "As requested"، والـ PI بيترفض لحد ما السعر يتكتب |
+
+## 9. عرض السعر بشكل QT 1112 (v0.4، 2026-11-25) ✅
+المستخدم: "Yes, start it" (الخطوة اللي بعد الكتالوج). اتنفّذت في `x4u_job_order` 18.0.1.18.0.
+
+| # | القاعدة |
+|---|---|
+| Q1 | **طباعة "Quotation (4U)"** (Print، وهي اللي بتروح بالإيميل): الـ letterhead فوق كل صفحة وشريط الماركات تحت، و Quotation No. / Date / Valid for، وكارتين Prepared for (العميل، Attention، العنوان، Your Ref.) و Prepared by (الشركة، المندوب، الإيميل، الـ TRN)، ومربع **Requirement** الأصفر، والجدول، ومربع **Delivery**، و **Price Summary**، وصفحة **Terms & Conditions** من شروط العرض. كل بند بيفضل في صفحة واحدة |
+| Q2 | **Quote as Options** (تاب Quotation (4U) في العرض): كل مولد = Option A / B / C، عليه **Recommended** أو **Alternative**، وعنوان (لوحده: الماركة + الدينامو، أو اكتبه في Option Title). كل Option ليه إجمالي لوحده في Price Summary ("Each option is a separate total")، والسطور التانية (خدمات) بتتزوّد على كل Option |
+| Q3 | **Choose**: لما العميل يختار، المندوب يدوس Choose على السطر ده، والـ Options التانية بتتشال وبيتكتب ده في الـ chatter. الـ PI ومرور العرض للمحاسب مش بيحصلوا وفيه أكتر من Option |
+| Q4 | **الـ letterhead**: صورتين على الشركة (Settings ← Companies ← 4U Letterhead)، اتاخدوا من QT 1112 نفسه، في `private/branding/` (برا Git) وبيترفعوا بـ `scripts/set_letterhead.py`. من غيرهم بيطبع اسم الشركة واللوجو |
+
+| # | الاختبار |
+|---|---|
+| T8 | عرض فيه Optionين: A و B، والعنوان، و "EACH OPTION IS A SEPARATE TOTAL" في الطباعة، والـ PI بيترفض، والإيميل بيبعت Quotation (4U)، و Choose بيسيب Option واحد |
 - المرجع: [docs/modules/01-sales.md](../modules/01-sales.md) (D5، D8) و [x4u_setup_sales.md](x4u_setup_sales.md) §6، و [x4u_job_order v0.8](x4u_job_order.md) (المحرك بالسيريال، والـ alternator اختياري).
 - يتعمل فين: **`x4u_generator` v1.1** (المولد نفسه)، و `scripts/` (السحب من الموقع والاستيراد).
 - العلامات: ✅ متفق عليه · 🟡 اقتراح مستني موافقتك

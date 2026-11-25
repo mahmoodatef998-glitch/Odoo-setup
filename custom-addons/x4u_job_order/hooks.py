@@ -73,7 +73,16 @@ def setup_engine_serials(env):
         templates.write({"lot_valuated": True})
 
 
+def use_4u_quotation_report(env):
+    """x4u_generator_datasheet §9: the quotation sent by email is the 4U one (QT 1112 layout)."""
+    template = env.ref("sale.email_template_edi_sale", raise_if_not_found=False)
+    report = env.ref("x4u_job_order.action_report_x4u_quotation", raise_if_not_found=False)
+    if template and report and template.report_template_ids != report:
+        template.report_template_ids = [(6, 0, report.ids)]
+
+
 def post_init_hook(env):
+    use_4u_quotation_report(env)
     set_costing(env)
     setup_job_analytic(env)
     setup_engine_serials(env)

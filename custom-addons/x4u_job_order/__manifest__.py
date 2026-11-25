@@ -4,7 +4,7 @@
     "name": "4U Job Orders",
     "summary": "Generator Job Orders: status, parts tracking, material "
     "requests, timeline of every step and where the delay is",
-    "version": "18.0.1.17.0",
+    "version": "18.0.1.18.0",
     "category": "Manufacturing/Manufacturing",
     # AGPL-3 because it depends on x4u_generator (AGPL-3).
     "license": "AGPL-3",
@@ -44,6 +44,8 @@
         "report/x4u_generator_serials_templates.xml",
         # Spec v0.14 H2-H4: the order's profitability, each generator by its serials.
         "report/x4u_cost_sheet_templates.xml",
+        # x4u_generator_datasheet §9: the 4U quotation (QT 1112 layout).
+        "report/x4u_quotation_templates.xml",
     ],
     "post_init_hook": "post_init_hook",
     "installable": True,

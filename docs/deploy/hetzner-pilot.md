@@ -80,9 +80,14 @@ deploy/backup-daily.sh && git pull --recurse-submodules && docker compose build 
   && docker compose up -d
 # The generator catalog (spec x4u_generator_datasheet v0.3), again whenever a price list or the
 # website changes. On the PC: python scripts/fetch_datasheets.py && python scripts/generator_catalog.py,
-# then copy private/datasheets/catalog.json to /opt/odoo4u/private/datasheets/ (chmod 600), and here:
+# then copy private/datasheets/catalog.json to /opt/odoo4u/private/datasheets/ (owner uid 100 = the
+# container's odoo user, chmod 600), and here:
 docker compose run --rm -T -v /opt/odoo4u/private/datasheets:/tmp/x4u_catalog:ro web \
   odoo shell -d odoo4u --no-http < scripts/import_generators.py
+# The letterhead of the 4U quotation: copy private/branding/letterhead-*.png to
+# /opt/odoo4u/private/branding/ (owner uid 100, chmod 600), then
+docker compose run --rm -T -v /opt/odoo4u/private/branding:/tmp/x4u_branding:ro web \
+  odoo shell -d odoo4u --no-http < scripts/set_letterhead.py
 # A user's forgotten password (the owner types the new one):
 pwsh scripts/reset-password.ps1 -Database odoo4u -Login <login>
 # Change the domain: edit ODOO_DOMAIN in .env, then

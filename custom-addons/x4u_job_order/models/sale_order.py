@@ -12,10 +12,48 @@ class SaleOrder(models.Model):
     x4u_ready_order_count = fields.Integer(compute="_compute_x4u_ready_order_count")
     # Spec v0.12 J1: the order's one Job Order.
     x4u_job_ids = fields.One2many("x4u.job.order", "sale_order_id", string="Job Order")
+    # x4u_generator_datasheet §9 (QT 1112): a quotation of options, each generator one option with its
+    # own total; the customer picks one, the Salesperson keeps it (Choose) before the PI.
+    x4u_quote_options = fields.Boolean(
+        string="Quote as Options",
+        help="Each generator is an option (A, B, C...) with its own total, as in QT 1112. "
+        "Choose the one the customer ordered before the PI.",
+    )
+    x4u_requirement = fields.Html(
+        string="Requirement",
+        help="Printed in the yellow box at the top of the quotation: what the customer asked for and the options offered.",
+    )
+    x4u_attention = fields.Char(string="Attention", help="Printed under the customer, e.g. Purchasing Department.")
+    x4u_delivery_note = fields.Text(
+        string="Delivery",
+        help="Printed in the Delivery box, e.g. Ex-Works SAIF Zone, freight quoted after approval, lead time.",
+    )
 
     def _compute_x4u_ready_order_count(self):
         for order in self:
             order.x4u_ready_order_count = len(order.x4u_ready_order_ids)
+
+    def _x4u_option_lines(self):
+        """The options of the quotation (its generator lines), in their order."""
+        self.ensure_one()
+        return self.order_line.filtered(lambda line: line.x4u_is_generator and not line.display_type).sorted("sequence")
+
+    def _x4u_common_lines(self):
+        """The other priced lines: added to every option."""
+        self.ensure_one()
+        return self.order_line.filtered(lambda line: not line.display_type and not line.x4u_is_generator)
+
+    def _x4u_validity_days(self):
+        self.ensure_one()
+        if not self.validity_date or not self.date_order:
+            return 0
+        return (self.validity_date - self.date_order.date()).days
+
+    def _x4u_options_problem(self):
+        self.ensure_one()
+        if self.x4u_quote_options and len(self._x4u_option_lines()) > 1:
+            return _("%s is a quotation of options: press Choose on the option the customer ordered.", self.name)
+        return ""
 
     def _x4u_send_problems(self):
         """x4u_sale spec v0.7 O1: every generator says Assembly or Ready Product, nobody opens an
@@ -26,6 +64,9 @@ class SaleOrder(models.Model):
             problems.append(
                 _("Supply (Assembly or Ready Product) for %s", ", ".join(missing.product_id.mapped("display_name")))
             )
+        for order in self:
+            if order._x4u_options_problem():
+                problems.append(order._x4u_options_problem())
         return problems
 
     @api.model
@@ -155,6 +196,8 @@ class SaleOrder(models.Model):
         """x4u_generator_datasheet §5: a generator without a price (Stamford, or a model the 2026
         price list does not have) is "price on request": the Salesperson types its price before the PI."""
         for order in self:
+            if order._x4u_options_problem():
+                raise UserError(order._x4u_options_problem())
             unpriced = order.order_line.filtered(
                 lambda line: line.x4u_is_generator and not line.display_type and order.currency_id.is_zero(line.price_unit)
             )
@@ -228,6 +271,61 @@ class SaleOrderLine(models.Model):
         string="Extras Price", currency_field="currency_id",
         help="Added to the unit price. The unit price can still be changed by hand.",
     )
+
+    # QT 1112: the option's badge and heading (e.g. "Cummins with Leroy-Somer alternator").
+    x4u_option_tag = fields.Selection(
+        [("recommended", "Recommended"), ("alternative", "Alternative")], string="Option",
+        help="On a quotation of options: printed as a badge on the option.",
+    )
+    x4u_option_title = fields.Char(
+        string="Option Title", help="The heading of the option on the quotation; empty: the engine brand and the alternator.",
+    )
+
+    def _x4u_option_letter(self):
+        self.ensure_one()
+        options = self.order_id._x4u_option_lines()
+        return chr(ord("A") + options.ids.index(self.id)) if self.id in options.ids and len(options) <= 26 else ""
+
+    def _x4u_option_heading(self):
+        self.ensure_one()
+        if self.x4u_option_title:
+            return self.x4u_option_title
+        brand = self.product_id.x4u_engine_brand_id.name or ""
+        choice = self.product_id._x4u_alternator_choice() if self.product_id else ""
+        heading = "%s with %s alternator" % (brand, "4U Power" if choice in ("4U", "AQT") else choice) if choice else brand
+        if self.x4u_option_tag == "recommended":
+            heading += " (4U recommendation)"
+        elif self.x4u_option_tag == "alternative":
+            heading += " (alternative)"
+        return heading
+
+    def _x4u_print_title_body(self):
+        """(title, [description lines]) for the quotation: a generator as "4U-C300 — <model name>"."""
+        self.ensure_one()
+        lines = (self.name or "").split("\n")
+        if self.x4u_is_generator and self.product_id.default_code:
+            return "%s — %s" % (self.product_id.default_code, self.product_id.product_tmpl_id.name), lines[1:]
+        return lines[0], lines[1:]
+
+    def _x4u_option_total(self, field):
+        """An option's subtotal / tax / total, the common lines added (each option is a separate total)."""
+        self.ensure_one()
+        return self[field] + sum(self.order_id._x4u_common_lines().mapped(field))
+
+    def action_x4u_choose_option(self):
+        """The customer chose this option: the other options leave the quotation."""
+        self.ensure_one()
+        order = self.order_id
+        if order.state not in ("draft", "sent"):
+            raise UserError(_("Only a quotation's options can be chosen."))
+        others = order._x4u_option_lines() - self
+        order.message_post(body=_("Option chosen: %(option)s. Removed: %(others)s.",
+                                  option=self.product_id.display_name,
+                                  others=", ".join(others.mapped("product_id.display_name")) or "-"))
+        others.unlink()
+        order.x4u_quote_options = False
+        self.x4u_option_tag = False
+        return True
 
     def _reset_price_unit(self):
         """The pricelist price plus the extras (the line keeps following the pricelist)."""
