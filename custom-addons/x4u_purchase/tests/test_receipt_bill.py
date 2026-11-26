@@ -1,7 +1,7 @@
 import base64
 
 from odoo import Command
-from odoo.exceptions import UserError
+from odoo.exceptions import AccessError, UserError
 from odoo.tests import Form, TransactionCase, new_test_user, tagged
 
 
@@ -88,6 +88,29 @@ class TestReceiptBill(TransactionCase):
         bill.action_post()
         self.assertFalse(bill.activity_ids.filtered(lambda a: receipt.name in (a.summary or "")), "confirmed: the task is done")
         self.assertEqual(self.order.order_line.qty_invoiced, 2.0)
+
+    def test_purchasing_opens_the_vendor_bill(self):
+        """The user, 2026-11-26: Purchasing makes the bill from the receipt, the Accountant confirms it."""
+        buyer = new_test_user(
+            self.env, login="x4u_receipt_buyer",
+            groups="base.group_user,purchase.group_purchase_user,stock.group_stock_user",
+        )
+        receipt = self._receive(2)
+        receipt.x4u_delivery_note_ids = [Command.create(
+            {"name": "DN 5524.jpg", "datas": base64.b64encode(b"delivery note 4"), "res_model": "stock.picking", "res_id": receipt.id}
+        )]
+        receipt.x4u_vendor_ref = "INV-5524"
+        with self.assertRaisesRegex(UserError, "Validate"):
+            receipt.with_user(buyer).action_x4u_vendor_bill()
+        receipt.with_context(skip_backorder=True, picking_ids_not_to_backorder=receipt.ids).button_validate()
+        action = receipt.with_user(buyer).action_x4u_vendor_bill()
+        bill = self.env["account.move"].browse(action["res_id"])
+        self.assertEqual((bill.state, bill.ref, bill.invoice_line_ids.quantity), ("draft", "INV-5524", 2.0))
+        self.assertEqual(bill.activity_ids.user_id, self.accountant, "the Accountant confirms it")
+        bill.with_user(buyer).write({"invoice_date": "2026-11-26"})
+        with self.assertRaisesRegex(AccessError, "post an invoice"):
+            bill.with_user(buyer).action_post()
+        self.assertEqual(receipt.with_user(buyer).action_x4u_vendor_bill()["res_id"], bill.id, "the same bill again")
 
     def test_bill_of_a_receipt(self):
         receipt = self._receive(2)

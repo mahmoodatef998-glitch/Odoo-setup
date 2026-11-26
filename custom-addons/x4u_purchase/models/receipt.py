@@ -133,6 +133,38 @@ class StockPicking(models.Model):
                        "Vendor Bill > Receipt %(receipt)s.", receipt=picking.name, vendor=picking.partner_id.display_name),
             )
 
+    def action_x4u_vendor_bill(self):
+        """The user, 2026-11-26: Purchasing opens the vendor bill of the receipt from the receipt -
+        the one drafted at Validate, or made now - to complete it (Bill Date, the vendor's invoice);
+        the Accountant confirms it."""
+        self.ensure_one()
+        if not self.x4u_is_vendor_receipt or self.state != "done":
+            raise UserError(_("Validate %s first: the bill takes what came in.", self.name))
+        bill = self.x4u_bill_ids.filtered(lambda move: move.state != "cancel")[:1]
+        if not bill:
+            bill = self._x4u_draft_bill()
+            if not bill:
+                raise UserError(_("%s has nothing from a purchase order to bill.", self.name))
+            user_id = int(self.env["ir.config_parameter"].sudo().get_param("x4u_sale.accountant_user_id") or 0)
+            accountant = self.env["res.users"].sudo().browse(user_id).exists()
+            if accountant:
+                bill.sudo().activity_schedule(
+                    "mail.mail_activity_data_todo",
+                    user_id=accountant.id,
+                    summary=_("Vendor bill: %s", self.name),
+                    note=_("Drafted by Purchasing from %s: check it, then Confirm.", self.name),
+                )
+        return {
+            "type": "ir.actions.act_window",
+            "name": _("Vendor Bill"),
+            "res_model": "account.move",
+            "res_id": bill.id,
+            "view_mode": "form",
+            "views": [(self.env.ref("account.view_move_form").id, "form")],
+            "context": {"default_move_type": "in_invoice"},
+            "target": "current",
+        }
+
     def _x4u_draft_bill(self):
         """The user, 2026-11-26: the draft vendor bill of what came in on this receipt - its lines
         are the purchase order lines with the quantities received, the vendor's invoice number is its

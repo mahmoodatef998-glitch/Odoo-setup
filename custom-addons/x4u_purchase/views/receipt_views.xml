@@ -7,6 +7,12 @@
         <field name="model">stock.picking</field>
         <field name="inherit_id" ref="stock.view_picking_form"/>
         <field name="arch" type="xml">
+            <!-- The user, 2026-11-26: Purchasing opens (or makes) the vendor bill from the receipt. -->
+            <xpath expr="//header" position="inside">
+                <button name="action_x4u_vendor_bill" type="object" string="Vendor Bill" class="btn-primary"
+                        groups="purchase.group_purchase_user,account.group_account_invoice"
+                        invisible="not x4u_is_vendor_receipt or state != 'done'"/>
+            </xpath>
             <xpath expr="//field[@name='origin']" position="after">
                 <field name="x4u_is_vendor_receipt" invisible="1"/>
                 <field name="x4u_vendor_ref" invisible="not x4u_is_vendor_receipt" readonly="state == 'cancel'"
