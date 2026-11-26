@@ -23,6 +23,28 @@ class TestFewerSteps(X4uJobOrderCommon):
         moves = production.move_raw_ids
         return {role: moves.filtered(lambda m, r=role: m.x4u_role == r).product_id for role in ("engine", "alternator", "body")}
 
+    # The user, 2026-11-26: a model Built from CKD - its CKD card is made, its Job Orders take it
+    def test_model_built_from_ckd(self):
+        template = self.variant.product_tmpl_id
+        template.x4u_built_from_ckd = True
+        ckd = self.variant.x4u_ckd_product_id
+        self.assertTrue(ckd, "the CKD card of the variant")
+        self.assertEqual(ckd.categ_id, self.env.ref("x4u_setup_base.categ_ckd"))
+        self.assertEqual(ckd.tracking, "serial", "one serial, the engine's")
+        self.assertIn(self.engine.name, ckd.name)
+        self.assertIn(ckd, template.x4u_ckd_product_ids)
+        template.write({"x4u_built_from_ckd": False})
+        template.write({"x4u_built_from_ckd": True})
+        self.assertEqual(self.variant.x4u_ckd_product_id, ckd, "the same card, not a second one")
+        _order, production = self._sell()
+        self.assertTrue(production.x4u_uses_ckd)
+        roles = set(production.move_raw_ids.filtered(lambda m: m.state != "cancel").mapped("x4u_role"))
+        self.assertIn("ckd", roles)
+        self.assertFalse(roles & {"engine", "alternator"}, "the CKD instead of the engine and the alternator")
+        requested = production._x4u_purchase_requests().line_ids.filtered(lambda line: not line.cancelled).product_id
+        self.assertIn(ckd, requested, "the material request asks for the CKD")
+        self.assertNotIn(self.engine, requested)
+
     def test_buy_missing_parts(self):
         _order, production = self._sell()
         job = production.x4u_job_id

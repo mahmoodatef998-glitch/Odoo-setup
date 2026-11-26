@@ -1,5 +1,7 @@
-from odoo import _, api, models
+from odoo import Command, _, api, fields, models
 from odoo.exceptions import ValidationError
+
+from .stock_move import part_role
 
 # Spec v0.8 N1 / v0.9 C1 / v0.10 B1: parts that go in and out by their serial, each valued at its own price.
 # x4u_account spec §20 P3 (UAT 2026-11-24): a product of the Generators category too (a ready
@@ -12,6 +14,12 @@ SERIAL_CATEGORIES = (
 
 class ProductProduct(models.Model):
     _inherit = "product.product"
+
+    # The user, 2026-11-26: the full CKD (engine + alternator, one serial) this generator is built from.
+    x4u_ckd_product_id = fields.Many2one(
+        "product.product", string="CKD", copy=False, readonly=True,
+        help="The CKD of this model's engine and alternator, made when the model is ticked Built from CKD.",
+    )
 
     def _x4u_order_needs(self, exclude_lines=None):
         """Spec v0.15 B1: (what the open Job Orders still need, free in WH/Stock, coming in), in the
@@ -59,6 +67,66 @@ class ProductProduct(models.Model):
 
 class ProductTemplate(models.Model):
     _inherit = "product.template"
+
+    # The user, 2026-11-26: a model built from a full CKD - its Job Orders take the CKD instead of the
+    # engine and the alternator by themselves; the Operation Manager can still switch back.
+    x4u_built_from_ckd = fields.Boolean(
+        string="Built from CKD", copy=False,
+        help="Its Job Orders use the CKD (engine + alternator on one serial) instead of a separate engine and "
+        "alternator. Ticking it makes the CKD card of each alternator variant.",
+    )
+    x4u_ckd_product_ids = fields.Many2many(
+        "product.product", string="CKD Parts", compute="_compute_x4u_ckd_product_ids",
+    )
+
+    @api.depends("product_variant_ids.x4u_ckd_product_id")
+    def _compute_x4u_ckd_product_ids(self):
+        for template in self:
+            template.x4u_ckd_product_ids = template.product_variant_ids.x4u_ckd_product_id
+
+    def write(self, vals):
+        res = super().write(vals)
+        if vals.get("x4u_built_from_ckd"):
+            self._x4u_make_ckd_products()
+        return res
+
+    def _x4u_make_ckd_products(self):
+        """The CKD card of each variant: its engine + its alternator from the bill of materials, as
+        one product of the CKD category (by serial = the engine's), with the engine's vendor and
+        routes. One card per engine + alternator pair, shared by the models that have it."""
+        categ = self.env.ref("x4u_setup_base.categ_ckd")
+        Product = self.env["product.product"].sudo()
+
+        def short(product, prefix):
+            code = product.default_code or product.name
+            return code[len(prefix):] if code.startswith(prefix) else code
+
+        for variant in self.sudo().product_variant_ids:
+            bom = self.env["mrp.bom"].sudo()._bom_find(variant, company_id=self.env.company.id).get(variant)
+            if not bom:
+                continue
+            parts = bom.bom_line_ids.filtered(lambda line, v=variant: not line._skip_bom_line(v)).product_id
+            engine = parts.filtered(lambda p: part_role(self.env, p) == "engine")[:1]
+            alternator = parts.filtered(lambda p: part_role(self.env, p) == "alternator")[:1]
+            if not engine or not alternator:
+                continue
+            code = "CKD-%s-%s" % (short(engine, "ENG-"), short(alternator, "ALT-"))
+            ckd = Product.with_context(active_test=False).search([("default_code", "=", code)], limit=1)
+            if not ckd:
+                seller = engine.seller_ids[:1]
+                ckd = Product.create(
+                    {
+                        "name": "CKD %s + %s" % (engine.name, alternator.name),
+                        "default_code": code,
+                        "categ_id": categ.id,
+                        "is_storable": True,
+                        "tracking": "serial",
+                        "purchase_request": engine.purchase_request,
+                        "route_ids": [Command.set(engine.route_ids.ids)],
+                        "seller_ids": [Command.create({"partner_id": seller.partner_id.id})] if seller else [],
+                    }
+                )
+            variant.x4u_ckd_product_id = ckd
 
     @api.model
     def _x4u_serial_categories(self):

@@ -88,6 +88,13 @@ class SaleOrder(models.Model):
             productions._x4u_fill_generator_card()
             # ...and the customer on the Job Order's analytic account (spec v0.5 A1).
             productions._x4u_job_analytic()
+            # The user, 2026-11-26: a model Built from CKD takes its CKD by itself (Use CKD); the
+            # material request then asks for the CKD, not the engine and the alternator.
+            for production in productions.filtered(
+                lambda p: p.product_id.product_tmpl_id.x4u_built_from_ckd and p.product_id.x4u_ckd_product_id
+                and not p.x4u_uses_ckd and p.x4u_can_switch_parts
+            ):
+                production._x4u_switch_parts(production.product_id.x4u_ckd_product_id)
         if ready_lines:
             ready_lines.sudo()._x4u_open_ready_orders()
         return res

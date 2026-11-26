@@ -1,5 +1,20 @@
 <?xml version="1.0" encoding="utf-8"?>
 <odoo>
+    <!-- The user, 2026-11-26: a model built from a full CKD (engine + alternator on one serial) -->
+    <record id="product_template_form_x4u_ckd" model="ir.ui.view">
+        <field name="name">product.template.form.x4u.ckd</field>
+        <field name="model">product.template</field>
+        <field name="inherit_id" ref="x4u_generator.product_template_form_view_x4u_generator"/>
+        <field name="arch" type="xml">
+            <group name="x4u_datasheet_header" position="after">
+                <group string="Assembly" name="x4u_ckd">
+                    <field name="x4u_built_from_ckd"/>
+                    <field name="x4u_ckd_product_ids" widget="many2many_tags" invisible="not x4u_built_from_ckd"/>
+                </group>
+            </group>
+        </field>
+    </record>
+
     <!-- Generator card: enclosure of the variant sold -->
     <record id="x4u_generator_view_form_x4u_job_order" model="ir.ui.view">
         <field name="name">x4u.generator.form.x4u.job.order</field>
