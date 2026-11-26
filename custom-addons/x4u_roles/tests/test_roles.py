@@ -61,17 +61,16 @@ ROLES = {
     # One person buys and runs the store (2026-11-21): no Receipts Only, no PO approval.
     "role_purchasing_storekeeper": (
         {
-            "purchase.group_purchase_user",
+            # The user, 2026-11-26: every right on Purchase and Inventory, approving his own POs.
+            "purchase.group_purchase_manager",
             "purchase_request.group_purchase_request_manager",
             "base.group_partner_manager",
-            "stock.group_stock_user",
+            "stock.group_stock_manager",
             "x4u_job_order.group_x4u_job_order_viewer",
             MRP_VIEWER,
         },
         {
-            "purchase.group_purchase_manager",
             "x4u_roles.group_x4u_receipts_only",
-            "stock.group_stock_manager",
             "sales_team.group_sale_salesman",
             "mrp.group_mrp_user",
             EDIT_SERIALS,
@@ -115,10 +114,10 @@ class TestRoles(TransactionCase):
                 self.assertFalse(user.has_group(group), "%s should not give %s" % (role, group))
 
     def test_only_the_general_manager_approves_purchases(self):
-        """The GM, the Operation Manager (2026-11-20) and the Administrator approve; the Purchasing
-        Officer who makes the RFQ does not."""
+        """The GM, the Operation Manager (2026-11-20), the Administrator and Purchasing & Storekeeper
+        (2026-11-26) approve; the Purchasing Officer who makes the RFQ does not."""
         self.assertFalse(self._user("role_purchasing_officer").has_group("purchase.group_purchase_manager"))
-        for role in ("role_general_manager", "role_production", "role_administrator"):
+        for role in ("role_general_manager", "role_production", "role_administrator", "role_purchasing_storekeeper"):
             self.assertTrue(self._user(role).has_group("purchase.group_purchase_manager"), role)
 
     def test_apps_menu_for_the_administrator_only(self):

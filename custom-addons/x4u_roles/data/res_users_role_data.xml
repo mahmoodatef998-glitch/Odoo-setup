@@ -65,14 +65,16 @@
     <record id="role_purchasing_storekeeper" model="res.users.role">
         <field name="name">Purchasing &amp; Storekeeper</field>
         <field name="sequence">55</field>
-        <field name="comment">Material requests and RFQs, chooses and adds vendors, plus the whole store: receipts with their serials, Deliver Materials, deliveries, stock counts. Does not approve purchase orders.</field>
+        <!-- The user, 2026-11-26: every right on Purchase and Inventory, approving his own purchase
+             orders too (no GM approval for them). -->
+        <field name="comment">Purchase and Inventory administrator: material requests, RFQs and purchase orders (approves them), vendors, plus the whole store: receipts with their serials, Deliver Materials, deliveries, stock counts, inventory settings.</field>
         <field name="implied_ids" eval="[Command.set([
             ref('base.group_user'),
             ref('base.group_partner_manager'),
-            ref('purchase.group_purchase_user'),
+            ref('purchase.group_purchase_manager'),
             ref('purchase_request.group_purchase_request_manager'),
             ref('x4u_job_order.group_x4u_job_order_viewer'),
-            ref('stock.group_stock_user'),
+            ref('stock.group_stock_manager'),
             ref('group_x4u_mrp_viewer'),
         ])]"/>
     </record>
