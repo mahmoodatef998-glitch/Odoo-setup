@@ -62,6 +62,33 @@ class TestReceiptBill(TransactionCase):
         self.assertEqual(note.attachment_ids.mapped("name"), ["DN 5521.jpg"], "the Delivery Note goes with it")
         self.assertEqual(receipt.x4u_delivery_note_ids.res_model, "stock.picking", "the receipt keeps its own")
 
+    def test_draft_bill_at_the_receipt(self):
+        """The user, 2026-11-26 (fewer steps): the bill is drafted at the receipt, the Accountant confirms it."""
+        self.company.x4u_receipt_draft_bill = True
+        receipt = self._receive(2)
+        receipt.x4u_delivery_note_ids = [Command.create(
+            {"name": "DN 5523.jpg", "datas": base64.b64encode(b"delivery note 3"), "res_model": "stock.picking", "res_id": receipt.id}
+        )]
+        receipt.x4u_vendor_ref = "INV-5523"
+        receipt.with_context(skip_backorder=True, picking_ids_not_to_backorder=receipt.ids).button_validate()
+        bill = receipt.x4u_bill_ids
+        self.assertEqual(len(bill), 1)
+        self.assertEqual((bill.state, bill.move_type, bill.ref), ("draft", "in_invoice", "INV-5523"))
+        self.assertEqual(bill.invoice_line_ids.quantity, 2.0, "what came in, not what was ordered")
+        self.assertEqual(bill.invoice_line_ids.purchase_line_id, self.order.order_line)
+        self.assertEqual(bill.invoice_line_ids.price_unit, 1500.0)
+        names = self.env["ir.attachment"].search([("res_model", "=", "account.move"), ("res_id", "=", bill.id)]).mapped("name")
+        self.assertIn("DN 5523.jpg", names)
+        task = bill.activity_ids.filtered(lambda a: receipt.name in (a.summary or ""))
+        self.assertEqual(task.user_id, self.accountant, "the Accountant checks the draft bill")
+        note = self.order.message_ids.filtered(lambda m: self.accountant.partner_id in m.partner_ids)
+        self.assertIn("Draft bill", str(note.body))
+        self.assertFalse(self.order.activity_ids.filtered(lambda a: receipt.name in (a.summary or "")), "one task, on the bill")
+        self.assertTrue(receipt.x4u_billed)
+        bill.action_post()
+        self.assertFalse(bill.activity_ids.filtered(lambda a: receipt.name in (a.summary or "")), "confirmed: the task is done")
+        self.assertEqual(self.order.order_line.qty_invoiced, 2.0)
+
     def test_bill_of_a_receipt(self):
         receipt = self._receive(2)
         receipt.x4u_delivery_note_ids = [Command.create(

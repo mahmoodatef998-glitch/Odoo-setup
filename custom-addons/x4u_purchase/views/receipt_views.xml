@@ -41,6 +41,9 @@
                 <setting string="Delivery Note on receipts" help="A receipt from a vendor is validated only with the vendor's Delivery Note attached.">
                     <field name="x4u_receipt_dn_required"/>
                 </setting>
+                <setting string="Draft bill at the receipt" help="When a receipt from a vendor is validated, its vendor bill is drafted with the quantities received; the Accountant checks it and confirms.">
+                    <field name="x4u_receipt_draft_bill"/>
+                </setting>
             </xpath>
         </field>
     </record>

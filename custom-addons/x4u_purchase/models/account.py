@@ -159,6 +159,12 @@ class AccountMove(models.Model):
     def _post(self, soft=True):
         posted = super()._post(soft)
         posted.filtered(lambda move: move.move_type == "in_invoice")._x4u_apply_vendor_advances()
+        # The draft bill of a receipt (2026-11-26): the Accountant's "Vendor bill" task is done.
+        bills = posted.filtered("x4u_receipt_id")
+        if bills:
+            self.env["mail.activity"].sudo().search(
+                [("res_model", "=", "account.move"), ("res_id", "in", bills.ids), ("summary", "=like", "Vendor bill:%")]
+            ).action_feedback(feedback=_("Bill confirmed."))
         return posted
 
     def _x4u_apply_vendor_advances(self):

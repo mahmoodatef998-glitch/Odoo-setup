@@ -7,3 +7,4 @@ from . import test_order_job
 from . import test_order_delivery
 from . import test_order_profit
 from . import test_generator_catalog
+from . import test_fewer_steps

@@ -42,6 +42,22 @@ class X4uJobOrderDeliverAll(models.TransientModel):
     @api.model
     def _x4u_action(self, productions):
         lines = []
+        # The user, 2026-11-26 (fewer steps): a part not chosen on the Serial tab is filled with the
+        # oldest serial still free, never one chosen for (or given to) another generator here.
+        taken_lots = productions.x4u_engine_lot_id | productions.x4u_body_lot_id
+        taken_alternators = productions.x4u_alternator_id
+
+        def oldest_lot(move):
+            return (free_lots(self.env, move) - taken_lots).sorted("id")[:1]
+
+        def oldest_alternator(move):
+            if not move:
+                return self.env["x4u.alternator.serial"]
+            return self.env["x4u.alternator.serial"].search(
+                [("product_id", "=", move.product_id.id), ("state", "=", "in_stock"), ("id", "not in", taken_alternators.ids)],
+                order="id", limit=1,
+            )
+
         for production in productions.sorted("name"):
             moves = production._x4u_pick_components().move_ids.filtered(lambda m: m.state not in ("done", "cancel"))
             if not moves:
@@ -57,6 +73,11 @@ class X4uJobOrderDeliverAll(models.TransientModel):
             chosen_alternator = production.x4u_alternator_id.filtered(
                 lambda s, a=alternator: s.state == "in_stock" and s.product_id == a.product_id
             )
+            chosen_engine = chosen_engine or oldest_lot(engine)
+            chosen_body = chosen_body or oldest_lot(body)
+            chosen_alternator = chosen_alternator or oldest_alternator(alternator)
+            taken_lots |= (chosen_engine or self.env["stock.lot"]) | (chosen_body or self.env["stock.lot"])
+            taken_alternators |= chosen_alternator
             lines.append(
                 Command.create(
                     {

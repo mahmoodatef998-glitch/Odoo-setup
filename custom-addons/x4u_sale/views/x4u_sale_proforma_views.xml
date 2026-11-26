@@ -165,6 +165,43 @@
         </field>
     </record>
 
+    <!-- The user, 2026-11-26 (fewer steps): the Accountant's one screen for a quotation sent to him. -->
+    <record id="x4u_sale_check_confirm_view_form" model="ir.ui.view">
+        <field name="name">x4u.sale.check.confirm.form</field>
+        <field name="model">x4u.sale.check.confirm</field>
+        <field name="arch" type="xml">
+            <form string="Check &amp; Confirm">
+                <p class="text-muted">
+                    Check the customer PO and the transfer receipt against the quotation. Confirm records the payment
+                    (when there is one), marks the PO as matching and confirms the order. If they don't match, close
+                    this and use PO Doesn't Match.
+                </p>
+                <group>
+                    <group string="Customer PO">
+                        <field name="order_id" force_save="1"/>
+                        <field name="partner_id"/>
+                        <field name="client_order_ref"/>
+                        <field name="lpo_date"/>
+                        <field name="amount_total"/>
+                        <field name="lpo_attachment_ids" widget="many2many_binary" readonly="1"/>
+                    </group>
+                    <group string="Payment">
+                        <field name="currency_id" invisible="1"/>
+                        <field name="company_id" invisible="1"/>
+                        <field name="payment_proof_ids" widget="many2many_binary" readonly="1"/>
+                        <field name="amount"/>
+                        <field name="journal_id" options="{'no_create': True}"/>
+                        <field name="date"/>
+                    </group>
+                </group>
+                <footer>
+                    <button name="action_confirm" type="object" string="Confirm" class="btn-primary" data-hotkey="q"/>
+                    <button string="Discard" special="cancel" data-hotkey="x"/>
+                </footer>
+            </form>
+        </field>
+    </record>
+
     <!-- Accounting › Customers: the quotations sent to the Accountant (v0.7 O2), and the orders
          to collect and to invoice. -->
     <record id="x4u_sale_order_accounting_action" model="ir.actions.act_window">

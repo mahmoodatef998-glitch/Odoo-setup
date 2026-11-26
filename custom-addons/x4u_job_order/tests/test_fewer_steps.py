@@ -1,0 +1,65 @@
+from odoo.exceptions import UserError
+from odoo.tests import new_test_user, tagged
+
+from .common import X4uJobOrderCommon
+
+
+@tagged("post_install", "-at_install")
+class TestFewerSteps(X4uJobOrderCommon):
+    """The user, 2026-11-26: fewer steps - the RFQs of a Job Order in one click, Deliver Materials
+    filled with serials, Finish of one generator straight to its screen."""
+
+    @classmethod
+    def setUpClass(cls):
+        super().setUpClass()
+        # Like the Purchasing roles of x4u_roles: they manage the material requests.
+        cls.buyer = new_test_user(
+            cls.env,
+            login="x4u_fewer_buyer",
+            groups="base.group_user,purchase.group_purchase_user,purchase_request.group_purchase_request_manager",
+        )
+
+    def _components(self, production):
+        moves = production.move_raw_ids
+        return {role: moves.filtered(lambda m, r=role: m.x4u_role == r).product_id for role in ("engine", "alternator", "body")}
+
+    def test_buy_missing_parts(self):
+        _order, production = self._sell()
+        job = production.x4u_job_id
+        lines = production._x4u_purchase_requests().line_ids
+        self.assertTrue(lines, "nothing in stock: the parts are requested")
+        for product in lines.product_id:
+            vendor = self.vendor_engine if product == self.engine else self.vendor_aqt
+            self.env["product.supplierinfo"].create({"partner_id": vendor.id, "product_tmpl_id": product.product_tmpl_id.id, "price": 100.0})
+        action = job.with_user(self.buyer).action_buy_missing_parts()
+        orders = self.env["purchase.order"].browse(action["domain"][0][2])
+        self.assertEqual(set(orders.partner_id.ids), {self.vendor_engine.id, self.vendor_aqt.id}, "one RFQ per vendor")
+        self.assertEqual(orders.order_line.product_id, lines.product_id)
+        lines.invalidate_recordset()
+        self.assertTrue(all(line.purchase_lines for line in lines))
+        with self.assertRaisesRegex(UserError, "no part left to buy"):
+            job.with_user(self.buyer).action_buy_missing_parts()
+
+    def test_buy_missing_parts_needs_a_vendor(self):
+        _order, production = self._sell()
+        with self.assertRaisesRegex(UserError, "No vendor"):
+            production.x4u_job_id.with_user(self.buyer).action_buy_missing_parts()
+
+    def test_deliver_materials_suggests_the_oldest_serials(self):
+        _order, probe = self._sell()
+        parts = self._components(probe)
+        for product in parts.values():
+            self._stock(product, 2)
+        _order, production = self._sell()
+        action = production.x4u_job_id.action_deliver_materials()
+        wizard = self.env[action["res_model"]].browse(action["res_id"])
+        line = wizard.line_ids.filtered(lambda l: l.production_id == production)
+        engines = self._lots(parts["engine"]).sorted("id")
+        self.assertEqual(line.engine_lot_id, engines[:1], "the oldest engine serial")
+        self.assertEqual(line.body_lot_id, self._lots(parts["body"]).sorted("id")[:1])
+        self.assertTrue(line.alternator_serial_id, "an alternator serial from the receipt")
+        wizard.action_confirm()
+        self.assertEqual(production.x4u_job_state, "material_delivered")
+        # One generator: Finish opens its own screen with the serials fitted.
+        res = production.x4u_job_id.with_user(self.operation).action_finish()
+        self.assertEqual(res["res_model"], "x4u.job.order.finish")

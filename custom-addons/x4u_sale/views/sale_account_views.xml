@@ -21,12 +21,10 @@
                 <button name="action_x4u_create_proforma" type="object" string="Create PI"
                         groups="sales_team.group_sale_salesman,account.group_account_invoice"
                         invisible="state in ('sent', 'cancel') or x4u_proforma_id or (state == 'draft' and x4u_po_check in ('to_check', 'match'))"/>
-                <button name="action_x4u_send_to_accountant" type="object" string="Send to Accountant"
-                        groups="sales_team.group_sale_salesman"
-                        invisible="state not in ('draft', 'sent') or x4u_po_check in ('to_check', 'match') or (state == 'sent' and (x4u_proforma_id or not x4u_advance_due))"/>
+                <!-- The user, 2026-11-26 (fewer steps): Send to Accountant makes the PI if there is none. -->
                 <button name="action_x4u_send_to_accountant" type="object" string="Send to Accountant" class="btn-primary"
                         groups="sales_team.group_sale_salesman"
-                        invisible="state != 'sent' or x4u_po_check in ('to_check', 'match') or (x4u_advance_due and not x4u_proforma_id)"/>
+                        invisible="state not in ('draft', 'sent') or x4u_po_check in ('to_check', 'match')"/>
             </xpath>
             <!-- Q8: Odoo's own "Send PRO-FORMA Invoice" sends the quotation as a pro-forma; the 4U PI is
                  the one PI of the order (Create PI): Odoo's stays hidden, so there is one kind of PI. -->
@@ -37,7 +35,11 @@
                 <attribute name="groups">base.group_no_one</attribute>
             </xpath>
             <xpath expr="//button[@id='create_invoice']" position="before">
-                <button name="action_x4u_po_match" type="object" string="PO Matches Quotation" class="btn-primary"
+                <!-- The user, 2026-11-26 (fewer steps): PO Matches, the payment and Confirm in one screen. -->
+                <button name="action_x4u_check_confirm" type="object" string="Check &amp; Confirm" class="btn-primary"
+                        groups="account.group_account_invoice"
+                        invisible="state not in ('draft', 'sent') or x4u_po_check != 'to_check'"/>
+                <button name="action_x4u_po_match" type="object" string="PO Matches Quotation"
                         groups="account.group_account_invoice"
                         invisible="state == 'cancel' or x4u_po_check != 'to_check'"/>
                 <button name="action_x4u_po_mismatch" type="object" string="PO Doesn't Match"
@@ -48,7 +50,7 @@
                         invisible="state == 'cancel' or (state != 'sale' and x4u_po_check not in ('to_check', 'match')) or (state == 'sale' and not x4u_amount_remaining)"/>
                 <button name="action_x4u_create_tax_invoice" type="object" string="Create Tax Invoice"
                         groups="account.group_account_invoice" invisible="state != 'sale' or invoice_status != 'to invoice'"
-                        confirm="Create the tax invoice of the whole order? Confirming it applies the payments received."/>
+                        confirm="Create and confirm the tax invoice of the whole order? It applies the payments received and delivers the generators still in stock."/>
             </xpath>
             <!-- O5: only the Accountant confirms, after PO Matches. -->
             <xpath expr="(//button[@name='action_confirm'])[1]" position="attributes">

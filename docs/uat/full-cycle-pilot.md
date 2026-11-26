@@ -51,9 +51,9 @@ Receive Products من الـ PO (أو Inventory ← Receipts ← **WH/IN/00001**
 - ✅ Audit Reports ← **General Ledger** ← حساب 134004: **68,600.00 Dr**، والـ Counterpart `212006 Goods Received Not Invoiced`.
 
 ## الخطوة 3: فاتورة المورد من الاستلام (Accountant)
-Accounting ← Vendors ← Bills ← New: المورد، Bill Date، خانة **Receipt** ← WH/IN/00001.
-- ✅ السطور اتملت لوحدها بالكميات اللي وصلت، والـ Bill Reference = `TEST-INV-001`، والـ Delivery Note في الـ chatter، والمهمة اتقفلت.
-- Confirm ← ✅ الرقم **`4U-BILL-2026-0001`**.
+الـ Bill اتعمل **مسودة لوحده** مع الـ Validate (2026-11-26): افتحه من الإشعار في الـ Inbox أو من المهمة **Vendor bill: WH/IN/00001** (أو Accounting ← Vendors ← Bills).
+- ✅ السطور فيه بالكميات اللي وصلت، والـ Bill Reference = `TEST-INV-001`، والـ Delivery Note في الـ chatter.
+- راجع الـ Bill Date ← **Confirm** ← ✅ الرقم **`4U-BILL-2026-0001`**، والمهمة اتقفلت.
 
 | القيد | مدين | دائن |
 |---|---|---|
@@ -74,14 +74,14 @@ Accounting ← Vendors ← Bills ← New: المورد، Bill Date، خانة **
 - 131211 بيفضل لحد ما الحركة تتطابق مع كشف البنك (Bank Reconciliation)، وساعتها بتتنقل لـ 131204 Bank.
 
 ## الخطوة 5: عرض السعر والـ PI (Salesperson)
-Sales ← New: **عميل تجربة**، المولد Cummins 100 kVA (دينامو 4U)، Supply: **Assemble**.
+Sales ← New: **عميل تجربة**، المولد Cummins 100 kVA (دينامو 4U)، ✅ Supply: **Assembly** لوحده.
 - السعر من الكتالوج بيتحط لوحده؛ **للتجربة غيّره لـ 60,000** (+ VAT 5% = **63,000**).
 - اطبع العرض ← ✅ بشكل QT 1112 (الـ letterhead، والـ datasheet، والـ Terms).
-- **Create PI** ← ركّب أمر الشراء بتاع العميل وإيصال التحويل ← Send to Accountant.
+- LPO Number و LPO Date و LPO File، وإيصال التحويل في Payment Receipts ← **Send to Accountant** ← ✅ الـ PI اتعمل معاه لوحده.
 - ✅ الرقم **S001**، ومفيش قيد لسه.
 
 ## الخطوة 6: دفعة العميل والتأكيد (Accountant)
-أوردر البيع ← **PO Matches** ← **Register Payment** 63,000 على Bank ← **Confirm** ← الـ Job Order بيتعمل (**MO001**).
+أوردر البيع ← **Check & Confirm**: شاشة واحدة فيها ملف الـ LPO وإيصال التحويل والمبلغ 63,000 على Bank ← **Confirm** ← الـ PO اتعلّم Matches، والدفعة اتسجلت، والأوردر اتأكد، والـ Job Order اتعمل (**MO001**). (لو الـ PO مش مطابق: **PO Doesn't Match**.)
 
 | القيد | مدين | دائن |
 |---|---|---|
@@ -90,10 +90,11 @@ Sales ← New: **عميل تجربة**، المولد Cummins 100 kVA (دينا�
 - ✅ Partner Reports ← **Customer Ledger**: عميل تجربة **63,000.00 Cr** (دفعة مقدمة لسه ما اتفوترتش).
 
 ## الخطوة 7: صرف الخامات (Operation Manager / Storekeeper)
-Job Order MO001 ← تابة Serial ← **Deliver Materials**: الماتور **`ENG-T-0002`** (اللي بـ 23,000)، والدينامو، والـ Canopy `CAN-T-0001`.
+Job Order MO001 ← **Deliver Materials**: ✅ السيريالات متختارة لوحدها، الأقدم في المخزن (الماتور `ENG-T-0001`). **للتجربة غيّر الماتور لـ `ENG-T-0002`** (اللي بـ 23,000) علشان القيود تطلع زي الجدول ← Confirm.
+- لو قطعة ناقصة من المخزن: **Buy Missing Parts** على الـ Job Order (Purchasing) بيعمل RFQ لكل مورد بضغطة.
 
 ## الخطوة 8: المولد خلص (Operation Manager)
-Job Order ← **Finish** ← ✅ سيريال المولد = سيريال الماتور `ENG-T-0002`.
+Job Order ← **Finish** ← بيفتح شاشة المولد على طول ← Finish Job Order ← ✅ سيريال المولد = سيريال الماتور `ENG-T-0002`.
 
 | القيد | مدين | دائن |
 |---|---|---|
@@ -105,7 +106,7 @@ Job Order ← **Finish** ← ✅ سيريال المولد = سيريال الم
 - ✅ مفيش ولا سطر على 421001 Cost Of Sales لسه.
 
 ## الخطوة 9: الفاتورة الضريبية والتسليم (Accountant)
-أوردر البيع ← **Create Tax Invoice** ← Confirm ← ✅ الرقم **`4U-INV-2026-0001`**، وتحت اسم العميل **TRN: 100987654300003**، والـ Confirm سلّم المولد (**WH/OUT/00001**).
+أوردر البيع ← **Create Tax Invoice** ← OK (بضغطة واحدة بتتعمل وتتأكد) ← ✅ الرقم **`4U-INV-2026-0001`**، وتحت اسم العميل **TRN: 100987654300003**، والـ Confirm سلّم المولد (**WH/OUT/00001**).
 
 | القيد | مدين | دائن |
 |---|---|---|

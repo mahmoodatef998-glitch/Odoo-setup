@@ -105,8 +105,8 @@ class TestOrderDelivery(X4uJobOrderCommon):
         action = order.action_x4u_create_tax_invoice()
         invoice = self.env["account.move"].browse(action["res_id"])
         self.assertEqual(invoice.amount_total, 21000.0, "every generator on the tax invoice")
-        self.assertEqual(order.order_line.qty_delivered, 1.0, "nothing more leaves before the Confirm")
-        invoice.action_post()
+        # The user, 2026-11-26 (fewer steps): created and confirmed in one click.
+        self.assertEqual(invoice.state, "posted")
         self.env.invalidate_all()
         self.assertEqual(order.order_line.qty_delivered, 2.0, "the last generator left with the tax invoice")
         self.assertEqual(last.x4u_job_state, "delivered")

@@ -115,10 +115,10 @@ class TestSalePayments(TransactionCase):
         return order.with_env(self.env)
 
     def _tax_invoice(self, order):
-        """The Accountant: Create Tax Invoice on the order, then Confirm."""
+        """The Accountant: Create Tax Invoice on the order - created and confirmed in one click (2026-11-26)."""
         action = order.with_user(self.accountant).action_x4u_create_tax_invoice()
         invoice = self.env["account.move"].with_user(self.accountant).browse(action["res_id"])
-        invoice.action_post()
+        self.assertEqual(invoice.state, "posted", "one click: the tax invoice is confirmed")
         self.env.invalidate_all()
         return invoice
 
@@ -152,10 +152,7 @@ class TestSalePayments(TransactionCase):
         self._attach_po(order)
         with self.assertRaisesRegex(UserError, "first payment"):
             order.action_x4u_send_to_accountant()
-        # Q3: the PI goes to the customer before he pays.
-        with self.assertRaisesRegex(UserError, "Create PI"):
-            order.action_x4u_send_to_accountant()
-        self._pi(order)
+        self.assertFalse(order.x4u_proforma_id, "a refused send leaves no PI behind")
         # A file uploaded before it was linked belongs to the order: the Accountant opens it.
         loose = self.env["ir.attachment"].with_user(self.salesperson).create(
             {"name": "Transfer-1.pdf", "datas": base64.b64encode(b"%PDF-1.4")}
@@ -164,6 +161,8 @@ class TestSalePayments(TransactionCase):
         self.assertEqual(loose.with_user(self.accountant).read(["name"])[0]["name"], "Transfer-1.pdf")
         order.action_x4u_send_to_accountant()
         self.assertEqual((order.state, order.x4u_po_check), ("draft", "to_check"))
+        # The user, 2026-11-26 (fewer steps): the PI comes with Send to Accountant.
+        self.assertEqual(order.x4u_proforma_id.state, "issued")
         self.assertEqual(self._todo(order, self.check_type).user_id, self.accountant)
         # The Salesperson does not confirm any more, nor changes what the Accountant checks.
         with self.assertRaises(AccessError):
@@ -229,6 +228,39 @@ class TestSalePayments(TransactionCase):
         self.assertFalse(order.with_env(self.env).x4u_proforma_ids)
 
     # Q1-Q4: the Salesperson makes the one PI of the order, before the payment; it freezes the order
+    # The user, 2026-11-26 (fewer steps): Check & Confirm - PO Matches, the first payment and Confirm
+    # in one screen for the Accountant
+    def test_check_and_confirm(self):
+        order = self._send()
+        wizard_action = order.with_user(self.accountant).action_x4u_check_confirm()
+        wizard = self.env["x4u.sale.check.confirm"].with_user(self.accountant).browse(wizard_action["res_id"])
+        self.assertEqual(wizard.amount, order._x4u_next_amount(), "the first payment of the schedule")
+        self.assertEqual(wizard.journal_id.type, "bank")
+        self.assertEqual(wizard.lpo_attachment_ids.mapped("name"), ["PO-123.pdf"])
+        wizard.action_confirm()
+        self.env.invalidate_all()
+        self.assertEqual((order.state, order.x4u_po_check), ("sale", "match"))
+        payment = order.sudo().x4u_advance_payment_ids
+        self.assertEqual(len(payment), 1)
+        self.assertEqual(payment.amount, wizard.amount)
+        self.assertEqual(payment.x4u_proforma_id, order.x4u_proforma_id)
+        self.assertNotEqual(payment.state, "draft")
+        self.assertFalse(self._todo(order, self.check_type), "the check is done")
+        with self.assertRaisesRegex(UserError, "not waiting for the Accountant"):
+            order.with_user(self.accountant).action_x4u_check_confirm()
+
+    def test_check_and_confirm_already_paid(self):
+        order = self._send()
+        self._pay(order)
+        wizard_action = order.with_user(self.accountant).action_x4u_check_confirm()
+        wizard = self.env["x4u.sale.check.confirm"].with_user(self.accountant).browse(wizard_action["res_id"])
+        self.assertEqual(wizard.amount, 0.0, "the payment is already recorded")
+        wizard.action_confirm()
+        self.assertEqual(order.state, "sale")
+        self.assertEqual(len(order.sudo().x4u_advance_payment_ids), 1, "no second payment")
+        with self.assertRaises(AccessError):
+            order.with_user(self.salesperson).action_x4u_check_confirm()
+
     def test_salesperson_makes_the_pi(self):
         order = self._quote(self.env.ref("x4u_setup_base.payment_term_50_50"))
         proforma = self._pi(order)

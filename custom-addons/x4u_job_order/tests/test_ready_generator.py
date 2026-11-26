@@ -158,7 +158,9 @@ class TestReadyGenerator(X4uJobOrderCommon):
             }
         )
         line = order.order_line
-        self.assertFalse(line.x4u_supply, "nothing chosen for the Salesperson")
+        # The user, 2026-11-26 (fewer steps): a generator is Assembly unless the Salesperson changes it.
+        self.assertEqual(line.x4u_supply, "assemble")
+        line.x4u_supply = False
         attachment = self.env["ir.attachment"].create(
             {"name": "PO-77.pdf", "datas": "JVBERi0xLjQ=", "res_model": "sale.order", "res_id": order.id}
         )

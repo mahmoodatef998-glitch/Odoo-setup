@@ -7,6 +7,9 @@
         <field name="arch" type="xml">
             <form string="Job Order" create="0" delete="0">
                 <header>
+                    <!-- The user, 2026-11-26: the RFQs of the missing parts in one click, one per vendor -->
+                    <button name="action_buy_missing_parts" type="object" string="Buy Missing Parts"
+                            groups="purchase.group_purchase_user" invisible="not can_deliver"/>
                     <button name="action_deliver_materials" type="object" string="Deliver Materials" class="oe_highlight"
                             groups="stock.group_stock_user" invisible="not can_deliver"/>
                     <button name="action_finish" type="object" string="Finish" class="oe_highlight"

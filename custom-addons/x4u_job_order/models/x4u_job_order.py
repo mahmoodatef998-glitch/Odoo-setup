@@ -253,7 +253,64 @@ class X4uJobOrder(models.Model):
         productions = self.production_ids.filtered(lambda p: p.x4u_job_state == "material_delivered")
         if not productions:
             raise UserError(_("%s has no generator with all its materials delivered.", self.name))
+        if len(productions) == 1:
+            # The user, 2026-11-26 (fewer steps): one generator opens its own Finish Job Order.
+            return productions.action_x4u_finish()
         return self.env["x4u.job.order.finish.all"]._x4u_action(productions)
+
+    def action_buy_missing_parts(self):
+        """The user, 2026-11-26 (fewer steps): Purchasing makes the RFQs of the parts this Job Order
+        still waits for in one click, one per vendor (the vendor on the part). A part without a
+        vendor stays in its material request."""
+        self.ensure_one()
+        lines = self.env["purchase.request.line"].sudo().search(
+            [("move_dest_ids", "in", self.production_ids._x4u_component_moves().ids)]
+        ).filtered(
+            lambda line: not line.cancelled and not line.purchase_lines
+            and line.request_id.state in ("approved", "in_progress")
+        )
+        if not lines:
+            raise UserError(_("%s has no part left to buy: its material requests are bought, closed or not approved.", self.name))
+        by_vendor = {}
+        no_vendor = self.env["purchase.request.line"]
+        for line in lines:
+            seller = line.product_id.with_company(line.company_id)._select_seller(quantity=line.product_qty, uom_id=line.product_uom_id)
+            if seller:
+                by_vendor.setdefault(seller.partner_id, self.env["purchase.request.line"])
+                by_vendor[seller.partner_id] |= line
+            else:
+                no_vendor |= line
+        if not by_vendor:
+            raise UserError(
+                _(
+                    "No vendor on %s: set it on the part (Purchase tab) or make the RFQ from the material request.",
+                    ", ".join(no_vendor.product_id.mapped("display_name")),
+                )
+            )
+        Wizard = self.env["purchase.request.line.make.purchase.order"]
+        for vendor, vendor_lines in by_vendor.items():
+            wizard = Wizard.with_context(active_model="purchase.request.line", active_ids=vendor_lines.ids).create(
+                {"supplier_id": vendor.id}
+            )
+            wizard.make_purchase_order()
+        lines.invalidate_recordset(["purchase_lines"])
+        orders = lines.purchase_lines.order_id
+        if no_vendor:
+            self.message_post(
+                body=_(
+                    "Bought %(orders)s. No vendor on %(parts)s: their RFQ is made from the material request.",
+                    orders=", ".join(orders.mapped("name")),
+                    parts=", ".join(no_vendor.product_id.mapped("display_name")),
+                )
+            )
+        return {
+            "type": "ir.actions.act_window",
+            "name": _("RFQs of %s", self.name),
+            "res_model": "purchase.order",
+            "view_mode": "list,form",
+            "domain": [("id", "in", orders.ids)],
+            "context": {"create": False},
+        }
 
     def action_ship(self):
         """Storekeeper: Deliver Generators, the ones that leave now (L2)."""

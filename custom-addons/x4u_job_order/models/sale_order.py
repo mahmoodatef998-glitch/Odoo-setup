@@ -55,10 +55,10 @@ class SaleOrder(models.Model):
             return _("%s is a quotation of options: press Choose on the option the customer ordered.", self.name)
         return ""
 
-    def _x4u_send_problems(self):
+    def _x4u_send_problems(self, pi_comes_with_it=False):
         """x4u_sale spec v0.7 O1: every generator says Assembly or Ready Product, nobody opens an
         assembly by mistake."""
-        problems = super()._x4u_send_problems()
+        problems = super()._x4u_send_problems(pi_comes_with_it=pi_comes_with_it)
         missing = self.order_line.filtered(lambda line: line.x4u_is_generator and not line.x4u_supply)
         if missing:
             problems.append(
@@ -334,6 +334,21 @@ class SaleOrderLine(models.Model):
             self.price_unit += self.x4u_extras_price
             self.technical_price_unit = self.price_unit
         return res
+
+    # The user, 2026-11-26 (fewer steps): a generator is assembled unless the Salesperson picks
+    # Ready Product (before, Supply had to be chosen on every line).
+    @api.onchange("product_id")
+    def _onchange_x4u_supply_default(self):
+        if self.x4u_is_generator and not self.x4u_supply:
+            self.x4u_supply = "assemble"
+
+    @api.model_create_multi
+    def create(self, vals_list):
+        for vals in vals_list:
+            if not vals.get("x4u_supply") and vals.get("product_id") and not vals.get("display_type"):
+                if self.env["product.product"].browse(vals["product_id"]).x4u_is_generator:
+                    vals["x4u_supply"] = "assemble"
+        return super().create(vals_list)
 
     @api.onchange("x4u_extras_price")
     def _onchange_x4u_extras_price(self):

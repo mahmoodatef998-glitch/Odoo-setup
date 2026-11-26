@@ -320,12 +320,12 @@ class SaleOrder(models.Model):
     # confirms (O1-O5, Q3)
     # ------------------------------------------------------------------
 
-    def _x4u_send_problems(self):
+    def _x4u_send_problems(self, pi_comes_with_it=False):
         """What the order still needs before the Accountant gets it (O1, O2). x4u_job_order adds
-        the Supply of each generator."""
+        the Supply of each generator. Send to Accountant makes the PI itself (pi_comes_with_it)."""
         self.ensure_one()
         problems = []
-        if self.x4u_advance_due and not self._x4u_active_proforma():
+        if self.x4u_advance_due and not self._x4u_active_proforma() and not pi_comes_with_it:
             problems.append(_("the PI (Create PI)"))
         if not self.client_order_ref:
             problems.append(_("the customer PO number (LPO Number)"))
@@ -343,11 +343,15 @@ class SaleOrder(models.Model):
             if order.state not in ("draft", "sent") or order.x4u_po_check in ("to_check", "match"):
                 raise UserError(_("%s is not a quotation to send to the Accountant.", order.name))
             order._x4u_check_schedule_total()
-            problems = order._x4u_send_problems()
+            problems = order._x4u_send_problems(pi_comes_with_it=True)
             if problems:
                 raise UserError(
                     _("%(order)s needs before it goes to the Accountant:\n- %(list)s", order=order.name, list="\n- ".join(problems))
                 )
+            # The user, 2026-11-26 (fewer steps): the PI comes with it, no separate Create PI - made
+            # only once everything else is there, so a refused send leaves no PI behind.
+            if order.x4u_advance_due and not order._x4u_active_proforma():
+                order.action_x4u_create_proforma()
         self.sudo().write({"x4u_po_check": "to_check", "x4u_po_mismatch_reason": False})
         self.sudo().activity_feedback([ACTIVITY_PO_FIX], feedback=_("Sent back to the Accountant"))
         self._x4u_ask_po_check()
@@ -401,6 +405,14 @@ class SaleOrder(models.Model):
         self.sudo().activity_unlink([ACTIVITY_PO_FIX])
         for order in self:
             order.message_post(body=_("Customer PO checked: it matches the quotation."))
+
+    def action_x4u_check_confirm(self):
+        """The user, 2026-11-26 (fewer steps): PO Matches, the payment and Confirm in one screen."""
+        self.ensure_one()
+        self._x4u_check_accountant()
+        if self.state not in ("draft", "sent") or self.x4u_po_check != "to_check":
+            raise UserError(_("%s is not waiting for the Accountant.", self.name))
+        return self.env["x4u.sale.check.confirm"]._x4u_action(self)
 
     def action_x4u_po_mismatch(self):
         self.ensure_one()
@@ -524,6 +536,9 @@ class SaleOrder(models.Model):
         ).create({"advance_payment_method": "delivered"}).create_invoices()
         self.invalidate_recordset(["invoice_ids"])
         invoice = self.invoice_ids - before
+        # The user, 2026-11-26 (fewer steps): created and confirmed in one click; confirming it applies
+        # the payments (and, with x4u_job_order, delivers the generators still in stock).
+        invoice.filtered(lambda move: move.state == "draft").action_post()
         return {
             "type": "ir.actions.act_window",
             "name": _("Tax Invoice"),

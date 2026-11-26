@@ -1,6 +1,6 @@
 from markupsafe import Markup
 
-from odoo import _, api, fields, models
+from odoo import Command, _, api, fields, models
 from odoo.exceptions import UserError
 
 
@@ -10,12 +10,16 @@ class ResCompany(models.Model):
     # UAT Phase 2.2 (the user, 2026-11-25: "Required"): a receipt from a vendor is validated with the
     # vendor's signed Delivery Note attached. On for 4U by the migration; off on a new database.
     x4u_receipt_dn_required = fields.Boolean(string="Delivery Note Required on Receipts")
+    # The user, 2026-11-26 (fewer steps): the vendor bill is drafted when the goods come in; the
+    # Accountant checks it and confirms. On for 4U by the migration; off on a new database.
+    x4u_receipt_draft_bill = fields.Boolean(string="Draft Vendor Bill at the Receipt")
 
 
 class ResConfigSettings(models.TransientModel):
     _inherit = "res.config.settings"
 
     x4u_receipt_dn_required = fields.Boolean(related="company_id.x4u_receipt_dn_required", readonly=False)
+    x4u_receipt_draft_bill = fields.Boolean(related="company_id.x4u_receipt_draft_bill", readonly=False)
 
 
 class StockPicking(models.Model):
@@ -89,25 +93,38 @@ class StockPicking(models.Model):
             order = picking.purchase_id
             if not order:
                 continue
+            bill = picking._x4u_draft_bill() if picking.company_id.x4u_receipt_draft_bill else self.env["account.move"]
             items = Markup("").join(
                 Markup("<li>%s: <b>%s</b>%s</li>") % (
                     product, quantity, Markup(" · SN %s") % ", ".join(serials) if serials else "",
                 )
                 for product, quantity, serials in picking._x4u_received_lines()
             )
+            if bill:
+                todo = Markup("<p>Draft bill %s is ready with these quantities: check it and Confirm.</p>") % bill._get_html_link()
+            else:
+                todo = Markup("<p>Record the vendor bill: Vendor Bill &gt; Receipt %s.</p>") % picking.name
             body = Markup(
                 "<p><b>Goods received: %(receipt)s</b> from %(vendor)s (PO %(order)s)<br/>"
-                "Vendor invoice no.: <b>%(ref)s</b></p><ul>%(items)s</ul>"
-                "<p>Record the vendor bill: Vendor Bill &gt; Receipt %(receipt)s.</p>"
+                "Vendor invoice no.: <b>%(ref)s</b></p><ul>%(items)s</ul>%(todo)s"
             ) % {
                 "receipt": picking.name, "vendor": picking.partner_id.commercial_partner_id.display_name,
-                "order": order.name, "ref": picking.x4u_vendor_ref or "-", "items": items,
+                "order": order.name, "ref": picking.x4u_vendor_ref or "-", "items": items, "todo": todo,
             }
             copies = [a.copy({"res_model": "purchase.order", "res_id": order.id}).id for a in picking.x4u_delivery_note_ids]
             order.message_post(
                 body=body, partner_ids=user.partner_id.ids, subtype_xmlid="mail.mt_comment",
                 message_type="comment", attachment_ids=copies,
             )
+            if bill:
+                bill.activity_schedule(
+                    "mail.mail_activity_data_todo",
+                    user_id=user.id,
+                    summary=_("Vendor bill: %s", picking.name),
+                    note=_("Drafted from %(receipt)s (%(vendor)s): check the quantities, prices and Bill Date, then Confirm.",
+                           receipt=picking.name, vendor=picking.partner_id.display_name),
+                )
+                continue
             order.activity_schedule(
                 "mail.mail_activity_data_todo",
                 user_id=user.id,
@@ -115,3 +132,35 @@ class StockPicking(models.Model):
                 note=_("%(receipt)s came in from %(vendor)s (Delivery Note attached to the receipt). Record the vendor bill: "
                        "Vendor Bill > Receipt %(receipt)s.", receipt=picking.name, vendor=picking.partner_id.display_name),
             )
+
+    def _x4u_draft_bill(self):
+        """The user, 2026-11-26: the draft vendor bill of what came in on this receipt - its lines
+        are the purchase order lines with the quantities received, the vendor's invoice number is its
+        reference, the Delivery Note and the PO's documents are attached (as with Vendor Bill > Receipt)."""
+        self.ensure_one()
+        order = self.purchase_id
+        moves = self.move_ids.filtered(lambda m: m.state == "done" and m.purchase_line_id and m.quantity)
+        if not moves or self.x4u_billed:
+            return self.env["account.move"]
+        Move = self.env["account.move"].sudo().with_company(self.company_id).with_context(default_move_type="in_invoice")
+        bill = Move.create(
+            {
+                "move_type": "in_invoice",
+                "partner_id": order.partner_id.address_get(["invoice"])["invoice"],
+                "x4u_receipt_id": self.id,
+                "ref": self.x4u_vendor_ref or False,
+                "invoice_origin": order.name,
+                "currency_id": order.currency_id.id,
+                "invoice_payment_term_id": order.payment_term_id.id,
+                "fiscal_position_id": order.fiscal_position_id.id,
+                "invoice_date": fields.Date.context_today(self),
+            }
+        )
+        lines = []
+        for move in moves:
+            line = move.purchase_line_id
+            vals = line._prepare_account_move_line(bill)
+            vals["quantity"] = move.product_uom._compute_quantity(move.quantity, line.product_uom)
+            lines.append(Command.create(vals))
+        bill.write({"invoice_line_ids": lines})
+        return bill
