@@ -326,7 +326,7 @@ class SaleOrder(models.Model):
         self.ensure_one()
         problems = []
         if self.x4u_advance_due and not self._x4u_active_proforma() and not pi_comes_with_it:
-            problems.append(_("the PI (Create PI)"))
+            problems.append(_("the PI (Send to Accountant makes it)"))
         if not self.client_order_ref:
             problems.append(_("the customer PO number (LPO Number)"))
         if not self.x4u_lpo_date:
