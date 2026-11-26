@@ -107,6 +107,44 @@ class ProductTemplate(models.Model):
         "product.product", string="CKD Parts", compute="_compute_x4u_ckd_product_ids",
     )
 
+    # The user, 2026-11-26: find a product by any of its serials, and see on the product how many
+    # serials it has in stock and which (an alternator's are its Alternator Serials).
+    x4u_serial_search = fields.Char(
+        string="Serial Number", compute="_compute_x4u_serials", search="_search_x4u_serial",
+        help="Find the product that has this serial (engine, CKD, body, generator or alternator).",
+    )
+    x4u_has_serials = fields.Boolean(compute="_compute_x4u_serials")
+    x4u_serial_count = fields.Integer(string="Serials in Stock", compute="_compute_x4u_serials")
+    x4u_serial_lot_ids = fields.Many2many("stock.lot", string="Serials", compute="_compute_x4u_serials")
+    x4u_serial_alternator_ids = fields.Many2many(
+        "x4u.alternator.serial", string="Alternator Serials", compute="_compute_x4u_serials"
+    )
+
+    @api.depends("tracking", "categ_id", "product_variant_ids")
+    def _compute_x4u_serials(self):
+        Lot = self.env["stock.lot"]
+        Alternator = self.env["x4u.alternator.serial"]
+        for template in self:
+            variants = template.product_variant_ids
+            is_alternator = bool(variants) and part_role(self.env, variants[:1]) == "alternator"
+            template.x4u_serial_search = False
+            template.x4u_has_serials = template.tracking == "serial" or is_alternator
+            lots = Lot.search([("product_id", "in", variants.ids)]) if template.tracking == "serial" and variants else Lot
+            alternators = Alternator.search([("product_id", "in", variants.ids)]) if is_alternator else Alternator
+            # In stock first, the oldest first.
+            template.x4u_serial_lot_ids = lots.sorted(lambda lot: (lot.product_qty <= 0, lot.id))
+            template.x4u_serial_alternator_ids = alternators.sorted(lambda s: (s.state != "in_stock", s.id))
+            template.x4u_serial_count = len(lots.filtered(lambda lot: lot.product_qty > 0)) + len(
+                alternators.filtered(lambda s: s.state == "in_stock")
+            )
+
+    def _search_x4u_serial(self, operator, value):
+        if operator not in ("ilike", "=", "=ilike", "like"):
+            operator = "ilike"
+        lots = self.env["stock.lot"].sudo().search([("name", operator, value)])
+        alternators = self.env["x4u.alternator.serial"].sudo().search([("name", operator, value)])
+        return [("product_variant_ids", "in", (lots.product_id | alternators.product_id).ids)]
+
     @api.depends("product_variant_ids.x4u_ckd_product_id")
     def _compute_x4u_ckd_product_ids(self):
         for template in self:

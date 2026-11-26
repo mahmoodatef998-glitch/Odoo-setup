@@ -87,6 +87,25 @@ class TestFewerSteps(X4uJobOrderCommon):
         with self.assertRaisesRegex(UserError, "confirmed"):
             order.order_line.write({"x4u_ckd_alternator_id": self.alt_aqt.id})
 
+    # The user, 2026-11-26: a product found by its serial; its tab says how many serials are in stock
+    def test_serials_on_the_product(self):
+        self._stock(self.engine, 2)
+        self._stock(self.alt_stamford, 1)
+        engine = self.engine.product_tmpl_id
+        lots = self._lots(self.engine)
+        self.assertTrue(engine.x4u_has_serials)
+        self.assertEqual(engine.x4u_serial_count, 2)
+        self.assertEqual(engine.x4u_serial_lot_ids, lots)
+        Template = self.env["product.template"]
+        self.assertEqual(Template.search([("x4u_serial_search", "ilike", lots[:1].name)]), engine)
+        alternator = self.alt_stamford.product_tmpl_id
+        serial = self.env["x4u.alternator.serial"].search([("product_id", "=", self.alt_stamford.id)])
+        self.assertTrue(alternator.x4u_has_serials)
+        self.assertEqual(alternator.x4u_serial_count, 1)
+        self.assertEqual(alternator.x4u_serial_alternator_ids, serial)
+        self.assertEqual(Template.search([("x4u_serial_search", "ilike", serial.name)]), alternator)
+        self.assertFalse(Template.search([("x4u_serial_search", "ilike", "NO-SUCH-SERIAL-77")]))
+
     def test_buy_missing_parts(self):
         _order, production = self._sell()
         job = production.x4u_job_id
