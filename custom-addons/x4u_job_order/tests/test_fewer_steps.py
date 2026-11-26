@@ -1,3 +1,4 @@
+from odoo import Command
 from odoo.exceptions import UserError
 from odoo.tests import new_test_user, tagged
 
@@ -44,6 +45,47 @@ class TestFewerSteps(X4uJobOrderCommon):
         requested = production._x4u_purchase_requests().line_ids.filtered(lambda line: not line.cancelled).product_id
         self.assertIn(ckd, requested, "the material request asks for the CKD")
         self.assertNotIn(self.engine, requested)
+
+    # The user, 2026-11-26: on the PO - the engine, CKD ticked, its alternator: the line becomes the
+    # full CKD at the same price, received with the engine's serial
+    def test_ckd_on_the_purchase_order(self):
+        order = self.env["purchase.order"].create(
+            {
+                "partner_id": self.vendor_engine.id,
+                "order_line": [Command.create({"product_id": self.engine.id, "product_qty": 1, "price_unit": 31000.0})],
+            }
+        )
+        line = order.order_line
+        self.assertTrue(line.x4u_is_engine)
+        line.write({"x4u_ckd": True, "x4u_ckd_alternator_id": self.alt_stamford.id})
+        ckd = line.product_id
+        self.assertEqual(ckd.categ_id, self.env.ref("x4u_setup_base.categ_ckd"))
+        self.assertIn(self.engine.name, ckd.name)
+        self.assertIn(self.alt_stamford.name, ckd.name)
+        self.assertEqual(line.price_unit, 31000.0, "the price stays")
+        again = self.env["purchase.order"].create(
+            {
+                "partner_id": self.vendor_engine.id,
+                "order_line": [Command.create({
+                    "product_id": self.engine.id, "product_qty": 1, "price_unit": 30000.0,
+                    "x4u_ckd": True, "x4u_ckd_alternator_id": self.alt_stamford.id,
+                })],
+            }
+        )
+        self.assertEqual(again.order_line.product_id, ckd, "the same CKD card")
+        again.order_line.write({"x4u_ckd_alternator_id": self.alt_aqt.id})
+        self.assertIn(self.alt_aqt.name, again.order_line.product_id.name, "another alternator: that pair's CKD")
+        self.assertEqual(again.order_line.price_unit, 30000.0)
+        again.order_line.write({"x4u_ckd": False})
+        self.assertEqual(again.order_line.product_id, self.engine, "unticked: the engine again")
+        order.button_confirm()
+        receipt = order.picking_ids
+        receipt.move_ids.x4u_serials = "X4U-CKD-E1"
+        receipt.button_validate()
+        self.assertEqual(receipt.state, "done")
+        self.assertEqual(self._lots(ckd).mapped("name"), ["X4U-CKD-E1"], "one serial, the engine's")
+        with self.assertRaisesRegex(UserError, "confirmed"):
+            order.order_line.write({"x4u_ckd_alternator_id": self.alt_aqt.id})
 
     def test_buy_missing_parts(self):
         _order, production = self._sell()

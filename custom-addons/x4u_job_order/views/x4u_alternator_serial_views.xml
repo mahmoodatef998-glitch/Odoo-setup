@@ -104,6 +104,15 @@
             <xpath expr="//field[@name='order_line']/list/field[@name='product_qty']" position="before">
                 <field name="x4u_needed_qty" optional="show" readonly="1"/>
             </xpath>
+            <!-- The user, 2026-11-26: a full CKD - the engine, CKD ticked, then its alternator -->
+            <xpath expr="//field[@name='order_line']/list/field[@name='product_id']" position="after">
+                <field name="x4u_is_engine" column_invisible="True"/>
+                <field name="x4u_ckd" optional="show" invisible="not x4u_is_engine and not x4u_ckd"
+                       readonly="parent.state not in ('draft', 'sent', 'to approve')"/>
+                <field name="x4u_ckd_alternator_id" optional="show" invisible="not x4u_ckd"
+                       required="x4u_ckd and x4u_is_engine" options="{'no_create': True}"
+                       readonly="parent.state not in ('draft', 'sent', 'to approve')"/>
+            </xpath>
         </field>
     </record>
 </odoo>

@@ -21,6 +21,34 @@ class ProductProduct(models.Model):
         help="The CKD of this model's engine and alternator, made when the model is ticked Built from CKD.",
     )
 
+    @api.model
+    def _x4u_ckd_for(self, engine, alternator):
+        """The full CKD card of this engine + alternator (CKD-<engine>-<alternator>, category CKD, by
+        serial = the engine's, the engine's vendor and routes), made the first time it is needed."""
+
+        def short(product, prefix):
+            code = product.default_code or product.name
+            return code[len(prefix):] if code.startswith(prefix) else code
+
+        Product = self.sudo()
+        code = "CKD-%s-%s" % (short(engine, "ENG-"), short(alternator, "ALT-"))
+        ckd = Product.with_context(active_test=False).search([("default_code", "=", code)], limit=1)
+        if not ckd:
+            seller = engine.seller_ids[:1]
+            ckd = Product.create(
+                {
+                    "name": "CKD %s + %s" % (engine.name, alternator.name),
+                    "default_code": code,
+                    "categ_id": self.env.ref("x4u_setup_base.categ_ckd").id,
+                    "is_storable": True,
+                    "tracking": "serial",
+                    "purchase_request": engine.purchase_request,
+                    "route_ids": [Command.set(engine.route_ids.ids)],
+                    "seller_ids": [Command.create({"partner_id": seller.partner_id.id})] if seller else [],
+                }
+            )
+        return ckd
+
     def _x4u_order_needs(self, exclude_lines=None):
         """Spec v0.15 B1: (what the open Job Orders still need, free in WH/Stock, coming in), in the
         product's unit. The need: Pick Components of open Job Orders not delivered yet, and the ready
@@ -94,13 +122,6 @@ class ProductTemplate(models.Model):
         """The CKD card of each variant: its engine + its alternator from the bill of materials, as
         one product of the CKD category (by serial = the engine's), with the engine's vendor and
         routes. One card per engine + alternator pair, shared by the models that have it."""
-        categ = self.env.ref("x4u_setup_base.categ_ckd")
-        Product = self.env["product.product"].sudo()
-
-        def short(product, prefix):
-            code = product.default_code or product.name
-            return code[len(prefix):] if code.startswith(prefix) else code
-
         for variant in self.sudo().product_variant_ids:
             bom = self.env["mrp.bom"].sudo()._bom_find(variant, company_id=self.env.company.id).get(variant)
             if not bom:
@@ -110,23 +131,7 @@ class ProductTemplate(models.Model):
             alternator = parts.filtered(lambda p: part_role(self.env, p) == "alternator")[:1]
             if not engine or not alternator:
                 continue
-            code = "CKD-%s-%s" % (short(engine, "ENG-"), short(alternator, "ALT-"))
-            ckd = Product.with_context(active_test=False).search([("default_code", "=", code)], limit=1)
-            if not ckd:
-                seller = engine.seller_ids[:1]
-                ckd = Product.create(
-                    {
-                        "name": "CKD %s + %s" % (engine.name, alternator.name),
-                        "default_code": code,
-                        "categ_id": categ.id,
-                        "is_storable": True,
-                        "tracking": "serial",
-                        "purchase_request": engine.purchase_request,
-                        "route_ids": [Command.set(engine.route_ids.ids)],
-                        "seller_ids": [Command.create({"partner_id": seller.partner_id.id})] if seller else [],
-                    }
-                )
-            variant.x4u_ckd_product_id = ckd
+            variant.x4u_ckd_product_id = self.env["product.product"]._x4u_ckd_for(engine, alternator)
 
     @api.model
     def _x4u_serial_categories(self):
