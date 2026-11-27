@@ -69,6 +69,9 @@
         <field name="parent_id" ref="menu_x4u_audit_reports"/>
         <field name="sequence">10</field>
     </record>
+    <!-- The accounting team, 2026-11-27: the ledger grouped by account, a click opens its entries. -->
+    <menuitem id="menu_x4u_ledger_by_account" parent="menu_x4u_audit_reports" action="x4u_ledger_by_account_action"
+              sequence="12"/>
     <record id="account_financial_report.menu_trial_balance_wizard" model="ir.ui.menu">
         <field name="parent_id" ref="menu_x4u_audit_reports"/>
         <field name="sequence">20</field>

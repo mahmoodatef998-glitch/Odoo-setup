@@ -12,6 +12,8 @@
         <field name="search_view_id" ref="account_due_list.view_payments_filter"/>
         <field name="domain">[('account_id.account_type', '=', 'asset_receivable'), ('parent_state', '=', 'posted'),
             ('reconciled', '=', False), ('balance', '!=', 0)]</field>
+        <!-- The accounting team, 2026-11-27: a line per customer with its total, expanding to its invoices. -->
+        <field name="context">{'group_by': ['partner_id']}</field>
         <field name="help" type="html">
             <p class="o_view_nocontent_smiling_face">No customer amounts due</p>
             <p>Every open customer invoice and unapplied payment, with its due date and days overdue.</p>
@@ -29,6 +31,8 @@
         <field name="search_view_id" ref="account_due_list.view_payments_filter"/>
         <field name="domain">[('account_id.account_type', '=', 'liability_payable'), ('parent_state', '=', 'posted'),
             ('reconciled', '=', False), ('balance', '!=', 0)]</field>
+        <!-- The accounting team, 2026-11-27: a line per vendor with its total, expanding to its invoices. -->
+        <field name="context">{'group_by': ['partner_id']}</field>
         <field name="help" type="html">
             <p class="o_view_nocontent_smiling_face">Nothing due to vendors</p>
             <p>Every open vendor invoice and unapplied payment, with its due date and days overdue.</p>
@@ -80,5 +84,41 @@
             <p class="o_view_nocontent_smiling_face">We owe no vendor anything</p>
             <p>Select vendors, then <b>Action › Partner Outstanding Statement</b> to check their balance.</p>
         </field>
+    </record>
+
+    <!-- The accounting team, 2026-11-27: each customer / vendor on one line with its balance; a click
+         opens its invoices, payments and entries (a grouped partner ledger). -->
+    <record id="x4u_customer_accounts_action" model="ir.actions.act_window">
+        <field name="name">Customer Accounts</field>
+        <field name="res_model">account.move.line</field>
+        <field name="view_mode">list,pivot</field>
+        <field name="view_id" ref="account.view_move_line_tree"/>
+        <field name="domain">[('account_id.account_type', '=', 'asset_receivable'), ('parent_state', '=', 'posted')]</field>
+        <field name="context">{'group_by': ['partner_id'], 'create': False}</field>
+        <field name="help" type="html">
+            <p class="o_view_nocontent_smiling_face">No customer entries yet</p>
+            <p>A line per customer with its balance; click it for its invoices and payments.</p>
+        </field>
+    </record>
+    <record id="x4u_vendor_accounts_action" model="ir.actions.act_window">
+        <field name="name">Vendor Accounts</field>
+        <field name="res_model">account.move.line</field>
+        <field name="view_mode">list,pivot</field>
+        <field name="view_id" ref="account.view_move_line_tree"/>
+        <field name="domain">[('account_id.account_type', '=', 'liability_payable'), ('parent_state', '=', 'posted')]</field>
+        <field name="context">{'group_by': ['partner_id'], 'create': False}</field>
+        <field name="help" type="html">
+            <p class="o_view_nocontent_smiling_face">No vendor entries yet</p>
+            <p>A line per vendor with its balance; click it for its bills and payments.</p>
+        </field>
+    </record>
+    <!-- The accounting team, 2026-11-27: the general ledger grouped by account, a click opens its entries. -->
+    <record id="x4u_ledger_by_account_action" model="ir.actions.act_window">
+        <field name="name">Ledger by Account</field>
+        <field name="res_model">account.move.line</field>
+        <field name="view_mode">list,pivot</field>
+        <field name="view_id" ref="account.view_move_line_tree"/>
+        <field name="domain">[('parent_state', '=', 'posted')]</field>
+        <field name="context">{'group_by': ['account_id'], 'create': False}</field>
     </record>
 </odoo>

@@ -155,12 +155,37 @@ def x4u_setup(env):
     env = main_env
     _statements_follow_the_company(env)
     _trn_label(env)
+    _aging_config(env)
     env["res.config.settings"].create(STATEMENT_SETTINGS).execute()
     env["res.config.settings"].create(SERIAL_SETTINGS).execute()
     # The OCA job that posts the depreciation lines that are due (it ships inactive).
     cron = env.ref("account_asset_management.ir_cron_assets_generator", raise_if_not_found=False)
     if cron and not cron.active:
         cron.sudo().active = True
+
+
+AGING_NAME = "4U: 0-30 / 31-60 / 61-90 / +90 days (from the invoice date)"
+# The accounting team, 2026-11-27. An amount dated today shows under Current.
+AGING_INTERVALS = (("0-30 days", 30), ("31-60 days", 60), ("61-90 days", 90), ("+90 days", 100000))
+
+
+def _aging_config(env):
+    """The Aged Partner Balance of each company opens in 0-30 / 31-60 / 61-90 / +90 days, aged from
+    the invoice date (the accounting team, 2026-11-27)."""
+    Config = env["account.age.report.configuration"].sudo()
+    for company in env["res.company"].sudo().search([]):
+        config = Config.search([("company_id", "=", company.id), ("x4u_default", "=", True)], limit=1)
+        if config:
+            continue
+        Config.with_company(company).create(
+            {
+                "name": AGING_NAME,
+                "company_id": company.id,
+                "x4u_from_invoice_date": True,
+                "x4u_default": True,
+                "line_ids": [Command.create({"name": name, "inferior_limit": limit}) for name, limit in AGING_INTERVALS],
+            }
+        )
 
 
 def _trn_label(env):

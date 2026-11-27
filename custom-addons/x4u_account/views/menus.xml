@@ -46,6 +46,11 @@
               sequence="30"/>
     <menuitem id="menu_x4u_vendor_balance" parent="menu_x4u_receivable_payable" action="x4u_vendor_balance_action"
               sequence="40"/>
+    <!-- The accounting team, 2026-11-27: grouped per customer / vendor, a click opens the details. -->
+    <menuitem id="menu_x4u_customer_accounts" parent="menu_x4u_receivable_payable" action="x4u_customer_accounts_action"
+              sequence="42"/>
+    <menuitem id="menu_x4u_vendor_accounts" parent="menu_x4u_receivable_payable" action="x4u_vendor_accounts_action"
+              sequence="44"/>
     <record id="account_due_list.menu_action_invoice_payments" model="ir.ui.menu">
         <field name="name">Payments and Due List</field>
         <field name="parent_id" ref="menu_x4u_receivable_payable"/>

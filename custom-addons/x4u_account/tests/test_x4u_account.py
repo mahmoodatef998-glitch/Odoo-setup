@@ -135,7 +135,8 @@ class TestX4uAccount(TransactionCase):
         rp = self.env.ref("x4u_account.menu_x4u_receivable_payable")
         self.assertEqual(rp.parent_id, self.env.ref("account.menu_finance"))
         self.assertEqual(self.env.ref("account_due_list.menu_action_invoice_payments").parent_id, rp)
-        self.assertEqual(len(rp.child_id), 7)
+        # + Customer Accounts and Vendor Accounts (the accounting team, 2026-11-27).
+        self.assertEqual(len(rp.child_id), 9)
 
     def test_focus_chart(self):
         """§19: the Focus tree on the company: its groups, the accounts the modules use by their

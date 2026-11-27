@@ -60,6 +60,45 @@ class AccountMove(models.Model):
                 )
             )
 
+    @api.model
+    def _x4u_cron_due_reminder(self, days=2):
+        """The accounting team, 2026-11-27: a to-do for the Accountant (Settings › Sales › Accountant)
+        on each open customer invoice and vendor bill due in the next ``days`` days, once per amount due.
+        Daily; a day the server is off is caught the next day."""
+        user_id = int(self.env["ir.config_parameter"].sudo().get_param("x4u_sale.accountant_user_id") or 0)
+        user = self.env["res.users"].sudo().browse(user_id).exists()
+        if not user:
+            return
+        today = fields.Date.context_today(self)
+        lines = self.env["account.move.line"].sudo().search([
+            ("company_id", "in", user.company_ids.ids),
+            ("parent_state", "=", "posted"),
+            ("account_id.account_type", "in", ("asset_receivable", "liability_payable")),
+            ("reconciled", "=", False),
+            ("amount_residual", "!=", 0),
+            ("date_maturity", ">=", today),
+            ("date_maturity", "<=", fields.Date.add(today, days=days)),
+        ])
+        for line in lines.filtered(lambda l: l.move_id.is_invoice(True)):
+            move = line.move_id
+            summary = _("Due on %s", fields.Date.to_string(line.date_maturity))
+            if move.activity_ids.filtered(lambda a, s=summary: a.user_id == user and a.summary == s):
+                continue
+            sale = move.is_sale_document(True)
+            note = _(
+                "%(what)s %(move)s of %(partner)s: %(amount)s due on %(date)s. %(todo)s",
+                what=_("Customer invoice") if sale else _("Vendor bill"),
+                move=move.name,
+                partner=move.commercial_partner_id.display_name,
+                amount=move.currency_id.format(abs(line.amount_residual_currency)),
+                date=fields.Date.to_string(line.date_maturity),
+                todo=_("Follow up the collection.") if sale else _("Prepare the payment."),
+            )
+            move.activity_schedule(
+                "mail.mail_activity_data_todo", date_deadline=line.date_maturity, summary=summary,
+                note=note, user_id=user.id,
+            )
+
     def _post(self, soft=True):
         self._x4u_check_trn()
         posted = super()._post(soft)
@@ -71,6 +110,16 @@ class AccountMove(models.Model):
 
 class AccountMoveLine(models.Model):
     _inherit = "account.move.line"
+
+    @api.model
+    def search_read(self, domain=None, fields=None, offset=0, limit=None, order=None, **read_kwargs):
+        records = super().search_read(domain=domain, fields=fields, offset=offset, limit=limit, order=order, **read_kwargs)
+        # The accounting team, 2026-11-27: the Aged Partner Balance ages from the invoice date when its
+        # configuration says so (report.account_financial_report.aged_partner_balance sets the flag).
+        if self.env.context.get("x4u_age_from_date") and fields and "date_maturity" in fields and "date" in fields:
+            for record in records:
+                record["date_maturity"] = record["date"]
+        return records
 
     x4u_deposit_payment_id = fields.Many2one(
         "account.payment", string="Deposited Cheque", copy=False, index="btree_not_null", readonly=True,

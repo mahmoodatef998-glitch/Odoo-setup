@@ -146,3 +146,18 @@ class TestFewerSteps(X4uJobOrderCommon):
         # One generator: Finish opens its own screen with the serials fitted.
         res = production.x4u_job_id.with_user(self.operation).action_finish()
         self.assertEqual(res["res_model"], "x4u.job.order.finish")
+
+    def test_available_products_filter(self):
+        """The accounting team, 2026-11-27: Inventory, Purchase and Sales open the products in stock."""
+        stock_search = self.env.ref("stock.product_template_search_form_view_stock")
+        for xmlid in (
+            "stock.product_template_action_product",
+            "purchase.product_normal_action_puchased",
+            "sale.product_template_action",
+        ):
+            action = self.env.ref(xmlid)
+            self.assertIn("search_default_real_stock_available", action.context, xmlid)
+            self.assertEqual(action.search_view_id, stock_search, xmlid)
+        # The filter is in the search view the three actions use.
+        arch = self.env["product.template"].get_view(stock_search.id, "search")["arch"]
+        self.assertIn('name="real_stock_available"', arch)

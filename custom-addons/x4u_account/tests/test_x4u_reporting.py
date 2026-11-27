@@ -47,7 +47,7 @@ class TestX4uReporting(TransactionCase):
             ],
             "x4u_account.menu_x4u_daily_reports": ["Bank Book", "Cash Book", "Day Book"],
             "x4u_account.menu_x4u_partner_reports": ["Partner Ledger", "Customer Ledger", "Vendor Ledger", "Aged Partner Balance", "Open Items"],
-            "x4u_account.menu_x4u_audit_reports": ["General Ledger", "Trial Balance", "Journals Audit", "Tax Report", "Tax Details Report"],
+            "x4u_account.menu_x4u_audit_reports": ["General Ledger", "Ledger by Account", "Trial Balance", "Journals Audit", "Tax Report", "Tax Details Report"],
             "x4u_account.menu_x4u_financial_reports": ["Financial Statement", "Assets Schedule"],
             "x4u_account.menu_x4u_excel_reports": [
                 "Accounts Receivable (Excel)", "Accounts Payable (Excel)", "Trial Balance (Excel)",

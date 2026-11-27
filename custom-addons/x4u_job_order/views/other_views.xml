@@ -216,4 +216,22 @@
             </field>
         </field>
     </record>
+
+    <!-- The accounting team, 2026-11-27: the product screens of Inventory, Purchase and Sales open on
+         the products in stock (Available Products, one click to remove). Purchase and Sales take
+         Inventory's search view, which is the base one plus the stock filters. -->
+    <record id="stock.product_template_action_product" model="ir.actions.act_window">
+        <field name="context">{"search_default_goods": 1, "default_is_storable": True,
+            "search_default_real_stock_available": 1}</field>
+    </record>
+    <record id="purchase.product_normal_action_puchased" model="ir.actions.act_window">
+        <field name="search_view_id" ref="stock.product_template_search_form_view_stock"/>
+        <field name="context">{"search_default_filter_to_purchase": 1, "purchase_product_template": 1,
+            "search_default_real_stock_available": 1}</field>
+    </record>
+    <record id="sale.product_template_action" model="ir.actions.act_window">
+        <field name="search_view_id" ref="stock.product_template_search_form_view_stock"/>
+        <field name="context">{"search_default_filter_to_sell": 1, "sale_multi_pricelist_product_template": 1,
+            "search_default_real_stock_available": 1}</field>
+    </record>
 </odoo>
