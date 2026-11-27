@@ -2,7 +2,7 @@
     "name": "4U Purchase Payments",
     "summary": "Payment terms and payment mode on the PO, Custom schedule, the vendor PI recorded and paid "
     "by the Accountant, advances linked to the PO, the vendor bill applies them",
-    "version": "18.0.1.4.0",
+    "version": "18.0.1.5.0",
     "category": "Inventory/Purchase",
     "license": "LGPL-3",
     "author": "4U Power Generation FZC",
@@ -21,6 +21,7 @@
         "views/x4u_purchase_proforma_views.xml",
         "views/purchase_views.xml",
         "views/receipt_views.xml",
+        "views/vendor_bill_views.xml",
     ],
     "assets": {
         # 2026-11-26: an empty or failed upload no longer leaves the attach button grey.

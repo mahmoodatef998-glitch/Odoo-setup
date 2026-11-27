@@ -107,10 +107,17 @@ class TestX4uAccountingTeam(TransactionCase):
             ("x4u_account.x4u_customer_accounts_action", "partner_id"),
             ("x4u_account.x4u_vendor_accounts_action", "partner_id"),
             ("x4u_account.x4u_ledger_by_account_action", "account_id"),
+            ("x4u_account.x4u_partner_ledger_action", "partner_id"),
         ):
             action = self.env.ref(xmlid)
             self.assertIn(group_by, action.context, xmlid)
+        # The General Ledger opens on this year; the partner ledgers on today's balances (no date filter).
+        self.assertIn("search_default_x4u_this_year", self.env.ref("x4u_account.x4u_ledger_by_account_action").context)
+        self.assertNotIn("search_default_x4u_this_year", self.env.ref("x4u_account.x4u_partner_ledger_action").context)
         for xmlid in (
+            "x4u_account.menu_x4u_partner_ledger",
+            "x4u_account.menu_x4u_customer_ledger",
+            "x4u_account.menu_x4u_vendor_ledger",
             "x4u_account.menu_x4u_customer_accounts",
             "x4u_account.menu_x4u_vendor_accounts",
             "x4u_account.menu_x4u_ledger_by_account",
@@ -146,3 +153,10 @@ class TestX4uAccountingTeam(TransactionCase):
         invoice = self._move("out_invoice", self.customer, self.today, fields.Date.add(self.today, days=1))
         self.env["account.move"]._x4u_cron_due_reminder()
         self.assertFalse(invoice.activity_ids.filtered(lambda a: (a.summary or "").startswith("Due on")))
+
+    # Trial Balance dates ------------------------------------------------------
+
+    def test_trial_balance_opens_on_the_year_to_date(self):
+        wizard = self.env["trial.balance.report.wizard"].create({})
+        self.assertEqual(wizard.date_to, self.today)
+        self.assertEqual(wizard.date_from, self.company.compute_fiscalyear_dates(self.today)["date_from"])

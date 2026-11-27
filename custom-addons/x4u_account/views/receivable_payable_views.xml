@@ -89,7 +89,7 @@
     <!-- The accounting team, 2026-11-27: each customer / vendor on one line with its balance; a click
          opens its invoices, payments and entries (a grouped partner ledger). -->
     <record id="x4u_customer_accounts_action" model="ir.actions.act_window">
-        <field name="name">Customer Accounts</field>
+        <field name="name">Customer Ledger</field>
         <field name="res_model">account.move.line</field>
         <field name="view_mode">list,pivot</field>
         <field name="view_id" ref="account.view_move_line_tree"/>
@@ -103,7 +103,7 @@
         </field>
     </record>
     <record id="x4u_vendor_accounts_action" model="ir.actions.act_window">
-        <field name="name">Vendor Accounts</field>
+        <field name="name">Vendor Ledger</field>
         <field name="res_model">account.move.line</field>
         <field name="view_mode">list,pivot</field>
         <field name="view_id" ref="account.view_move_line_tree"/>
@@ -118,11 +118,38 @@
     </record>
     <!-- The accounting team, 2026-11-27: the general ledger grouped by account, a click opens its entries. -->
     <record id="x4u_ledger_by_account_action" model="ir.actions.act_window">
-        <field name="name">Ledger by Account</field>
+        <field name="name">General Ledger</field>
         <field name="res_model">account.move.line</field>
         <field name="view_mode">list,pivot</field>
         <field name="view_id" ref="account.view_move_line_tree"/>
         <field name="domain">[('parent_state', '=', 'posted')]</field>
-        <field name="context">{'group_by': ['account_id'], 'create': False}</field>
+        <!-- The current year: an income or expense account is read by year (2026-11-27). -->
+        <field name="context">{'group_by': ['account_id'], 'create': False, 'search_default_x4u_this_year': 1}</field>
+    </record>
+
+    <!-- The accounting team, 2026-11-27: the Partner Ledger grouped per partner (customers, vendors and
+         their advances), each with its balance; a click opens its entries. No date filter: the total is
+         what each partner owes or is owed today. -->
+    <record id="x4u_partner_ledger_action" model="ir.actions.act_window">
+        <field name="name">Partner Ledger</field>
+        <field name="res_model">account.move.line</field>
+        <field name="view_mode">list,pivot</field>
+        <field name="view_id" ref="account.view_move_line_tree"/>
+        <field name="domain">['|', ('account_id.account_type', 'in', ('asset_receivable', 'liability_payable')),
+            ('account_id.x4u_partner_advance', '!=', False), ('parent_state', '=', 'posted')]</field>
+        <field name="context">{'group_by': ['partner_id'], 'create': False}</field>
+    </record>
+
+    <record id="view_account_move_line_filter_x4u_year" model="ir.ui.view">
+        <field name="name">account.move.line.search.x4u.year</field>
+        <field name="model">account.move.line</field>
+        <field name="inherit_id" ref="account.view_account_move_line_filter"/>
+        <field name="arch" type="xml">
+            <filter name="date" position="before">
+                <!-- The 4U fiscal year is the calendar year. -->
+                <filter string="This Year" name="x4u_this_year"
+                        domain="[('date', '&gt;=', context_today().strftime('%Y-01-01')), ('date', '&lt;=', context_today().strftime('%Y-12-31'))]"/>
+            </filter>
+        </field>
     </record>
 </odoo>

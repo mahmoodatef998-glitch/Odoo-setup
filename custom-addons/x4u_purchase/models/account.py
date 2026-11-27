@@ -156,6 +156,25 @@ class AccountMove(models.Model):
                     [("res_model", "=", "purchase.order"), ("res_id", "=", order.id), ("summary", "=", _("Vendor bill: %s", receipt.name))]
                 ).action_feedback(feedback=_("Bill recorded."))
 
+    @api.model
+    def _x4u_clear_typed_bill_numbers(self):
+        """The user, 2026-11-27: a draft bill whose 4U number was typed by hand (the vendor's number
+        put there): that number becomes the Vendor Invoice No. if it has none, and the bill takes its
+        4U number at Confirm. The form no longer lets anyone type it (vendor_bill_views.xml)."""
+        bills = self.sudo().search(
+            [
+                ("move_type", "in", ("in_invoice", "in_refund")),
+                ("state", "=", "draft"),
+                ("posted_before", "=", False),
+                ("name", "not in", (False, "/")),
+            ]
+        )
+        for bill in bills:
+            if not bill.ref:
+                bill.ref = bill.name
+            bill.name = False
+        return bills
+
     def _post(self, soft=True):
         posted = super()._post(soft)
         posted.filtered(lambda move: move.move_type == "in_invoice")._x4u_apply_vendor_advances()

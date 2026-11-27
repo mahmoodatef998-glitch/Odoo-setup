@@ -1,0 +1,40 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <!-- The user, 2026-11-27: on a vendor bill the vendor's invoice number is at the top (it is what
+         everyone reads and searches); the 4U number under it is the bill's registration number in the
+         books, given by itself at Confirm and never typed. -->
+    <record id="view_move_form_x4u_vendor_number" model="ir.ui.view">
+        <field name="name">account.move.form.x4u.vendor.number</field>
+        <field name="model">account.move</field>
+        <field name="inherit_id" ref="account.view_move_form"/>
+        <field name="arch" type="xml">
+            <xpath expr="//div[hasclass('oe_title')]/h1" position="attributes">
+                <attribute name="invisible">move_type in ('in_invoice', 'in_refund')</attribute>
+            </xpath>
+            <xpath expr="//div[hasclass('oe_title')]/h1" position="after">
+                <div name="x4u_vendor_number" invisible="move_type not in ('in_invoice', 'in_refund')">
+                    <h1>
+                        <field name="ref" placeholder="Vendor Invoice No."/>
+                    </h1>
+                    <div class="text-muted">
+                        <span>4U number: </span>
+                        <field name="name" readonly="1" class="oe_inline" invisible="not name"/>
+                        <span invisible="name">given at Confirm</span>
+                    </div>
+                </div>
+            </xpath>
+        </field>
+    </record>
+
+    <record id="view_in_invoice_tree_x4u_vendor_number" model="ir.ui.view">
+        <field name="name">account.move.list.x4u.vendor.number</field>
+        <field name="model">account.move</field>
+        <field name="inherit_id" ref="account.view_in_invoice_tree"/>
+        <field name="arch" type="xml">
+            <field name="ref" position="attributes">
+                <attribute name="string">Vendor Invoice No.</attribute>
+                <attribute name="optional">show</attribute>
+            </field>
+        </field>
+    </record>
+</odoo>

@@ -27,12 +27,20 @@
     <!-- Partner Reports -->
     <menuitem id="menu_x4u_partner_reports" name="Partner Reports" parent="account.menu_finance_reports"
               sequence="3" groups="account.group_account_user,account.group_account_manager"/>
-    <menuitem id="menu_x4u_report_partner_ledger" name="Partner Ledger" parent="menu_x4u_partner_reports"
-              action="action_x4u_report_partner_ledger" sequence="10"/>
-    <menuitem id="menu_x4u_report_customer_ledger" name="Customer Ledger" parent="menu_x4u_partner_reports"
-              action="action_x4u_report_customer_ledger" sequence="11"/>
-    <menuitem id="menu_x4u_report_vendor_ledger" name="Vendor Ledger" parent="menu_x4u_partner_reports"
-              action="action_x4u_report_vendor_ledger" sequence="12"/>
+    <!-- The accounting team, 2026-11-27: the ledgers open grouped (a line per partner, a click for its
+         entries); the printable reports (opening and running balance) stay as "(Print)". -->
+    <menuitem id="menu_x4u_partner_ledger" parent="menu_x4u_partner_reports" action="x4u_partner_ledger_action"
+              sequence="10"/>
+    <menuitem id="menu_x4u_customer_ledger" parent="menu_x4u_partner_reports" action="x4u_customer_accounts_action"
+              sequence="11"/>
+    <menuitem id="menu_x4u_vendor_ledger" parent="menu_x4u_partner_reports" action="x4u_vendor_accounts_action"
+              sequence="12"/>
+    <menuitem id="menu_x4u_report_partner_ledger" name="Partner Ledger (Print)" parent="menu_x4u_partner_reports"
+              action="action_x4u_report_partner_ledger" sequence="13"/>
+    <menuitem id="menu_x4u_report_customer_ledger" name="Customer Ledger (Print)" parent="menu_x4u_partner_reports"
+              action="action_x4u_report_customer_ledger" sequence="14"/>
+    <menuitem id="menu_x4u_report_vendor_ledger" name="Vendor Ledger (Print)" parent="menu_x4u_partner_reports"
+              action="action_x4u_report_vendor_ledger" sequence="15"/>
     <record id="account_financial_report.menu_aged_partner_balance_wizard" model="ir.ui.menu">
         <field name="parent_id" ref="menu_x4u_partner_reports"/>
         <field name="sequence">20</field>
@@ -66,12 +74,13 @@
     <menuitem id="menu_x4u_audit_reports" name="Audit Reports" parent="account.menu_finance_reports"
               sequence="5" groups="account.group_account_user,account.group_account_manager"/>
     <record id="account_financial_report.menu_general_ledger_wizard" model="ir.ui.menu">
+        <field name="name">General Ledger (Print)</field>
         <field name="parent_id" ref="menu_x4u_audit_reports"/>
-        <field name="sequence">10</field>
+        <field name="sequence">12</field>
     </record>
     <!-- The accounting team, 2026-11-27: the ledger grouped by account, a click opens its entries. -->
     <menuitem id="menu_x4u_ledger_by_account" parent="menu_x4u_audit_reports" action="x4u_ledger_by_account_action"
-              sequence="12"/>
+              sequence="10"/>
     <record id="account_financial_report.menu_trial_balance_wizard" model="ir.ui.menu">
         <field name="parent_id" ref="menu_x4u_audit_reports"/>
         <field name="sequence">20</field>

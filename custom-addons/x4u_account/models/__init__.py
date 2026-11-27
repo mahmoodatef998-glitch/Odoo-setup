@@ -12,3 +12,4 @@ from . import res_currency_rate_provider
 from . import account_age_config
 from . import account_account
 from . import account_advance
+from . import report_wizard_defaults
