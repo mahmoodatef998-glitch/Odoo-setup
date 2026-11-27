@@ -4,7 +4,7 @@
     "name": "4U Accounting",
     "summary": "Accounting the 4U way: menus, PDC cheques to vendors, equity accounts, Petty Cash, "
     "Receivables & Payables (due lists, aging, statements) and safe automatic reconciliation",
-    "version": "18.0.1.14.0",
+    "version": "18.0.1.15.0",
     "category": "Accounting/Accounting",
     # AGPL-3 because it depends on account_asset_management (AGPL-3).
     "license": "AGPL-3",
@@ -56,6 +56,7 @@
         "data/mis_cash_flow_data.xml",
         "data/mis_report_instance_data.xml",
         "data/x4u_reporting_data.xml",
+        "views/account_account_views.xml",
         "views/account_payment_views.xml",
         "wizard/x4u_pdc_bounce_views.xml",
         "views/receivable_payable_views.xml",

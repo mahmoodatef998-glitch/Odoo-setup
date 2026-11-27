@@ -10,6 +10,7 @@ from .focus_chart import ACCOUNTS as FOCUS_ACCOUNTS
 from .focus_chart import CODE
 from .focus_chart import GROUPS as FOCUS_GROUPS
 from .focus_chart import OLD_CODES
+from .focus_chart import PL_GROUPS
 
 _logger = logging.getLogger(__name__)
 
@@ -135,6 +136,7 @@ def x4u_setup(env):
         env = main_env(context=dict(main_env.context, allowed_company_ids=company.ids))
         company = company.with_env(env)
         _focus_chart(env, company)
+        _pl_groups(env, company)
         company._x4u_pdc_issued_account()
         _equity_accounts(env, company)
         _petty_cash(env, company)
@@ -625,6 +627,16 @@ def _focus_chart(env, company):
             groups[prefix].write(values)
         else:
             Group.create(values)
+
+
+def _pl_groups(env, company):
+    """The accounting team, 2026-11-27: the P&L group (O / S / G / X) of each Focus expense account,
+    on the accounts that have none yet (the Accountant's choice on an account stays)."""
+    Account = env["account.account"].sudo().with_company(company)
+    for account in Account.search([*Account._check_company_domain(company), ("x4u_pl_group", "=", False)]):
+        group = PL_GROUPS.get(account.code)
+        if group:
+            account.x4u_pl_group = group
 
 
 def _account_fields(env):

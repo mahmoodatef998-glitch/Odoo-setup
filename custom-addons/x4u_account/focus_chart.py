@@ -221,7 +221,8 @@ ACCOUNTS = [
     ("530056", "Transport Charges", E, False),
     ("530057", "Labour Charge", E, False),
     ("530058", "ETISALAT - LAND LINE", E, False),
-    ("530061", "PENALTY", E, False),
+    # The accounting team, 2026-11-27: a penalty is administrative or operating, one account each.
+    ("530061", "PENALTY - ADMINISTRATIVE", E, False),
     ("530062", "WASTE DRUM EXP.", E, False),
     ("530063", "FORKLIFT EXP.", E, False),
     ("530064", "WATER & ELECT. EXP", E, False),
@@ -248,6 +249,7 @@ ACCOUNTS = [
     ("530085", "Loss on Disposal of Fixed Assets", E, False),
     ("530086", "Corporate Tax", E, False),
     ("530087", "Cash Difference Loss", E, False),
+    ("530088", "PENALTY - OPERATING", E, False),
     # Control accounts
     ("900001", "Journal Entries Control A/C", A, False),
     ("900002", "Profit/Loss A/C", "equity_unaffected", False),
@@ -297,6 +299,39 @@ OLD_CODES = {
 }
 
 # The Focus code of each account the 4U modules use (one place to read them from).
+# The accounting team, 2026-11-27: the expense group of each account in the 4U Management P&L
+# (O operating, S selling & marketing, G general & administrative, X other expenses, T corporate tax).
+# Set on an account that has none yet; the Accountant changes it on the account (P&L Group).
+_O = "operating"
+_S = "selling"
+_G = "admin"
+_X = "other"
+PL_GROUPS = {
+    **dict.fromkeys(
+        (
+            "530002", "530003", "530005", "530010", "530011", "530017", "530022", "530023", "530028",
+            "530037", "530038", "530042", "530043", "530054", "530055", "530056", "530057", "530062",
+            "530063", "530068", "530071", "530076", "530077", "530082", "530088",
+        ),
+        _O,
+    ),
+    **dict.fromkeys(("530001", "530012", "530013", "530034", "530066", "530072", "530078"), _S),
+    **dict.fromkeys(
+        (
+            "510001", "510002", "520001", "530006", "530007", "530008", "530014", "530015", "530016",
+            "530019", "530020", "530021", "530024", "530025", "530026", "530027", "530029", "530030",
+            "530031", "530033", "530035", "530036", "530047", "530049", "530050", "530051", "530052",
+            "530053", "530058", "530061", "530064", "530065", "530067", "530069", "530070", "530074",
+            "530075", "530079", "530081", "530083", "530084", "530087",
+            # Operating in the first proposal, administrative for the team.
+            "530004", "530032", "530044", "530045", "530046",
+        ),
+        _G,
+    ),
+    **dict.fromkeys(("530009", "530048", "530073", "530080", "530085"), _X),
+    "530086": "tax",
+}
+
 CODE = {
     "fta": "110001",
     "vat_refundable": "110004",

@@ -278,10 +278,57 @@ class TestX4uControls(TransactionCase):
 
         self.assertEqual(value("rev_generators"), 1000.0)
         self.assertEqual(value("revenue"), 1000.0)
-        self.assertEqual(value("premises"), 300.0)
+        self.assertEqual(value("exp_admin"), 300.0, "530053 Rent is administrative (G)")
+        self.assertEqual(value("opex"), 300.0)
         self.assertEqual(value("net_profit"), 700.0)
         self.assertAlmostEqual(value("gross_margin"), 1.0)
         self.assertEqual(value("not_mapped"), -50.0, "an account outside the report shows up here")
+
+    def test_management_pl_groups(self):
+        """The accounting team, 2026-11-27: O / S / G, then Other Expenses and Corporate Tax (X)."""
+        day = date(2020, 7, 15)
+        self._post("out_invoice", "410002", "income", 10000.0, day)
+        for code, amount in (
+            ("530088", 100.0),  # Penalty - Operating (O)
+            ("530068", 200.0),  # Maintenance (O)
+            ("530012", 300.0),  # Sales Commission (S)
+            ("530046", 400.0),  # Petrol: G for the team (O in the first proposal)
+            ("530061", 500.0),  # Penalty - Administrative (G)
+            ("530080", 600.0),  # FX Loss (X)
+            ("530086", 700.0),  # Corporate Tax (X)
+        ):
+            self._post("in_invoice", code, "expense", amount, day)
+        report = self.env.ref("x4u_account.mis_report_x4u_pl")
+        values = report.evaluate(report._prepare_aep(self.company), date_from="2020-07-01", date_to="2020-07-31")
+
+        def value(name):
+            result = values[name]
+            return result[0] if isinstance(result, tuple) else result
+
+        self.assertEqual(value("exp_operating"), 300.0)
+        self.assertEqual(value("exp_selling"), 300.0)
+        self.assertEqual(value("exp_admin"), 900.0)
+        self.assertEqual(value("opex"), 1500.0)
+        self.assertEqual(value("operating_profit"), 8500.0)
+        self.assertEqual(value("other_expenses"), 600.0)
+        self.assertEqual(value("profit_before_tax"), 7900.0)
+        self.assertEqual(value("corporate_tax"), 700.0)
+        self.assertEqual(value("net_profit"), 7200.0)
+        self.assertFalse(value("not_mapped"), "every Focus expense account is in a group")
+
+    def test_pl_groups_on_the_accounts(self):
+        """Every Focus expense account has its group; the penalty is two accounts."""
+        from odoo.addons.x4u_account.focus_chart import ACCOUNTS, PL_GROUPS
+
+        for code, _name, account_type, _reconcile in ACCOUNTS:
+            if account_type in ("expense", "expense_depreciation"):
+                account = _account(self.env, self.company, code)
+                self.assertEqual(account.x4u_pl_group, PL_GROUPS[code], code)
+        self.assertEqual(_account(self.env, self.company, "530061").name, "PENALTY - ADMINISTRATIVE")
+        self.assertEqual(_account(self.env, self.company, "530088").name, "PENALTY - OPERATING")
+        self.assertEqual(_account(self.env, self.company, "530088").x4u_pl_group, "operating")
+        for code in ("530004", "530032", "530044", "530045", "530046"):
+            self.assertEqual(_account(self.env, self.company, code).x4u_pl_group, "admin", code)
 
     def test_report_instances_compute(self):
         for xmlid in ("mis_instance_x4u_pl", "mis_instance_x4u_pl_6m", "mis_instance_x4u_cash", "mis_instance_x4u_bs"):

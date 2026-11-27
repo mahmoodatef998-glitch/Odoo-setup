@@ -1,0 +1,43 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <!-- The accounting team, 2026-11-27: the P&L group (O / S / G / X) of an expense account, where it
+         shows in the 4U Management P&L; set and changed by the Accountant on the account. -->
+    <record id="view_account_form_x4u_pl_group" model="ir.ui.view">
+        <field name="name">account.account.form.x4u.pl.group</field>
+        <field name="model">account.account</field>
+        <field name="inherit_id" ref="account.view_account_form"/>
+        <field name="arch" type="xml">
+            <field name="account_type" position="after">
+                <field name="x4u_pl_group" invisible="account_type not in ('expense', 'expense_depreciation')"/>
+            </field>
+        </field>
+    </record>
+
+    <record id="view_account_list_x4u_pl_group" model="ir.ui.view">
+        <field name="name">account.account.list.x4u.pl.group</field>
+        <field name="model">account.account</field>
+        <field name="inherit_id" ref="account.view_account_list"/>
+        <field name="arch" type="xml">
+            <field name="account_type" position="after">
+                <field name="x4u_pl_group" optional="show"
+                       invisible="account_type not in ('expense', 'expense_depreciation')"/>
+            </field>
+        </field>
+    </record>
+
+    <record id="view_account_search_x4u_pl_group" model="ir.ui.view">
+        <field name="name">account.account.search.x4u.pl.group</field>
+        <field name="model">account.account</field>
+        <field name="inherit_id" ref="account.view_account_search"/>
+        <field name="arch" type="xml">
+            <filter name="activeacc" position="after">
+                <separator/>
+                <filter string="Expenses Without P&amp;L Group" name="x4u_no_pl_group"
+                        domain="[('account_type', 'in', ('expense', 'expense_depreciation')), ('x4u_pl_group', '=', False)]"/>
+            </filter>
+            <filter name="accounttype" position="after">
+                <filter string="P&amp;L Group" name="x4u_pl_group" context="{'group_by': 'x4u_pl_group'}"/>
+            </filter>
+        </field>
+    </record>
+</odoo>
