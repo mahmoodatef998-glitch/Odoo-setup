@@ -161,3 +161,39 @@ class TestFewerSteps(X4uJobOrderCommon):
         # The filter is in the search view the three actions use.
         arch = self.env["product.template"].get_view(stock_search.id, "search")["arch"]
         self.assertIn('name="real_stock_available"', arch)
+
+    def test_price_columns(self):
+        """The user, 2026-11-27: each alternator's price in the 4U price lists, on the product screens."""
+        values = self.env.ref("x4u_setup_base.attr_alternator_aqt") | self.env.ref(
+            "x4u_setup_base.attr_alternator_leroy"
+        ) | self.env.ref("x4u_setup_base.attr_alternator_stamford")
+        template = self.env["product.template"].create(
+            {
+                "name": "X4U Test Priced Generator",
+                # As in the catalog: a generator's price is only in the price lists.
+                "list_price": 0.0,
+                "attribute_line_ids": [
+                    Command.create({"attribute_id": values.attribute_id.id, "value_ids": [Command.set(values.ids)]})
+                ],
+            }
+        )
+        # The alternator makes its variants on demand: each one offered gets its variant (as the catalog does).
+        by_value = {
+            ptav.product_attribute_value_id: template._create_product_variant(ptav)
+            for ptav in template.attribute_line_ids.product_template_value_ids
+        }
+        standard = self.env.ref("x4u_setup_4u.pricelist_standard")
+        for value, price in ((values[0], 10000.0), (values[1], 12000.5)):
+            standard.item_ids = [
+                Command.create(
+                    {"applied_on": "0_product_variant", "product_id": by_value[value].id, "compute_price": "fixed", "fixed_price": price}
+                )
+            ]
+        template.invalidate_recordset()
+        parts = set(template.x4u_price_standard.split(" · "))
+        self.assertEqual(parts, {"4U 10,000", "LS 12,000.50", "ST on request"})
+        self.assertEqual(by_value[values[1]].x4u_price_standard, "12,000.50")
+        self.assertEqual(by_value[values[2]].x4u_price_standard, "on request")
+        self.assertTrue(template.x4u_price_export_usd)
+        arch = self.env["product.template"].get_view(self.env.ref("product.product_template_tree_view").id, "list")["arch"]
+        self.assertIn('name="x4u_price_standard"', arch)
