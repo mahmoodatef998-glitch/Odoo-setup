@@ -329,6 +329,12 @@ class TestX4uControls(TransactionCase):
         self.assertEqual(_account(self.env, self.company, "530088").x4u_pl_group, "operating")
         for code in ("530004", "530032", "530044", "530045", "530046"):
             self.assertEqual(_account(self.env, self.company, code).x4u_pl_group, "admin", code)
+        # An account the Accountant added (as in ATA) gets its group from the next upgrade.
+        from odoo.addons.x4u_account.hooks import _pl_groups
+
+        petrol = self.env["account.account"].create({"code": "530039", "name": "PETROL / X4U TEST", "account_type": "expense"})
+        _pl_groups(self.env, self.company)
+        self.assertEqual(petrol.x4u_pl_group, "admin")
 
     def test_report_instances_compute(self):
         for xmlid in ("mis_instance_x4u_pl", "mis_instance_x4u_pl_6m", "mis_instance_x4u_cash", "mis_instance_x4u_bs"):

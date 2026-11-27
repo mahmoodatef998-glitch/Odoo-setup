@@ -325,6 +325,9 @@ PL_GROUPS = {
             "530075", "530079", "530081", "530083", "530084", "530087",
             # Operating in the first proposal, administrative for the team.
             "530004", "530032", "530044", "530045", "530046",
+            # Added by the Accountant in ATA (not in ACCOUNTS): like 530046 Petrol, 530058 / 530065
+            # telephone, the audit fees and 530075 depreciation.
+            "510003", "530018", "530039", "530040", "530041", "530059", "530060",
         ),
         _G,
     ),
