@@ -4,7 +4,7 @@
     "name": "4U Accounting",
     "summary": "Accounting the 4U way: menus, PDC cheques to vendors, equity accounts, Petty Cash, "
     "Receivables & Payables (due lists, aging, statements) and safe automatic reconciliation",
-    "version": "18.0.1.15.1",
+    "version": "18.0.1.16.0",
     "category": "Accounting/Accounting",
     # AGPL-3 because it depends on account_asset_management (AGPL-3).
     "license": "AGPL-3",
@@ -30,6 +30,8 @@
         "sale_stock",
         # The categories it values.
         "x4u_setup_base",
+        # Advances of sales orders and POs on their own accounts (the accounting team, 2026-11-27).
+        "x4u_purchase",
         # Freight, insurance, clearing and customs in the inventory value (spec §10).
         "stock_landed_costs",
         # Phase 5: customers' PDC deposited at the bank (spec §12).

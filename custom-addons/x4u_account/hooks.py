@@ -125,6 +125,7 @@ PDC_RECEIVED_JOURNAL = ("CHK", "PDC Received", 90)
 
 def post_init_hook(env):
     x4u_setup(env)
+    x4u_direct_bank(env)
 
 
 def x4u_setup(env):
@@ -137,6 +138,7 @@ def x4u_setup(env):
         company = company.with_env(env)
         _focus_chart(env, company)
         _pl_groups(env, company)
+        _advance_accounts(env, company)
         company._x4u_pdc_issued_account()
         _equity_accounts(env, company)
         _petty_cash(env, company)
@@ -215,7 +217,8 @@ def _pdc_received(env, company):
         journal_code, journal_name, sequence = PDC_RECEIVED_JOURNAL
         journal = Journal.search([("code", "=", journal_code), *Journal._check_company_domain(company)], limit=1)
         if not journal:
-            journal = Journal.create(
+            # Its cheques wait in PDC Received: not one of the journals paid straight to the bank.
+            journal = Journal.with_context(x4u_no_direct_payments=True).create(
                 {"name": journal_name, "code": journal_code, "type": "bank", "sequence": sequence, "company_id": company.id}
             )
         company.x4u_pdc_received_journal_id = journal
@@ -637,6 +640,92 @@ def _pl_groups(env, company):
         group = PL_GROUPS.get(account.code)
         if group:
             account.x4u_pl_group = group
+
+
+def _advance_accounts(env, company):
+    """The accounting team, 2026-11-27: 216001 takes the customers' advances, 137012 the vendors'
+    (unless the Accountant chose other accounts)."""
+    for kind, code in (("customer", CODE["customer_advances"]), ("vendor", CODE["vendor_advances"])):
+        Account = env["account.account"].sudo().with_company(company)
+        if Account.search_count([*Account._check_company_domain(company), ("x4u_partner_advance", "=", kind)], limit=1):
+            continue
+        account = _account(env, company, code)
+        if account:
+            account.x4u_partner_advance = kind
+
+
+def x4u_direct_bank(env):
+    """The accounting team, 2026-11-27: payments straight to the bank. Each bank and cash journal's
+    payment methods post to the journal's account, and what is still on Outstanding Receipts /
+    Payments goes to the bank (cash) of its payment. On install and once on upgrade (18.0.1.16.0): a
+    method the Accountant sets back to an outstanding account later stays so."""
+    main_env = env
+    for company in main_env["res.company"].search([("chart_template", "!=", False)]):
+        env = main_env(context=dict(main_env.context, allowed_company_ids=company.ids))
+        company = company.with_env(env)
+        Journal = env["account.journal"].sudo()
+        Journal.search([*Journal._check_company_domain(company), ("type", "in", ("bank", "cash"))])._x4u_direct_payment_accounts()
+        _outstanding_to_bank(env, company)
+
+
+def _outstanding_to_bank(env, company):
+    """Each payment still open on Outstanding Receipts / Payments: Dr Bank / Cr Outstanding (or the
+    other way), on the payment's date (the first open day if that is locked), matched."""
+    outstanding = _account(env, company, CODE["outstanding_receipts"]) | _account(env, company, CODE["outstanding_payments"])
+    if not outstanding:
+        return
+    lines = env["account.move.line"].sudo().search(
+        [
+            ("company_id", "=", company.id),
+            ("account_id", "in", outstanding.ids),
+            ("parent_state", "=", "posted"),
+            ("reconciled", "=", False),
+            ("payment_id", "!=", False),
+        ],
+        order="date, id",
+    )
+    for line in lines:
+        payment = line.payment_id
+        journal = payment.journal_id
+        bank = journal.default_account_id
+        if not bank or bank in outstanding:
+            continue
+        lock = company._get_user_fiscal_lock_date(journal)
+        day = line.date if line.date > lock else lock + relativedelta(days=1)
+        label = "%s: %s" % (payment.name, line.account_id.name)
+        move = env["account.move"].sudo().create(
+            {
+                "move_type": "entry",
+                "journal_id": journal.id,
+                "date": day,
+                "ref": "Straight to the bank - %s" % payment.name,
+                "line_ids": [
+                    Command.create(
+                        {
+                            "name": label,
+                            "account_id": line.account_id.id,
+                            "partner_id": line.partner_id.id,
+                            "currency_id": line.currency_id.id,
+                            "amount_currency": -line.amount_residual_currency,
+                            "balance": -line.amount_residual,
+                        }
+                    ),
+                    Command.create(
+                        {
+                            "name": label,
+                            "account_id": bank.id,
+                            "partner_id": line.partner_id.id,
+                            "currency_id": line.currency_id.id,
+                            "amount_currency": line.amount_residual_currency,
+                            "balance": line.amount_residual,
+                        }
+                    ),
+                ],
+            }
+        )
+        move.action_post()
+        (line + move.line_ids.filtered(lambda new: new.account_id == line.account_id)).reconcile()
+        _logger.info("Straight to the bank: %s moved to %s (%s)", payment.name, bank.code, move.name)
 
 
 def _account_fields(env):

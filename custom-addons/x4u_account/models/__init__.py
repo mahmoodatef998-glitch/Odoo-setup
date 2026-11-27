@@ -11,3 +11,4 @@ from . import x4u_accounting_report
 from . import res_currency_rate_provider
 from . import account_age_config
 from . import account_account
+from . import account_advance

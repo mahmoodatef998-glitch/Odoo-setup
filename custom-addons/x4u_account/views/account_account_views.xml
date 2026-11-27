@@ -9,6 +9,7 @@
         <field name="arch" type="xml">
             <field name="account_type" position="after">
                 <field name="x4u_pl_group" invisible="account_type not in ('expense', 'expense_depreciation')"/>
+                <field name="x4u_partner_advance" invisible="account_type not in ('asset_current', 'liability_current')"/>
             </field>
         </field>
     </record>

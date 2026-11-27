@@ -31,6 +31,7 @@ GROUPS = [
     ("213", "Gratuity"),
     ("214", "PDCP"),
     ("215", "Employee Accrued"),
+    ("216", "Customer Advances"),
     ("22", "LOANS"),
     ("23", "Paid By Partner"),
     ("24", "OWNERSHIP"),
@@ -95,6 +96,8 @@ ACCOUNTS = [
     ("137009", "Prepaid Petrol", "asset_prepayments", False),
     ("137010", "Prepaid License", "asset_prepayments", False),
     ("137011", "Other Prepayments", "asset_prepayments", False),
+    # The accounting team, 2026-11-27: what was paid to a vendor before the bill (a PO's advances).
+    ("137012", "ADVANCES TO SUPPLIERS", A, True),
     # Fixed assets: one account per category, the depreciation of each category 14009x
     ("140001", "Motor Vehicles", "asset_fixed", False),
     ("140002", "Machinery & Tools", "asset_fixed", False),
@@ -132,6 +135,8 @@ ACCOUNTS = [
     ("215003", "Accrued Salaries", L, True),
     ("215005", "ACCRUED AIR TICKET", L, False),
     ("215006", "Accrued Staff Bonus", L, False),
+    # The accounting team, 2026-11-27: what a customer paid before the tax invoice (no VAT on it).
+    ("216001", "ADVANCES FROM CUSTOMERS", L, True),
     ("220001", "Loan Other", "liability_non_current", False),
     ("220002", "Loan Car", "liability_non_current", False),
     ("230001", "Partner Paid", L, False),
@@ -350,6 +355,9 @@ CODE = {
     "landed_other": "134009",
     "landed_customs": "134010",
     "employee_advances": "136001",
+    "vendor_advances": "137012",
+    "outstanding_receipts": "131210",
+    "outstanding_payments": "131211",
     "payable": "211001",
     "grni": "212006",
     "pdc_issued": "214001",
@@ -357,6 +365,7 @@ CODE = {
     "leave_salary_provision": "215002",
     "accrued_salaries": "215003",
     "air_ticket_provision": "215005",
+    "customer_advances": "216001",
     "sales_generators": "410002",
     "sales_services": "410003",
     "sales_spare_parts": "410009",

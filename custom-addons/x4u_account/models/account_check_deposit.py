@@ -43,6 +43,15 @@ class AccountCheckDeposit(models.Model):
         if len(bank_side) != 1:
             return vals
         bank_vals = bank_side[0][2]
+        # Payments go straight to the bank (2026-11-27), but a deposited cheque is not money yet: it
+        # waits in Outstanding Receipts until the bank clears it (or bounces it).
+        if not self.env["account.account"].browse(bank_vals["account_id"]).reconcile:
+            from odoo.addons.x4u_account.focus_chart import CODE
+            from odoo.addons.x4u_account.hooks import _account
+
+            outstanding = _account(self.env, self.company_id, CODE["outstanding_receipts"])
+            if outstanding:
+                bank_vals["account_id"] = outstanding.id
         lines = [cmd for cmd in vals["line_ids"] if cmd is not bank_side[0]]
         for line in self.check_payment_ids:
             pay = line.payment_id

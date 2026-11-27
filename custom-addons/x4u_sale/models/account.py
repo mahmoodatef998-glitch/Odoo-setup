@@ -111,6 +111,13 @@ class AccountPayment(models.Model):
             lambda line: line.account_id.account_type in ("asset_receivable", "liability_payable") and not line.reconciled
         )
 
+    def _x4u_lines_for(self, document):
+        """The lines of this payment the invoice (or bill) `document` takes: its open lines on the
+        document's customer (vendor) account (x4u_account adds the advances account)."""
+        self.ensure_one()
+        counterpart = document.line_ids.filtered(lambda line: line.display_type == "payment_term").account_id
+        return self._x4u_open_counterpart_lines().filtered(lambda line: line.account_id in counterpart)
+
     def _x4u_unapplied_in(self, currency):
         """What the tax invoice (or the bill) can still apply (S8)."""
         self.ensure_one()
@@ -147,14 +154,13 @@ class AccountMove(models.Model):
     def _x4u_assign_payments(self, payments, reference):
         """Apply the open part of each payment of the same partner, then say which on the chatter."""
         self.ensure_one()
-        counterpart = self.line_ids.filtered(lambda line: line.display_type == "payment_term").account_id
         applied = []
         for payment in payments:
             if self.currency_id.is_zero(self.amount_residual):
                 break
             if payment.partner_id.commercial_partner_id != self.commercial_partner_id:
                 continue
-            lines = payment._x4u_open_counterpart_lines().filtered(lambda line: line.account_id in counterpart)
+            lines = payment._x4u_lines_for(self)
             if not lines:
                 continue
             before = self.amount_residual

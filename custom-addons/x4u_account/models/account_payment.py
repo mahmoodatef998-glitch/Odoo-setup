@@ -163,8 +163,10 @@ class AccountPayment(models.Model):
         for pay in self:
             if pay.x4u_pdc_state not in OPEN_PDC_STATES:
                 raise UserError(_("Only a cheque that the bank has not paid can bounce."))
-            documents = pay.reconciled_bill_ids | pay.reconciled_invoice_ids
+            documents = pay.reconciled_bill_ids | pay.reconciled_invoice_ids | pay._x4u_advance_documents()
             if pay.x4u_pdc_state == "deposited":
+                # An advance an invoice already took comes back first (account_advance.py).
+                pay._x4u_undo_advance_transfers()
                 pay._x4u_bounce_deposited()
             else:
                 # Out of a deposit that is not validated yet.
@@ -180,7 +182,10 @@ class AccountPayment(models.Model):
     def _x4u_bounce_deposited(self):
         self.ensure_one()
         deposit_line = self.x4u_deposit_line_ids.filtered(lambda line: line.parent_state == "posted" and not line.reconciled)
-        receivable = self.move_id.line_ids.filtered(lambda line: line.account_id.account_type == "asset_receivable")
+        # The customer's line: on the customer's account, or on Advances from Customers for an advance.
+        receivable = self.move_id.line_ids.filtered(
+            lambda line: line.account_id.account_type == "asset_receivable" or line.account_id.x4u_partner_advance
+        )
         if len(deposit_line) != 1 or len(receivable) != 1:
             raise UserError(_("Cheque %s is not on one open deposit line.", self.x4u_cheque_number))
         deposit = self.env["account.check.deposit"].search([("move_id", "=", deposit_line.move_id.id)], limit=1)
@@ -209,6 +214,7 @@ class AccountPayment(models.Model):
         move.action_post()
         # The invoice is open again; the payment's receivable line now meets the bounce's.
         receivable.remove_move_reconcile()
-        for line in receivable + deposit_line:
+        # The deposit is on the bank itself now (payments straight to the bank): nothing to match there.
+        for line in (receivable + deposit_line).filtered(lambda line: line.account_id.reconcile):
             (line + move.line_ids.filtered(lambda new, old=line: new.account_id == old.account_id)).reconcile()
         self.x4u_pdc_bounce_move_id = move
