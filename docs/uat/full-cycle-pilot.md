@@ -77,7 +77,10 @@ Receive Products من الـ PO (أو Inventory ← Receipts ← **WH/IN/00001**
 Sales ← New: **عميل تجربة**، المولد Cummins 100 kVA (دينامو 4U)، ✅ Supply: **Assembly** لوحده.
 - السعر من الكتالوج بيتحط لوحده؛ **للتجربة غيّره لـ 60,000** (+ VAT 5% = **63,000**).
 - اطبع العرض ← ✅ بشكل QT 1112 (الـ letterhead، والـ datasheet، والـ Terms).
-- LPO Number و LPO Date و LPO File، وإيصال التحويل في Payment Receipts ← **Send to Accountant** ← ✅ الـ PI اتعمل معاه لوحده.
+- العميل وافق ← **Confirm Quotation** ← ✅ الشريط فوق بقى **Accepted**، والسعر والكمية اتقفلوا (جرّب تغيّر السعر ← ✅ يقول Back to Quotation). ومفيش Job Order ولا قيد.
+- **Create PI** ← ✅ PDF مكتوب عليه "not a tax invoice" ← يتبعت للعميل. (لو العميل بعت الـ LPO الأول، Send to Accountant بيعمل الـ PI لوحده.)
+- ✅ تحت الـ LPO فيه **Checklist**: علامة خضرا قدام كل حاجة جت، وحمرا قدام اللي ناقص.
+- LPO Number و LPO Date و LPO File، وإيصال التحويل في Payment Receipts ← **Send to Accountant** ← ✅ الشريط **With Accountant**.
 - ✅ الرقم **S001**، ومفيش قيد لسه.
 
 ## الخطوة 6: دفعة العميل والتأكيد (Accountant)
@@ -135,6 +138,12 @@ Audit Reports ← **Trial Balance** (أو General Ledger) بعد كل خطوة. 
 | 421001 Cost Of Sales | | | | | | 47,040 Dr |
 | 410002 Sales Generators | | | | | | 60,000 Cr |
 | 110002 VAT OUT | | | | | | 3,000 Cr |
+
+## قيمة المخزن
+Inventory ← Reporting ← **Stock Value** ← التاريخ النهارده ← View:
+- ✅ **Stock Value 29,400** = **Book Balance** 29,400، والـ Difference صفر (أخضر: The stock and the books agree).
+- ✅ Products by Category: تحت Engines الماتور بـ 22,000، وتحت Alternators الدينامو بـ 7,400. اضغط على الماتور ← سيريال `ENG-T-0001` بـ 22,000.
+- غيّر التاريخ لليوم اللي قبل الاستلام ← ✅ صفر. **Export Excel** ← ✅ شيت Stock Value وشيت Serials.
 
 ## في الآخر
 - ✅ **Trial Balance**: إجمالي المدين = إجمالي الدائن.

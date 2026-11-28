@@ -1,3 +1,5 @@
+from markupsafe import escape
+
 from odoo import Command, _, api, fields, models
 from odoo.exceptions import AccessError, UserError, ValidationError
 
@@ -12,6 +14,15 @@ PO_CHECK_STATES = [
 PO_CHECK_FIELDS = {"x4u_po_check", "x4u_po_check_user_id", "x4u_po_check_date", "x4u_po_mismatch_reason"}
 ACTIVITY_PO_CHECK = "x4u_sale.mail_activity_type_po_check"
 ACTIVITY_PO_FIX = "x4u_sale.mail_activity_type_po_fix"
+# v0.9 C1: where the order is, one bar for everybody.
+STAGES = [
+    ("quotation", "Quotation"),
+    ("accepted", "Accepted"),
+    ("with_accountant", "With Accountant"),
+    ("returned", "Returned to Sales"),
+    ("confirmed", "Confirmed"),
+    ("cancel", "Cancelled"),
+]
 # v0.7 O2: what the Salesperson cannot change while the Accountant has the order.
 FROZEN_FIELDS = {"order_line", "partner_id", "pricelist_id", "payment_term_id", "x4u_schedule_ids", "currency_id"}
 
@@ -70,6 +81,63 @@ class SaleOrder(models.Model):
     x4u_amount_advance = fields.Monetary(string="Advances Received", compute="_compute_x4u_payments")
     x4u_amount_remaining = fields.Monetary(string="Remaining", compute="_compute_x4u_payments")
     x4u_final_invoice_paid = fields.Boolean(string="Final Invoice Paid", compute="_compute_x4u_payments")
+    # v0.9 C1-C6: the customer accepted the quotation (Confirm Quotation by the Salesperson): the
+    # prices and quantities are locked, the PI and the documents can come in any order.
+    x4u_accepted_date = fields.Datetime(string="Accepted On", copy=False, readonly=True)
+    x4u_accepted_user_id = fields.Many2one("res.users", string="Accepted By", copy=False, readonly=True)
+    x4u_stage = fields.Selection(
+        STAGES, string="Stage", compute="_compute_x4u_stage", store=True, tracking=True, index=True,
+        help="Quotation: being prepared. Accepted: the customer said yes, prices locked, waiting for the PO, the "
+        "payment and the documents. With Accountant: sent, the Accountant checks and confirms. Returned to Sales: "
+        "the Accountant sent it back. Confirmed: open, the Job Order and the purchases start.",
+    )
+    x4u_document_ids = fields.One2many("x4u.sale.order.document", "order_id", string="Documents", copy=False)
+    x4u_checklist_html = fields.Html(string="Checklist", compute="_compute_x4u_checklist_html", sanitize=False)
+
+    @api.depends("state", "x4u_accepted_date", "x4u_po_check")
+    def _compute_x4u_stage(self):
+        for order in self:
+            if order.state == "cancel":
+                order.x4u_stage = "cancel"
+            elif order.state == "sale":
+                order.x4u_stage = "confirmed"
+            elif order.x4u_po_check in ("to_check", "match"):
+                order.x4u_stage = "with_accountant"
+            elif order.x4u_po_check == "mismatch":
+                order.x4u_stage = "returned"
+            elif order.x4u_accepted_date:
+                order.x4u_stage = "accepted"
+            else:
+                order.x4u_stage = "quotation"
+
+    def _x4u_checklist(self):
+        """v0.9 C4: (label, done) of what goes to the Accountant, from the payment terms and the customer."""
+        self.ensure_one()
+        items = [
+            (_("Customer accepted the quotation (Confirm Quotation)"), bool(self.x4u_accepted_date)),
+            (_("Customer PO: number, date and file"), bool(self.client_order_ref and self.x4u_lpo_date and self.x4u_lpo_attachment_ids)),
+        ]
+        if self.x4u_advance_due:
+            items.append((_("PI (Send to Accountant makes it if there is none)"), bool(self._x4u_active_proforma())))
+            items.append((_("Receipt of the first payment"), bool(self.x4u_payment_proof_ids)))
+        documents = {document.type_id: document for document in self.x4u_document_ids}
+        for doc_type in self.partner_id.commercial_partner_id.x4u_document_type_ids:
+            items.append((doc_type.name, bool(documents.get(doc_type) and documents[doc_type].attachment_ids)))
+        return items
+
+    @api.depends(
+        "x4u_accepted_date", "client_order_ref", "x4u_lpo_date", "x4u_lpo_attachment_ids", "x4u_advance_due",
+        "x4u_payment_proof_ids", "x4u_proforma_ids.state", "x4u_document_ids.attachment_ids",
+        "partner_id.commercial_partner_id.x4u_document_type_ids",
+    )
+    def _compute_x4u_checklist_html(self):
+        for order in self:
+            rows = "".join(
+                '<li class="%s"><i class="fa %s me-2"></i>%s</li>'
+                % ("text-success" if done else "text-danger", "fa-check-circle" if done else "fa-circle-o", escape(label))
+                for label, done in order._x4u_checklist()
+            )
+            order.x4u_checklist_html = '<ul class="list-unstyled mb-0">%s</ul>' % rows
 
     @api.depends("x4u_schedule_ids.percent")
     def _compute_x4u_schedule_percent(self):
@@ -260,6 +328,11 @@ class SaleOrder(models.Model):
                 raise UserError(
                     _("%s is with the Accountant: ask to send it back before changing it.", ", ".join(with_accountant.mapped("name")))
                 )
+        # v0.9 C2: accepted by the customer, so the PI and the customer PO stay as the order:
+        # nobody changes the prices or quantities (the Accountant neither) until Back to Quotation.
+        if FROZEN_FIELDS & set(vals) and not self.env.su:
+            self._x4u_check_not_accepted(vals)
+        if FROZEN_FIELDS & set(vals) and not self.env.su and not self._x4u_is_accountant():
             # v0.8 Q4: the customer has the PI; the order stays as on it until the PI is cancelled.
             with_pi = self.filtered(lambda o: o.state in ("draft", "sent") and o._x4u_active_proforma())
             if with_pi and self._x4u_changes_the_pi(vals):
@@ -298,6 +371,19 @@ class SaleOrder(models.Model):
             new._x4u_notify_accountant_each(lambda o: _("Payment receipt for %s: check the bank and record it", o.name))
         return res
 
+    def _x4u_check_not_accepted(self, vals=None):
+        """v0.9 C2: what the customer accepted stays as it is until Back to Quotation."""
+        if self.env.su or self.env.context.get("x4u_back_to_quotation"):
+            return
+        accepted = self.filtered(lambda o: o.state in ("draft", "sent") and o.x4u_accepted_date)
+        if accepted and (vals is None or accepted._x4u_changes_the_pi(vals)):
+            raise UserError(
+                _(
+                    "%s was accepted by the customer: press Back to Quotation to change it (its PI is cancelled).",
+                    ", ".join(accepted.mapped("name")),
+                )
+            )
+
     @api.model
     def _x4u_internal_line_fields(self):
         """Fields of a line that are not on the PI (x4u_job_order adds the Supply)."""
@@ -335,13 +421,76 @@ class SaleOrder(models.Model):
             problems.append(_("the customer PO file"))
         if self.x4u_advance_due and not self.x4u_payment_proof_ids:
             problems.append(_("the receipt of the first payment (transfer receipt or cheque)"))
+        uploaded = self.x4u_document_ids.filtered("attachment_ids").type_id
+        for doc_type in self.partner_id.commercial_partner_id.x4u_document_type_ids - uploaded:
+            problems.append(_("%s (Documents tab)", doc_type.name))
         return problems
+
+    # ------------------------------------------------------------------
+    # v0.9: Confirm Quotation (the customer accepted) and Back to Quotation (C1, C2, C5)
+    # ------------------------------------------------------------------
+
+    def _x4u_accept_problems(self):
+        """What the quotation needs before the customer's yes locks it. x4u_job_order adds the
+        chosen option and the price of each generator."""
+        self.ensure_one()
+        problems = []
+        if not self.order_line.filtered(lambda line: not line.display_type):
+            problems.append(_("at least one line"))
+        return problems
+
+    def _x4u_sync_documents(self):
+        """A line on the Documents tab for each document the customer sends with its orders."""
+        for order in self:
+            missing = order.partner_id.commercial_partner_id.x4u_document_type_ids - order.x4u_document_ids.type_id
+            if missing:
+                order.env["x4u.sale.order.document"].sudo().create(
+                    [{"order_id": order.id, "type_id": doc_type.id} for doc_type in missing]
+                )
+
+    def action_x4u_accept(self):
+        """C1: the Salesperson, once the customer said yes. Nothing is made, bought or reserved and
+        nothing is posted: only the prices and quantities are locked (C2)."""
+        for order in self:
+            if order.state not in ("draft", "sent") or order.x4u_accepted_date:
+                raise UserError(_("%s is not a quotation to accept.", order.name))
+            order._x4u_check_schedule_total()
+            problems = order._x4u_accept_problems()
+            if problems:
+                raise UserError(
+                    _("%(order)s needs before the customer's acceptance:\n- %(list)s", order=order.name, list="\n- ".join(problems))
+                )
+        self.sudo().write({"x4u_accepted_date": fields.Datetime.now(), "x4u_accepted_user_id": self.env.uid})
+        self._x4u_sync_documents()
+        for order in self:
+            order.message_post(
+                body=_("Accepted by the customer: the prices and quantities are locked. Next: the PI, the customer PO and the payment.")
+            )
+        return True
+
+    def action_x4u_back_to_quotation(self):
+        """C2: the customer changes something: the PI is cancelled and the quotation opens again."""
+        for order in self:
+            if order.x4u_stage not in ("accepted", "returned"):
+                raise UserError(_("%s is not an accepted quotation.", order.name))
+            # Raises if a payment came in on it: the Accountant cancels the payment first.
+            order.x4u_proforma_ids.filtered(lambda pi: pi.state != "cancel").with_context(x4u_back_to_quotation=True).action_cancel()
+        self.sudo().write(
+            {"x4u_accepted_date": False, "x4u_accepted_user_id": False, "x4u_po_check": False, "x4u_po_mismatch_reason": False}
+        )
+        self.sudo().activity_feedback([ACTIVITY_PO_FIX], feedback=_("Back to quotation"))
+        for order in self:
+            order.message_post(body=_("Back to quotation: the PI is cancelled, the order can be changed."))
+        return True
 
     def action_x4u_send_to_accountant(self):
         """O2 / Q3: the Salesperson sends the customer PO, the PI and the first payment to the Accountant."""
         for order in self:
             if order.state not in ("draft", "sent") or order.x4u_po_check in ("to_check", "match"):
                 raise UserError(_("%s is not a quotation to send to the Accountant.", order.name))
+            # v0.9 C6: the customer PO came first: sending it means the customer accepted.
+            if not order.x4u_accepted_date:
+                order.action_x4u_accept()
             order._x4u_check_schedule_total()
             problems = order._x4u_send_problems(pi_comes_with_it=True)
             if problems:
@@ -568,6 +717,9 @@ class SaleOrder(models.Model):
     def action_x4u_create_proforma(self):
         """v0.8 Q1: the Salesperson makes the PI of the order once the customer agrees."""
         self.ensure_one()
+        # v0.9 C3: the PI is the accepted order; a quotation is accepted on the way.
+        if not self.x4u_accepted_date:
+            self.action_x4u_accept()
         self._x4u_check_schedule_total()
         proforma = self.env["x4u.sale.proforma"].create({"order_id": self.id})
         return proforma._x4u_open()
@@ -596,3 +748,29 @@ class SaleAdvancePaymentInv(models.TransientModel):
         if not self.env.su and not self.env.user.has_group("account.group_account_invoice"):
             raise AccessError(_("Invoices are made by the Accountant."))
         return super().create_invoices()
+
+
+class SaleOrderLine(models.Model):
+    _inherit = "sale.order.line"
+
+    # v0.9 C2: a line edited on its own (not through the order) is locked the same way.
+    _X4U_LOCKED_LINE_FIELDS = {
+        "product_id", "product_uom_qty", "product_uom", "price_unit", "discount", "tax_id", "display_type",
+    }
+
+    @api.model_create_multi
+    def create(self, vals_list):
+        lines = super().create(vals_list)
+        if not self.env.su:
+            lines.order_id._x4u_check_not_accepted()
+        return lines
+
+    def write(self, vals):
+        if self._X4U_LOCKED_LINE_FIELDS & set(vals) and not self.env.su:
+            self.order_id._x4u_check_not_accepted()
+        return super().write(vals)
+
+    def unlink(self):
+        if not self.env.su:
+            self.order_id._x4u_check_not_accepted()
+        return super().unlink()

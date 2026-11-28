@@ -15,10 +15,29 @@
             <xpath expr="//button[@name='action_preview_sale_order']" position="before">
                 <field name="x4u_proforma_id" invisible="1"/>
                 <!-- The user, 2026-11-26: no Create PI button - Send to Accountant makes the PI. -->
+                <field name="x4u_stage" invisible="1"/>
+                <!-- v0.9 C1-C6: Confirm Quotation (the customer said yes), then the PI, the customer PO,
+                     the payment and the documents in any order, then Send to Accountant. -->
+                <button name="action_x4u_accept" type="object" string="Confirm Quotation" class="btn-primary"
+                        groups="sales_team.group_sale_salesman" invisible="x4u_stage != 'quotation'"
+                        help="The customer accepted: the prices and quantities are locked. Nothing is made, bought or posted yet."/>
+                <button name="action_x4u_create_proforma" type="object" string="Create PI"
+                        groups="sales_team.group_sale_salesman"
+                        invisible="x4u_stage not in ('accepted', 'returned') or x4u_proforma_id"/>
                 <!-- The user, 2026-11-26 (fewer steps): Send to Accountant makes the PI if there is none. -->
                 <button name="action_x4u_send_to_accountant" type="object" string="Send to Accountant" class="btn-primary"
                         groups="sales_team.group_sale_salesman"
-                        invisible="state not in ('draft', 'sent') or x4u_po_check in ('to_check', 'match')"/>
+                        invisible="x4u_stage not in ('accepted', 'returned')"/>
+                <button name="action_x4u_back_to_quotation" type="object" string="Back to Quotation"
+                        groups="sales_team.group_sale_salesman" invisible="x4u_stage not in ('accepted', 'returned')"
+                        confirm="Back to quotation: the PI is cancelled and the prices and quantities can be changed. Continue?"/>
+            </xpath>
+            <!-- v0.9 C1: one bar for everybody: Quotation, Accepted, With Accountant, Confirmed. -->
+            <xpath expr="//header/field[@name='state']" position="attributes">
+                <attribute name="invisible">1</attribute>
+            </xpath>
+            <xpath expr="//header/field[@name='state']" position="after">
+                <field name="x4u_stage" widget="statusbar" statusbar_visible="quotation,accepted,with_accountant,confirmed"/>
             </xpath>
             <!-- Q8: Odoo's own "Send PRO-FORMA Invoice" sends the quotation as a pro-forma; the 4U PI is
                  the one PI of the order (Create PI): Odoo's stays hidden, so there is one kind of PI. -->
@@ -78,7 +97,24 @@
                 <xpath expr="//page[@name='other_information']//field[@name='user_id']" position="move"/>
             </xpath>
             <xpath expr="//group[@name='order_details']/field[@name='payment_term_id']" position="attributes">
-                <attribute name="readonly">locked or x4u_amount_advance or x4u_po_check in ('to_check', 'match')</attribute>
+                <attribute name="readonly">locked or x4u_amount_advance or x4u_po_check in ('to_check', 'match') or x4u_stage in ('accepted', 'returned')</attribute>
+            </xpath>
+            <!-- v0.9 C2: accepted by the customer: the product, quantity, price, discount and taxes read
+                 only (Back to Quotation opens them); the Supply stays open. -->
+            <xpath expr="//field[@name='order_line']/list/field[@name='product_template_id']" position="attributes">
+                <attribute name="readonly">(id and not product_updatable) or parent.x4u_stage in ('accepted', 'returned', 'with_accountant')</attribute>
+            </xpath>
+            <xpath expr="//field[@name='order_line']/list/field[@name='product_uom_qty']" position="attributes">
+                <attribute name="readonly">is_downpayment or parent.x4u_stage in ('accepted', 'returned', 'with_accountant')</attribute>
+            </xpath>
+            <xpath expr="//field[@name='order_line']/list/field[@name='price_unit']" position="attributes">
+                <attribute name="readonly">qty_invoiced &gt; 0 or parent.x4u_stage in ('accepted', 'returned', 'with_accountant')</attribute>
+            </xpath>
+            <xpath expr="//field[@name='order_line']/list/field[@name='tax_id']" position="attributes">
+                <attribute name="readonly">qty_invoiced &gt; 0 or is_downpayment or parent.x4u_stage in ('accepted', 'returned', 'with_accountant')</attribute>
+            </xpath>
+            <xpath expr="//field[@name='order_line']/list/field[@name='discount']" position="attributes">
+                <attribute name="readonly">parent.x4u_stage in ('accepted', 'returned', 'with_accountant')</attribute>
             </xpath>
             <xpath expr="//group[@name='order_details']/field[@name='payment_term_id']" position="after">
                 <xpath expr="//page[@name='other_information']//field[@name='client_order_ref']" position="move"/>
@@ -92,11 +128,22 @@
                        decoration-success="x4u_po_check == 'match'" decoration-warning="x4u_po_check == 'to_check'"
                        decoration-danger="x4u_po_check == 'mismatch'"/>
                 <field name="x4u_po_mismatch_reason" invisible="x4u_po_check != 'mismatch'"/>
+                <field name="x4u_checklist_html" invisible="x4u_stage not in ('accepted', 'returned', 'with_accountant')"/>
             </xpath>
             <xpath expr="//field[@name='client_order_ref']" position="attributes">
                 <attribute name="readonly">state == 'sale' or x4u_po_check in ('to_check', 'match')</attribute>
             </xpath>
             <xpath expr="//page[@name='order_lines']" position="after">
+                <!-- v0.9 C4: what this customer sends with every order, ticked on the customer. -->
+                <page string="Documents" name="x4u_documents" invisible="not x4u_document_ids">
+                    <field name="x4u_document_ids" readonly="state in ('sale', 'cancel') or x4u_po_check in ('to_check', 'match')">
+                        <list editable="bottom" create="0" delete="0">
+                            <field name="type_id" readonly="1"/>
+                            <field name="attachment_ids" widget="many2many_binary"/>
+                            <field name="done" widget="boolean"/>
+                        </list>
+                    </field>
+                </page>
                 <page string="Payment Schedule" name="x4u_payment_schedule">
                     <field name="x4u_schedule_custom" invisible="1"/>
                     <field name="x4u_schedule_ids"
@@ -142,6 +189,11 @@
             <xpath expr="//field[@name='name']" position="after">
                 <field name="x4u_proforma_id" string="PI" optional="show"/>
             </xpath>
+            <xpath expr="//field[@name='amount_total']" position="after">
+                <field name="x4u_stage" widget="badge" optional="show"
+                       decoration-info="x4u_stage == 'accepted'" decoration-warning="x4u_stage == 'with_accountant'"
+                       decoration-danger="x4u_stage == 'returned'" decoration-success="x4u_stage == 'confirmed'"/>
+            </xpath>
         </field>
     </record>
 
@@ -151,6 +203,8 @@
         <field name="inherit_id" ref="sale.view_sales_order_filter"/>
         <field name="arch" type="xml">
             <xpath expr="//filter[@name='my_sale_orders_filter']" position="before">
+                <filter name="x4u_stage_accepted" string="Accepted (waiting for documents)" domain="[('x4u_stage', '=', 'accepted')]"/>
+                <filter name="x4u_stage_returned" string="Returned to Sales" domain="[('x4u_stage', '=', 'returned')]"/>
                 <filter name="x4u_po_to_check" string="To Approve (Accountant)"
                         domain="[('state', 'in', ('draft', 'sent')), ('x4u_po_check', 'in', ('to_check', 'match'))]"/>
                 <filter name="x4u_po_mismatch" string="Customer PO Doesn't Match" domain="[('x4u_po_check', '=', 'mismatch')]"/>
@@ -162,6 +216,33 @@
             </xpath>
         </field>
     </record>
+
+    <!-- v0.9 C3: the documents a customer may send with its orders (Sales › Configuration). -->
+    <record id="x4u_sale_document_type_view_list" model="ir.ui.view">
+        <field name="name">x4u.sale.document.type.list</field>
+        <field name="model">x4u.sale.document.type</field>
+        <field name="arch" type="xml">
+            <list editable="bottom">
+                <field name="sequence" widget="handle"/>
+                <field name="name"/>
+                <field name="active" widget="boolean_toggle"/>
+            </list>
+        </field>
+    </record>
+    <record id="x4u_sale_document_type_action" model="ir.actions.act_window">
+        <field name="name">Order Documents</field>
+        <field name="res_model">x4u.sale.document.type</field>
+        <field name="view_mode">list</field>
+        <field name="context">{'active_test': False}</field>
+        <field name="help" type="html">
+            <p class="o_view_nocontent_smiling_face">The documents some customers send with each order</p>
+            <p>Trade licence, TRN certificate... Tick them on the customer (Sales &amp; Purchase tab): every order of
+               it asks for them before it goes to the Accountant.</p>
+        </field>
+    </record>
+    <menuitem id="menu_x4u_sale_document_type" name="Order Documents" parent="sale.menu_sale_config"
+              action="x4u_sale_document_type_action" sequence="40"
+              groups="sales_team.group_sale_manager,account.group_account_invoice"/>
 
     <!-- Payment: the sales order (and PI) it is a payment for (S7) -->
     <record id="view_account_payment_form_x4u_sale" model="ir.ui.view">
@@ -225,6 +306,10 @@
         <field name="model">res.partner</field>
         <field name="inherit_id" ref="base.view_partner_form"/>
         <field name="arch" type="xml">
+            <xpath expr="//page[@name='sales_purchases']//group[@name='sale']" position="inside">
+                <field name="x4u_document_type_ids" widget="many2many_tags" readonly="parent_id"
+                       groups="sales_team.group_sale_salesman,account.group_account_invoice"/>
+            </xpath>
             <xpath expr="//page[@name='sales_purchases']" position="before">
                 <page string="Orders" name="x4u_orders" invisible="not id"
                       groups="sales_team.group_sale_salesman,account.group_account_invoice,account.group_account_readonly">

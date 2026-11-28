@@ -4,7 +4,7 @@
     "name": "4U Accounting",
     "summary": "Accounting the 4U way: menus, PDC cheques to vendors, equity accounts, Petty Cash, "
     "Receivables & Payables (due lists, aging, statements) and safe automatic reconciliation",
-    "version": "18.0.1.17.0",
+    "version": "18.0.1.18.0",
     "category": "Accounting/Accounting",
     # AGPL-3 because it depends on account_asset_management (AGPL-3).
     "license": "AGPL-3",
@@ -23,6 +23,8 @@
         "account_due_list",
         "account_due_list_days_overdue",
         "account_financial_report",
+        # Stock Value in Excel (spec §23).
+        "report_xlsx",
         "partner_statement",
         # Perpetual inventory: WIP and the applied overhead of a finished product (spec §9).
         "mrp_account",
@@ -68,6 +70,8 @@
         # Spec §22: Counterpart, Dr / Cr and drill-down in the General Ledger family.
         "report/general_ledger_templates.xml",
         "views/account_move_line_views.xml",
+        # Spec §23: Stock Value on a date, against the stock accounts.
+        "wizard/x4u_stock_value_views.xml",
     ],
     "assets": {
         "web.assets_backend": ["x4u_account/static/src/js/report_drilldown.esm.js"],

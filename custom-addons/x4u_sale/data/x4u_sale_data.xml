@@ -89,4 +89,15 @@
             </field>
         </record>
     </data>
+    <!-- v0.9 C3: documents some customers send with each order; more under Sales › Configuration. -->
+    <data noupdate="1">
+        <record id="document_type_trade_license" model="x4u.sale.document.type">
+            <field name="name">Trade Licence</field>
+            <field name="sequence">10</field>
+        </record>
+        <record id="document_type_trn_certificate" model="x4u.sale.document.type">
+            <field name="name">TRN Certificate</field>
+            <field name="sequence">20</field>
+        </record>
+    </data>
 </odoo>

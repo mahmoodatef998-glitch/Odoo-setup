@@ -169,12 +169,12 @@ class TestReadyGenerator(X4uJobOrderCommon):
         )
         with self.assertRaisesRegex(UserError, "Supply"):
             order.action_x4u_send_to_accountant()
-        # x4u_sale v0.8 Q4: the PI freezes the order for the Salesperson, not the Supply (not on the PI).
+        # x4u_sale v0.8 Q4 / v0.9 C2: the PI (accepted order) freezes it, not the Supply (not on the PI).
         order.write({"user_id": self.salesman.id})
         as_salesman = order.with_user(self.salesman)
         as_salesman.action_x4u_create_proforma()
         as_salesman.write({"order_line": [Command.update(line.id, {"x4u_supply": "assemble"})]})
-        with self.assertRaisesRegex(UserError, "PI with the customer"):
+        with self.assertRaisesRegex(UserError, "Back to Quotation"):
             as_salesman.write({"order_line": [Command.update(line.id, {"product_uom_qty": 2})]})
         order.action_x4u_send_to_accountant()
         self.assertEqual(order.x4u_po_check, "to_check")

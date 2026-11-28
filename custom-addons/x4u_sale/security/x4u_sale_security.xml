@@ -46,5 +46,27 @@
                 Command.link(ref('account.group_account_readonly')),
             ]"/>
         </record>
+        <!-- v0.9 C3: the documents of an order, seen like the order itself. -->
+        <record id="x4u_sale_order_document_company_rule" model="ir.rule">
+            <field name="name">Order documents: multi-company</field>
+            <field name="model_id" ref="model_x4u_sale_order_document"/>
+            <field name="domain_force">[('company_id', 'in', company_ids)]</field>
+        </record>
+        <record id="x4u_sale_order_document_personal_rule" model="ir.rule">
+            <field name="name">Order documents: own orders</field>
+            <field name="model_id" ref="model_x4u_sale_order_document"/>
+            <field name="domain_force">['|', ('order_id.user_id', '=', user.id), ('order_id.user_id', '=', False)]</field>
+            <field name="groups" eval="[Command.link(ref('sales_team.group_sale_salesman'))]"/>
+        </record>
+        <record id="x4u_sale_order_document_all_rule" model="ir.rule">
+            <field name="name">Order documents: all orders</field>
+            <field name="model_id" ref="model_x4u_sale_order_document"/>
+            <field name="domain_force">[(1, '=', 1)]</field>
+            <field name="groups" eval="[
+                Command.link(ref('sales_team.group_sale_salesman_all_leads')),
+                Command.link(ref('account.group_account_invoice')),
+                Command.link(ref('account.group_account_readonly')),
+            ]"/>
+        </record>
     </data>
 </odoo>

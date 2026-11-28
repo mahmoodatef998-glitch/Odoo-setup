@@ -69,6 +69,21 @@ class SaleOrder(models.Model):
                 problems.append(order._x4u_options_problem())
         return problems
 
+    def _x4u_accept_problems(self):
+        """x4u_sale spec v0.9 C1: the customer accepts one option and a priced generator; the PI
+        and the lock come after it."""
+        problems = super()._x4u_accept_problems()
+        if self._x4u_options_problem():
+            problems.append(self._x4u_options_problem())
+        unpriced = self.order_line.filtered(
+            lambda line: line.x4u_is_generator and not line.display_type and self.currency_id.is_zero(line.price_unit)
+        )
+        if unpriced:
+            problems.append(
+                _("the price of %s (price on request)", ", ".join(unpriced.mapped("product_id.display_name")))
+            )
+        return problems
+
     @api.model
     def _x4u_internal_line_fields(self):
         # x4u_sale spec v0.8 Q4: the Supply is not on the PI, it can still be chosen after it.

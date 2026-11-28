@@ -1,0 +1,172 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <!-- Spec §23: Stock Value on a date, by category and product, serials at their own cost,
+         against the stock accounts in the books. -->
+    <record id="x4u_stock_value_view_form" model="ir.ui.view">
+        <field name="name">x4u.stock.value.form</field>
+        <field name="model">x4u.stock.value</field>
+        <field name="arch" type="xml">
+            <form string="Stock Value">
+                <group>
+                    <field name="date"/>
+                    <field name="company_id" groups="base.group_multi_company"/>
+                </group>
+                <footer>
+                    <button name="action_view" type="object" string="View" class="btn-primary" data-hotkey="q"/>
+                    <button name="action_export_xlsx" type="object" string="Export Excel" data-hotkey="x"/>
+                    <button special="cancel" string="Cancel" data-hotkey="z"/>
+                </footer>
+            </form>
+        </field>
+    </record>
+
+    <record id="x4u_stock_value_view_result" model="ir.ui.view">
+        <field name="name">x4u.stock.value.result</field>
+        <field name="model">x4u.stock.value</field>
+        <field name="priority">20</field>
+        <field name="arch" type="xml">
+            <form string="Stock Value" create="0" edit="0" delete="0">
+                <header>
+                    <button name="action_open_products" type="object" string="Products by Category" class="btn-primary"/>
+                    <button name="action_export_xlsx" type="object" string="Export Excel"/>
+                </header>
+                <sheet>
+                    <div class="oe_title">
+                        <h1>Stock Value on <field name="date" readonly="1" class="oe_inline"/></h1>
+                    </div>
+                    <group>
+                        <group>
+                            <field name="currency_id" invisible="1"/>
+                            <field name="total_value"/>
+                            <field name="book_balance"/>
+                            <field name="difference" decoration-danger="difference != 0" decoration-success="difference == 0"/>
+                        </group>
+                    </group>
+                    <div class="alert alert-success mb-3" role="status" invisible="difference != 0">
+                        The stock and the books agree.
+                    </div>
+                    <div class="alert alert-warning mb-3" role="alert" invisible="difference == 0">
+                        The stock and the books do not agree: open the account with a difference and look for an entry
+                        posted by hand on it, or a stock move without its entry.
+                    </div>
+                    <notebook>
+                        <page string="Products" name="products">
+                            <field name="line_ids" readonly="1">
+                                <list default_order="categ_id, product_id">
+                                    <field name="currency_id" column_invisible="True"/>
+                                    <field name="categ_id"/>
+                                    <field name="product_id"/>
+                                    <field name="quantity" sum="Total"/>
+                                    <field name="uom_id" optional="hide"/>
+                                    <field name="unit_cost"/>
+                                    <field name="value" sum="Total"/>
+                                    <field name="serial_count" sum="Total"/>
+                                </list>
+                            </field>
+                        </page>
+                        <page string="Stock Accounts" name="accounts"
+                              groups="account.group_account_readonly,account.group_account_invoice">
+                            <field name="account_ids" readonly="1">
+                                <list>
+                                    <field name="currency_id" column_invisible="True"/>
+                                    <field name="account_id"/>
+                                    <field name="stock_value" sum="Total"/>
+                                    <field name="book_balance" sum="Total"/>
+                                    <field name="difference" sum="Total" decoration-danger="difference != 0"/>
+                                </list>
+                            </field>
+                        </page>
+                    </notebook>
+                </sheet>
+            </form>
+        </field>
+    </record>
+
+    <record id="x4u_stock_value_line_view_list" model="ir.ui.view">
+        <field name="name">x4u.stock.value.line.list</field>
+        <field name="model">x4u.stock.value.line</field>
+        <field name="arch" type="xml">
+            <list string="Stock Value" create="0" edit="0" delete="0">
+                <field name="currency_id" column_invisible="True"/>
+                <field name="categ_id" optional="hide"/>
+                <field name="product_id"/>
+                <field name="quantity" sum="Total"/>
+                <field name="uom_id" optional="hide"/>
+                <field name="unit_cost"/>
+                <field name="value" sum="Total"/>
+                <field name="serial_count" sum="Total"/>
+            </list>
+        </field>
+    </record>
+
+    <!-- A product opens on its serials, each at its own cost. -->
+    <record id="x4u_stock_value_line_view_form" model="ir.ui.view">
+        <field name="name">x4u.stock.value.line.form</field>
+        <field name="model">x4u.stock.value.line</field>
+        <field name="arch" type="xml">
+            <form string="Product" create="0" edit="0" delete="0">
+                <sheet>
+                    <div class="oe_title"><h1><field name="product_id" readonly="1"/></h1></div>
+                    <group>
+                        <group>
+                            <field name="currency_id" invisible="1"/>
+                            <field name="categ_id"/>
+                            <field name="quantity"/>
+                            <field name="unit_cost"/>
+                            <field name="value"/>
+                        </group>
+                    </group>
+                    <field name="lot_ids" readonly="1" invisible="not lot_ids">
+                        <list>
+                            <field name="currency_id" column_invisible="True"/>
+                            <field name="lot_id"/>
+                            <field name="quantity" sum="Total"/>
+                            <field name="value" sum="Total"/>
+                        </list>
+                    </field>
+                    <div class="text-muted" invisible="lot_ids">Valued at the average cost: no serial of its own.</div>
+                </sheet>
+            </form>
+        </field>
+    </record>
+
+    <record id="x4u_stock_value_line_view_search" model="ir.ui.view">
+        <field name="name">x4u.stock.value.line.search</field>
+        <field name="model">x4u.stock.value.line</field>
+        <field name="arch" type="xml">
+            <search>
+                <field name="product_id"/>
+                <field name="categ_id"/>
+                <field name="lot_ids" string="Serial" filter_domain="[('lot_ids.lot_id.name', 'ilike', self)]"/>
+                <group>
+                    <filter name="group_categ" string="Category" context="{'group_by': 'categ_id'}"/>
+                </group>
+            </search>
+        </field>
+    </record>
+
+    <record id="action_x4u_stock_value" model="ir.actions.act_window">
+        <field name="name">Stock Value</field>
+        <field name="res_model">x4u.stock.value</field>
+        <field name="view_mode">form</field>
+        <field name="view_id" ref="x4u_stock_value_view_form"/>
+        <field name="target">new</field>
+    </record>
+
+    <!-- The stock, the accounts and the management; not Sales (the costs are in it). -->
+    <menuitem id="menu_x4u_stock_value_inventory" name="Stock Value" parent="stock.menu_warehouse_report"
+              action="action_x4u_stock_value" sequence="15"
+              groups="stock.group_stock_user,account.group_account_readonly,account.group_account_invoice"/>
+    <menuitem id="menu_x4u_stock_value_accounting" name="Stock Value" parent="account.account_reports_management_menu"
+              action="action_x4u_stock_value" sequence="25"
+              groups="account.group_account_readonly,account.group_account_invoice"/>
+
+    <record id="action_report_x4u_stock_value_xlsx" model="ir.actions.report">
+        <field name="name">Stock Value (Excel)</field>
+        <field name="model">x4u.stock.value</field>
+        <field name="report_type">xlsx</field>
+        <field name="report_name">x4u_account.stock_value_xlsx</field>
+        <field name="report_file">stock_value</field>
+        <field name="print_report_name">'Stock Value %s' % object.date</field>
+    </record>
+</odoo>

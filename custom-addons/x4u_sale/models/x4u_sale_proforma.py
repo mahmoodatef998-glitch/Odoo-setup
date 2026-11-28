@@ -130,6 +130,9 @@ class X4uSaleProforma(models.Model):
         self.write({"cancelled": True})
         for proforma in self:
             proforma.order_id.sudo().message_post(body=_("PI %s cancelled.", proforma.name))
+        # v0.9 C2: a PI is cancelled to change the order: the quotation opens again.
+        if not self.env.context.get("x4u_back_to_quotation"):
+            self.order_id.filtered(lambda order: order.x4u_stage in ("accepted", "returned")).action_x4u_back_to_quotation()
         return True
 
     def action_register_payment(self):

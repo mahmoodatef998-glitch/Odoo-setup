@@ -185,8 +185,9 @@ class TestSalePayments(TransactionCase):
         fix = self._todo(order, self.fix_type)
         self.assertEqual(fix.user_id, self.salesperson)
         self.assertIn("400 kVA", fix.summary)
-        # The Salesperson fixes it with the customer: a new PI for the fixed order (Q4), then sends it again.
-        with self.assertRaisesRegex(UserError, "cancel the PI"):
+        # The Salesperson fixes it with the customer: a new PI for the fixed order (Q4, v0.9 C2:
+        # Back to Quotation, or Cancel PI which does the same), then sends it again.
+        with self.assertRaisesRegex(UserError, "Back to Quotation"):
             order.write({"order_line": [Command.update(order.order_line.id, {"name": "Generator 500 kVA, as on the PO"})]})
         order.x4u_proforma_id.with_user(self.salesperson).action_cancel()
         order.write({"order_line": [Command.update(order.order_line.id, {"name": "Generator 500 kVA, as on the PO"})]})
@@ -275,13 +276,15 @@ class TestSalePayments(TransactionCase):
         for text in (b"This is not a tax invoice", b"Amount Due Now", proforma.name.encode(), b"Salesperson"):
             self.assertIn(text, html)
         self.assertIn(order.user_id.name.encode(), html)
-        # Q4: the customer has the PI: the order stays as on it until the PI is cancelled.
-        with self.assertRaisesRegex(UserError, "PI with the customer"):
+        # Q4 / v0.9 C2: the customer has the PI: the order stays as on it until Back to Quotation
+        # (Cancel PI does the same).
+        with self.assertRaisesRegex(UserError, "Back to Quotation"):
             order.write({"order_line": [Command.update(order.order_line.id, {"product_uom_qty": 2})]})
-        with self.assertRaisesRegex(UserError, "cancel the PI"):
+        with self.assertRaisesRegex(UserError, "Back to Quotation"):
             order.write({"payment_term_id": self.term.id})
         proforma.action_cancel()
         self.assertEqual(proforma.state, "cancel")
+        self.assertEqual(order.x4u_stage, "quotation", "cancelling the PI opens the quotation again")
         order.write({"order_line": [Command.update(order.order_line.id, {"product_uom_qty": 2})]})
         again = self._pi(order)
         self.assertRegex(again.name, r"^PI\d{3,}$")
@@ -477,3 +480,94 @@ class TestSalePayments(TransactionCase):
         self.assertNotIn(order, self.customer.with_user(other).x4u_sale_order_ids)
         self.assertIn(order, self.customer.with_user(self.salesperson).x4u_sale_order_ids)
         self.assertIn(order, self.customer.with_user(self.accountant).x4u_sale_order_ids)
+
+    # ------------------------------------------------------------------
+    # v0.9: Quotation, Accepted, With Accountant, Returned to Sales, Confirmed (C1-C6)
+    # ------------------------------------------------------------------
+
+    def test_confirm_quotation_locks_and_opens_nothing(self):
+        order = self._quote()
+        self.assertEqual(order.x4u_stage, "quotation")
+        order.with_user(self.salesperson).action_x4u_accept()
+        self.assertEqual(order.x4u_stage, "accepted")
+        self.assertEqual(order.state, "draft", "nothing made, bought, reserved or posted")
+        self.assertEqual(order.x4u_accepted_user_id, self.salesperson)
+        for user in (self.salesperson, self.accountant):
+            with self.assertRaisesRegex(UserError, "Back to Quotation"):
+                order.with_user(user).order_line.price_unit = 40000.0
+        # The customer PO and the payment receipt still come in.
+        self._attach_po(order.with_user(self.salesperson))
+        # The customer wants a change: Back to Quotation cancels the PI and unlocks.
+        proforma = self._pi(order)
+        order.with_user(self.salesperson).action_x4u_back_to_quotation()
+        self.assertEqual(order.x4u_stage, "quotation")
+        self.assertEqual(proforma.state, "cancel")
+        order.with_user(self.salesperson).order_line.price_unit = 40000.0
+        self.assertEqual(order.amount_untaxed, 40000.0)
+
+    def test_pi_first_or_po_first(self):
+        # The customer wants the PI first: Confirm Quotation, Create PI, then the PO and the payment.
+        first = self._quote()
+        first.with_user(self.salesperson).action_x4u_accept()
+        proforma = self._pi(first)
+        self.assertEqual(proforma.state, "issued")
+        self._attach_po(first.with_user(self.salesperson))
+        self._attach_receipt(first.with_user(self.salesperson))
+        first.with_user(self.salesperson).action_x4u_send_to_accountant()
+        self.assertEqual(first.x4u_stage, "with_accountant")
+        self.assertEqual(first._x4u_active_proforma(), proforma, "the same PI goes to the Accountant")
+        # The PO came first: straight to Send to Accountant, which accepts it and makes the PI.
+        second = self._quote()
+        self._attach_po(second.with_user(self.salesperson))
+        self._attach_receipt(second.with_user(self.salesperson))
+        second.with_user(self.salesperson).action_x4u_send_to_accountant()
+        self.assertTrue(second.x4u_accepted_date)
+        self.assertTrue(second._x4u_active_proforma())
+        self.assertEqual(second.x4u_stage, "with_accountant")
+
+    def test_checklist_from_terms_and_customer(self):
+        trade = self.env.ref("x4u_sale.document_type_trade_license")
+        self.customer.x4u_document_type_ids = [Command.set(trade.ids)]
+        order = self._quote()
+        order.with_user(self.salesperson).action_x4u_accept()
+        self.assertEqual(order.x4u_document_ids.type_id, trade, "the customer's documents on the order")
+        labels = [label for label, _done in order._x4u_checklist()]
+        self.assertTrue(any("PO" in label for label in labels))
+        self.assertTrue(any("first payment" in label for label in labels), "30/30/40: a payment with the order")
+        self.assertIn("Trade Licence", labels)
+        self._attach_po(order.with_user(self.salesperson))
+        self._attach_receipt(order.with_user(self.salesperson))
+        with self.assertRaisesRegex(UserError, "Trade Licence"):
+            order.with_user(self.salesperson).action_x4u_send_to_accountant()
+        order.with_user(self.salesperson).x4u_document_ids.attachment_ids = [Command.link(self._file("licence.pdf", order).id)]
+        order.with_user(self.salesperson).action_x4u_send_to_accountant()
+        self.assertEqual(order.x4u_stage, "with_accountant")
+        self.assertIn("fa-check-circle", order.x4u_checklist_html)
+        # Deferred terms: no payment, no receipt on the checklist.
+        deferred = self._quote(self.env.ref("account.account_payment_term_30days"))
+        self.assertFalse(any("first payment" in label for label, _done in deferred._x4u_checklist()))
+
+    def test_returned_and_confirmed(self):
+        order = self._send()
+        order.with_user(self.accountant)._x4u_po_mismatch("Quantity differs")
+        self.assertEqual(order.x4u_stage, "returned")
+        with self.assertRaisesRegex(UserError, "Back to Quotation"):
+            order.with_user(self.salesperson).order_line.product_uom_qty = 2
+        order.with_user(self.salesperson).action_x4u_send_to_accountant()
+        self.assertEqual(order.x4u_stage, "with_accountant")
+        with self.assertRaises(UserError):
+            order.with_user(self.salesperson).action_x4u_back_to_quotation()
+        order.with_user(self.accountant).action_x4u_po_match()
+        self._pay(order)
+        order.with_user(self.accountant).action_confirm()
+        self.assertEqual(order.x4u_stage, "confirmed")
+        self.env.cr.precommit.run()  # the chatter tracking runs at the commit
+        stages = order.sudo().message_ids.tracking_value_ids.filtered(lambda t: t.field_id.name == "x4u_stage")
+        self.assertTrue(stages, "each step in the chatter")
+
+    def test_back_to_quotation_after_a_payment(self):
+        order = self._send()
+        self._pay(order)
+        order.with_user(self.accountant)._x4u_po_mismatch("Wrong price")
+        with self.assertRaisesRegex(UserError, "payment"):
+            order.with_user(self.salesperson).action_x4u_back_to_quotation()

@@ -3,6 +3,7 @@ from . import x4u_sale_proforma
 from . import x4u_sale_po_mismatch
 from . import x4u_sale_check_confirm
 from . import account
+from . import x4u_sale_document
 from . import res_partner
 from . import sale_order
 from . import res_config_settings

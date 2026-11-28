@@ -1,2 +1,14 @@
 id,name,model_id:id,group_id:id,perm_read,perm_write,perm_create,perm_unlink
 access_x4u_pdc_bounce_invoice,x4u.pdc.bounce invoice,model_x4u_pdc_bounce,account.group_account_invoice,1,1,1,1
+access_x4u_stock_value_stock,x4u.stock.value stock,model_x4u_stock_value,stock.group_stock_user,1,1,1,1
+access_x4u_stock_value_account,x4u.stock.value account,model_x4u_stock_value,account.group_account_readonly,1,1,1,1
+access_x4u_stock_value_invoice,x4u.stock.value invoice,model_x4u_stock_value,account.group_account_invoice,1,1,1,1
+access_x4u_stock_value_line_stock,x4u.stock.value.line stock,model_x4u_stock_value_line,stock.group_stock_user,1,1,1,1
+access_x4u_stock_value_line_account,x4u.stock.value.line account,model_x4u_stock_value_line,account.group_account_readonly,1,1,1,1
+access_x4u_stock_value_line_invoice,x4u.stock.value.line invoice,model_x4u_stock_value_line,account.group_account_invoice,1,1,1,1
+access_x4u_stock_value_lot_stock,x4u.stock.value.lot stock,model_x4u_stock_value_lot,stock.group_stock_user,1,1,1,1
+access_x4u_stock_value_lot_account,x4u.stock.value.lot account,model_x4u_stock_value_lot,account.group_account_readonly,1,1,1,1
+access_x4u_stock_value_lot_invoice,x4u.stock.value.lot invoice,model_x4u_stock_value_lot,account.group_account_invoice,1,1,1,1
+access_x4u_stock_value_account_stock,x4u.stock.value.account stock,model_x4u_stock_value_account,stock.group_stock_user,1,1,1,1
+access_x4u_stock_value_account_account,x4u.stock.value.account account,model_x4u_stock_value_account,account.group_account_readonly,1,1,1,1
+access_x4u_stock_value_account_invoice,x4u.stock.value.account invoice,model_x4u_stock_value_account,account.group_account_invoice,1,1,1,1
