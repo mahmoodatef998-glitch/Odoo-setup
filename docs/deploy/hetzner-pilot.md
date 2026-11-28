@@ -84,8 +84,9 @@ deploy/backup-daily.sh && git pull --recurse-submodules && docker compose build 
 # container's odoo user, chmod 600), and here:
 docker compose run --rm -T -v /opt/odoo4u/private/datasheets:/tmp/x4u_catalog:ro web \
   odoo shell -d odoo4u --no-http < scripts/import_generators.py
-# The letterhead of the 4U quotation: copy private/branding/letterhead-*.png to
-# /opt/odoo4u/private/branding/ (owner uid 100, chmod 600), then
+# The 4U letterhead of every document (x4u_reports): copy private/branding/letterhead.json,
+# 4u-logo-hq.png, hi-light.png and letterhead-brands.png to /opt/odoo4u/private/branding/
+# (owner uid 100, chmod 600), then (it also sets the "4U Letterhead" layout and its A4 paper)
 docker compose run --rm -T -v /opt/odoo4u/private/branding:/tmp/x4u_branding:ro web \
   odoo shell -d odoo4u --no-http < scripts/set_letterhead.py
 # Start the pilot again (the user, 2026-11-25): delete every movement (orders, receipts, stock,

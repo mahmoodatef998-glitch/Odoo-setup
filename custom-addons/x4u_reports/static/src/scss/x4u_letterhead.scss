@@ -1,0 +1,292 @@
+// x4u_reports §2: the 4U letterhead (header, watermark, footer) and the look of every document
+// printed with it - the same language as the 4U quotation (QT 1112): navy, yellow, gold, small
+// spaced capitals for the labels. Odoo's own tables only (table.table): the 4U quotation keeps its
+// own. wkhtmltopdf: tables and blocks, no flexbox.
+$x4u-navy: #1e2a3b;
+$x4u-yellow: #ffde59;
+$x4u-rule: #fdd835;
+$x4u-gold: #b8860b;
+$x4u-blue: #1e3a8a;
+$x4u-ink: #1f2937;
+$x4u-muted: #6b7280;
+$x4u-line: #e5e7eb;
+$x4u-soft: #f3f4f6;
+$x4u-latin: Helvetica, Arial, "Nimbus Sans", sans-serif;
+$x4u-arabic: "Tajawal", "DejaVu Sans", sans-serif;
+
+// wkhtmltopdf draws a hairline for a "solid" border of width 0 (Bootstrap's default on tables,
+// rows and cells): the letterhead's own tables have none at all.
+.o_x4u_lh_header,
+.o_x4u_lh_footer {
+    table,
+    thead,
+    tbody,
+    tr,
+    td {
+        border: 0;
+    }
+}
+
+// The company's font (Lato) sits on .o_company_N_layout: two classes win.
+.header.o_x4u_lh,
+.footer.o_x4u_lh,
+.article.o_x4u_lh {
+    font-family: $x4u-latin;
+}
+
+// Header ----------------------------------------------------------------------------------------
+.o_x4u_lh_header {
+    position: relative;
+
+    table.o_x4u_lh_top {
+        width: 100%;
+        border-collapse: collapse;
+        border: 0;
+
+        tr,
+        td {
+            vertical-align: middle;
+            padding: 0;
+            border: 0;
+        }
+    }
+
+    .o_x4u_lh_en {
+        width: 40%;
+        text-align: left;
+    }
+
+    .o_x4u_lh_logo {
+        width: 22%;
+        text-align: center;
+
+        img {
+            max-height: 74px;
+            max-width: 100%;
+        }
+    }
+
+    .o_x4u_lh_ar {
+        width: 38%;
+        text-align: right;
+        font-family: $x4u-arabic;
+    }
+
+    .o_x4u_lh_name {
+        font-size: 18px;
+        font-weight: bold;
+        color: #000;
+        white-space: nowrap;
+    }
+
+    .o_x4u_lh_tagline {
+        font-size: 10.5px;
+        color: $x4u-blue;
+        letter-spacing: 1px;
+        margin-top: 4px;
+        white-space: nowrap;
+    }
+
+    .o_x4u_lh_name_ar {
+        font-size: 19px;
+        font-weight: bold;
+        color: #000;
+        white-space: nowrap;
+    }
+
+    .o_x4u_lh_tagline_ar {
+        font-size: 14.5px;
+        font-weight: bold;
+        color: #000;
+        white-space: nowrap;
+    }
+
+    .o_x4u_lh_contact {
+        font-size: 11px;
+        color: #111827;
+        text-align: center;
+        margin-top: 10px;
+        white-space: nowrap;
+    }
+
+    .o_x4u_lh_rule {
+        height: 3px;
+        background-color: $x4u-rule;
+        margin-top: 5px;
+    }
+}
+
+// Footer ----------------------------------------------------------------------------------------
+.o_x4u_lh_footer {
+    table.o_x4u_lh_meta {
+        width: 100%;
+        border-collapse: collapse;
+        border: 0;
+        font-size: 10px;
+        color: $x4u-muted;
+
+        tr,
+        td {
+            padding: 0 0 4px 0;
+            vertical-align: bottom;
+            border: 0;
+        }
+
+        p {
+            margin: 0;
+        }
+    }
+
+    .o_x4u_lh_meta_right {
+        text-align: right;
+        white-space: nowrap;
+    }
+
+    .o_x4u_lh_rule {
+        height: 2px;
+        background-color: $x4u-rule;
+    }
+
+    img.o_x4u_lh_brands {
+        display: block;
+        width: 94%;
+        margin: 5px auto;
+    }
+}
+
+// Watermark: in the header (drawn on every page), down in the middle of the page ---------------
+.o_x4u_lh_header .o_x4u_lh_watermark {
+    position: absolute;
+    top: 430px;
+    left: 0;
+    right: 0;
+    text-align: center;
+    z-index: -1;
+
+    img {
+        width: 300px;
+    }
+}
+
+// The documents ---------------------------------------------------------------------------------
+// wkhtmltopdf draws a hairline for a "solid" border of width 0, which Bootstrap puts on every cell:
+// no border unless the template or a rule below gives one (low specificity on purpose).
+.o_report_layout_x4u thead,
+.o_report_layout_x4u tbody,
+.o_report_layout_x4u tfoot,
+.o_report_layout_x4u tr,
+.o_report_layout_x4u td,
+.o_report_layout_x4u th {
+    border-style: none;
+}
+
+div.article.o_report_layout_x4u {
+    color: $x4u-ink;
+
+    h1,
+    h2,
+    h3,
+    h4 {
+        color: $x4u-navy;
+    }
+
+    h2 {
+        font-weight: bold;
+        margin-bottom: 14px;
+    }
+
+    // The title of the document (Invoice INV/..., Quotation S0012, Purchase Order P0009...).
+    h2:after {
+        content: "";
+        display: block;
+        width: 50px;
+        height: 4px;
+        background-color: $x4u-yellow;
+        margin-top: 6px;
+    }
+
+    // The block of dates and references (Invoice Date, Due Date, Source...).
+    #informations strong {
+        display: block;
+        color: $x4u-gold;
+        font-size: 9.5px;
+        letter-spacing: 1.5px;
+        text-transform: uppercase;
+        margin-bottom: 2px;
+    }
+
+    // The customer's / vendor's address, and the second address block when there is one.
+    .address div[name="address"] {
+        border-left: 3px solid $x4u-yellow;
+        background-color: $x4u-soft;
+        padding: 10px 14px;
+    }
+
+    .address div[name="information_block"] {
+        border-left: 3px solid $x4u-navy;
+        background-color: $x4u-soft;
+        padding: 10px 14px;
+    }
+}
+
+.o_table_x4u {
+    table.table:not(.o_ignore_layout_styling) {
+        --bs-table-bg: transparent;
+        --bs-table-accent-bg: transparent;
+
+        > :not(caption) > * > * {
+            background-color: transparent;
+        }
+
+        thead th {
+            font-size: 9.5px;
+            font-weight: bold;
+            letter-spacing: 1.2px;
+            text-transform: uppercase;
+            color: #374151;
+            padding-top: 7px;
+            padding-bottom: 7px;
+            border-bottom: 2px solid $x4u-navy;
+        }
+
+        tbody td {
+            border-bottom: 1px solid $x4u-line;
+        }
+
+        tr.o_line_section td {
+            background-color: $x4u-soft;
+            color: $x4u-navy;
+            font-weight: bold;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        tr.o_line_note td {
+            color: $x4u-muted;
+        }
+    }
+
+    table.table-bordered:not(.o_ignore_layout_styling) {
+        td,
+        th {
+            border: 1px solid $x4u-line;
+        }
+    }
+
+    table.o_total_table:not(.o_ignore_layout_styling) {
+        tbody td {
+            border-bottom: 1px solid $x4u-line;
+        }
+
+        tr.o_total td {
+            background-color: $x4u-navy;
+            color: #fff;
+            border-bottom: 0;
+
+            strong,
+            span {
+                color: #fff;
+            }
+        }
+    }
+}

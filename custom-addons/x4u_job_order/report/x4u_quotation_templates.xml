@@ -3,19 +3,6 @@
     <!-- x4u_generator_datasheet §9: the 4U quotation in the QT 1112 layout - letterhead, Prepared for /
          Prepared by, Requirement, the generators (options A / B / C or plain lines), Delivery,
          Price Summary (each option its own total), Terms & Conditions. Tables only: wkhtmltopdf. -->
-    <record id="paperformat_x4u_quotation" model="report.paperformat">
-        <field name="name">4U Quotation (A4)</field>
-        <field name="format">A4</field>
-        <field name="orientation">Portrait</field>
-        <field name="margin_top">40</field>
-        <field name="margin_bottom">32</field>
-        <field name="margin_left">12</field>
-        <field name="margin_right">12</field>
-        <field name="header_line" eval="False"/>
-        <field name="header_spacing">8</field>
-        <field name="dpi">90</field>
-    </record>
-
     <record id="action_report_x4u_quotation" model="ir.actions.report">
         <field name="name">Quotation (4U)</field>
         <field name="model">sale.order</field>
@@ -25,32 +12,13 @@
         <field name="print_report_name">'%s %s' % ('Quotation' if object.state in ('draft', 'sent') else 'Order', object.name)</field>
         <field name="binding_model_id" ref="sale.model_sale_order"/>
         <field name="binding_type">report</field>
-        <field name="paperformat_id" ref="paperformat_x4u_quotation"/>
+        <field name="paperformat_id" ref="x4u_reports.paperformat_x4u_letterhead"/>
     </record>
 
+    <!-- The 4U letterhead of every document (x4u_reports §2): header, watermark, brands. -->
     <template id="x4u_quotation_layout">
         <t t-set="company" t-value="o.company_id"/>
-        <div class="header">
-            <img t-if="company.x4u_letterhead_header" t-att-src="image_data_uri(company.x4u_letterhead_header)" style="width: 100%;"/>
-            <table t-else="" style="width: 100%; border-bottom: 3px solid #FFDE59;">
-                <tr>
-                    <td style="font-size: 20px; font-weight: bold;" t-out="company.name"/>
-                    <td style="text-align: right;"><img t-if="company.logo" t-att-src="image_data_uri(company.logo)" style="max-height: 60px;"/></td>
-                </tr>
-            </table>
-        </div>
-        <div class="article" t-att-data-oe-model="o._name" t-att-data-oe-id="o.id" t-att-data-oe-lang="o.env.context.get('lang')">
-            <t t-out="0"/>
-        </div>
-        <div class="footer" style="font-family: Helvetica, Arial, sans-serif;">
-            <table style="width: 100%; font-size: 9px; color: #9ca3af; border-top: 1px solid #e5e7eb;">
-                <tr>
-                    <td style="padding-top: 3px;">This is a formal document generated electronically.</td>
-                    <td style="padding-top: 3px; text-align: right;"><span t-out="o.name"/> · Page <span class="page"/> of <span class="topage"/></td>
-                </tr>
-            </table>
-            <img t-if="company.x4u_letterhead_footer" t-att-src="image_data_uri(company.x4u_letterhead_footer)" style="width: 100%; margin-top: 4px;"/>
-        </div>
+        <t t-call="x4u_reports.external_layout_x4u"><t t-out="0"/></t>
     </template>
 
     <template id="report_x4u_quotation_document">
@@ -180,7 +148,7 @@
                                             <t t-out="'{:,.2f}'.format(line.price_unit)"/>
                                             <div t-if="line.discount" style="font-size: 9px; color: #b8860b;">Disc. <t t-out="'%g' % line.discount"/>%</div>
                                         </td>
-                                        <td class="num big" style="width: 6%;" t-out="', '.join('%g%%' % t.amount for t in line.tax_id) or '0%'"/>
+                                        <td class="num big" style="width: 6%;" t-out="', '.join(('%g' % t.amount) + '%' for t in line.tax_id) or '0%'"/>
                                         <td class="num amount" style="width: 16%;" t-out="'{:,.2f}'.format(line.price_subtotal)"/>
                                     </t>
                                 </tr>

@@ -23,25 +23,26 @@
             <div class="page">
                 <h2>PROFORMA INVOICE <span t-field="o.name"/></h2>
                 <p><strong>This is not a tax invoice.</strong></p>
-                <div class="row mt-4 mb-4">
-                    <div class="col-3">
+                <!-- One line of equal columns (wkhtmltopdf does not wrap five col-3). -->
+                <div id="informations" class="row mt-4 mb-4">
+                    <div class="col">
                         <strong>Date</strong>
                         <div t-field="o.date"/>
                     </div>
-                    <div class="col-3">
+                    <div class="col">
                         <strong>Sales Order</strong>
                         <div t-field="order.name"/>
                     </div>
-                    <div class="col-3" t-if="order.client_order_ref">
+                    <div class="col" t-if="order.client_order_ref">
                         <strong>LPO Number</strong>
                         <div t-field="order.client_order_ref"/>
                     </div>
-                    <div class="col-3" t-if="order.x4u_lpo_date">
+                    <div class="col" t-if="order.x4u_lpo_date">
                         <strong>LPO Date</strong>
                         <div t-field="order.x4u_lpo_date"/>
                     </div>
                     <!-- Spec v0.7.1 O12: who made the order. -->
-                    <div class="col-3 mt-2" t-if="order.user_id">
+                    <div class="col" t-if="order.user_id">
                         <strong>Salesperson</strong>
                         <div t-field="order.user_id"/>
                     </div>

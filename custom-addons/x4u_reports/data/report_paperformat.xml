@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <!-- x4u_reports §2: A4 with room for the letterhead header and the brands footer. wkhtmltopdf
+         puts the header's top at margin_top - header_spacing (7 mm) and lets it run 38 mm. -->
+    <record id="paperformat_x4u_letterhead" model="report.paperformat">
+        <field name="name">4U Letterhead (A4)</field>
+        <field name="format">A4</field>
+        <field name="orientation">Portrait</field>
+        <field name="margin_top">45</field>
+        <field name="margin_bottom">30</field>
+        <field name="margin_left">12</field>
+        <field name="margin_right">12</field>
+        <field name="header_line" eval="False"/>
+        <field name="header_spacing">38</field>
+        <field name="dpi">90</field>
+    </record>
+</odoo>

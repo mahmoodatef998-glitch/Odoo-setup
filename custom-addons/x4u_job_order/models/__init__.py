@@ -8,7 +8,6 @@ from . import stock_picking
 from . import stock_rule
 from . import purchase_order
 from . import sale_order
-from . import res_company
 from . import x4u_generator
 from . import x4u_job_order_ckd
 from . import x4u_job_order_deliver

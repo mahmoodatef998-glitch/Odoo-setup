@@ -1,0 +1,42 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <!-- x4u_reports §2: what the letterhead shows, typed by the Administrator (or set by
+         scripts/set_letterhead.py from the git-ignored private/branding/). -->
+    <record id="view_company_form_x4u_reports" model="ir.ui.view">
+        <field name="name">res.company.form.x4u.reports</field>
+        <field name="model">res.company</field>
+        <field name="inherit_id" ref="base.view_company_form"/>
+        <field name="arch" type="xml">
+            <xpath expr="//notebook" position="inside">
+                <page string="4U Letterhead" name="x4u_letterhead">
+                    <group>
+                        <group string="English (left)">
+                            <field name="x4u_lh_name"/>
+                            <field name="x4u_lh_tagline"/>
+                        </group>
+                        <group string="Arabic (right)">
+                            <field name="x4u_lh_name_ar"/>
+                            <field name="x4u_lh_tagline_ar"/>
+                        </group>
+                    </group>
+                    <group>
+                        <field name="x4u_lh_contact" placeholder="Empty: from the phone, mobile, email, address and Tax ID"/>
+                    </group>
+                    <group>
+                        <group>
+                            <field name="x4u_lh_logo" widget="image" options="{'size': [0, 70]}"/>
+                            <field name="x4u_lh_watermark" widget="image" options="{'size': [0, 110]}"/>
+                        </group>
+                        <group>
+                            <field name="x4u_lh_brands" widget="image" options="{'size': [0, 32]}"/>
+                        </group>
+                    </group>
+                    <div class="text-muted">
+                        Every document printed with the "4U Letterhead" document layout shows these
+                        (Settings › Companies › Configure Document Layout).
+                    </div>
+                </page>
+            </xpath>
+        </field>
+    </record>
+</odoo>

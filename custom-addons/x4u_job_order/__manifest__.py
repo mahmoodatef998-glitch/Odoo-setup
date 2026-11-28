@@ -4,7 +4,7 @@
     "name": "4U Job Orders",
     "summary": "Generator Job Orders: status, parts tracking, material "
     "requests, timeline of every step and where the delay is",
-    "version": "18.0.1.27.0",
+    "version": "18.0.1.28.0",
     "category": "Manufacturing/Manufacturing",
     # AGPL-3 because it depends on x4u_generator (AGPL-3).
     "license": "AGPL-3",
@@ -19,6 +19,8 @@
         "mrp_account",
         # The final invoice to-do and the delivery after payment (x4u_sale spec §6 B9 / B10).
         "x4u_sale",
+        # The 4U letterhead of the quotation, shared with every document (x4u_reports §2).
+        "x4u_reports",
     ],
     "data": [
         # The group first: the access rules below use it.

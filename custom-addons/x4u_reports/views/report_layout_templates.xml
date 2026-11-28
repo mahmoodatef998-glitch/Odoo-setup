@@ -1,0 +1,81 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <!-- x4u_reports §2: the 4U letterhead on every document printed with the company's layout
+         (web.external_layout): quotations, orders, pro-formas, tax invoices, credit notes,
+         payment receipts, POs, RFQs, delivery notes, statements, payslips... A company without a
+         letterhead (e.g. ATA) gets Odoo's standard layout. Tables only: wkhtmltopdf. -->
+    <template id="x4u_letterhead_header">
+        <div class="o_x4u_lh_header">
+            <table class="o_x4u_lh_top">
+                <tr>
+                    <td class="o_x4u_lh_en">
+                        <div class="o_x4u_lh_name" t-out="company.x4u_lh_name or company.name"/>
+                        <div t-if="company.x4u_lh_tagline" class="o_x4u_lh_tagline" t-out="company.x4u_lh_tagline"/>
+                    </td>
+                    <td class="o_x4u_lh_logo">
+                        <img t-if="company.x4u_lh_logo" t-att-src="image_data_uri(company.x4u_lh_logo)" alt="Logo"/>
+                    </td>
+                    <td class="o_x4u_lh_ar" dir="rtl">
+                        <div t-if="company.x4u_lh_name_ar" class="o_x4u_lh_name_ar" t-out="company.x4u_lh_name_ar"/>
+                        <div t-if="company.x4u_lh_tagline_ar" class="o_x4u_lh_tagline_ar" t-out="company.x4u_lh_tagline_ar"/>
+                    </td>
+                </tr>
+            </table>
+            <div class="o_x4u_lh_contact" t-out="company._x4u_lh_contact_line()"/>
+            <div class="o_x4u_lh_rule"/>
+            <!-- In the header, which wkhtmltopdf draws on every page, placed down in the middle of
+                 the page (a fixed element in the article shows on the first page only). -->
+            <div t-if="company.x4u_lh_watermark and report_type == 'pdf'" class="o_x4u_lh_watermark">
+                <img t-att-src="image_data_uri(company.x4u_lh_watermark)" alt=""/>
+            </div>
+        </div>
+    </template>
+
+    <template id="x4u_letterhead_footer">
+        <div class="o_x4u_lh_footer">
+            <table class="o_x4u_lh_meta">
+                <tr>
+                    <td class="o_x4u_lh_meta_left">
+                        This is a formal document generated electronically.
+                    </td>
+                    <td class="o_x4u_lh_meta_right">
+                        <t t-if="report_type == 'pdf'">
+                            <t t-if="o and 'name' in o and o.name"><span t-out="o.name"/> &#183; </t>
+                            Page <span class="page"/> of <span class="topage"/>
+                        </t>
+                    </td>
+                </tr>
+            </table>
+            <div class="o_x4u_lh_rule"/>
+            <img t-if="company.x4u_lh_brands" class="o_x4u_lh_brands" t-att-src="image_data_uri(company.x4u_lh_brands)" alt="Brands"/>
+            <div t-if="company.x4u_lh_brands" class="o_x4u_lh_rule"/>
+        </div>
+    </template>
+
+    <template id="external_layout_x4u" name="4U Letterhead">
+        <t t-if="not company.x4u_lh_ready" t-call="web.external_layout_standard"><t t-out="0"/></t>
+        <t t-else="">
+            <div t-attf-class="header o_company_#{company.id}_layout o_x4u_lh">
+                <t t-call="x4u_reports.x4u_letterhead_header"/>
+            </div>
+            <div t-attf-class="article o_report_layout_x4u o_table_x4u o_company_#{company.id}_layout o_x4u_lh"
+                 t-att-data-oe-model="o and o._name"
+                 t-att-data-oe-id="o and o.id"
+                 t-att-data-oe-lang="o and o.env.context.get('lang')">
+                <t t-call="web.address_layout"/>
+                <h2 t-if="layout_document_title" class="o_x4u_lh_title" t-out="layout_document_title"/>
+                <t t-out="0"/>
+            </div>
+            <div t-attf-class="footer o_company_#{company.id}_layout o_x4u_lh">
+                <t t-call="x4u_reports.x4u_letterhead_footer"/>
+            </div>
+        </t>
+    </template>
+
+    <!-- In Settings › Companies › Configure Document Layout, next to Light, Boxed, Bold... -->
+    <record id="report_layout_x4u" model="report.layout">
+        <field name="name">4U Letterhead</field>
+        <field name="sequence">1</field>
+        <field name="view_id" ref="external_layout_x4u"/>
+    </record>
+</odoo>
