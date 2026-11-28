@@ -32,7 +32,11 @@ The server address, passwords and the domain live only on the server (`/opt/odoo
   - No free sign-up from the login page: `x4u_roles` 18.0.1.0.9 sets
     `auth_signup.invitation_scope = b2b` (Odoo's `auth_signup` opens b2c when it installs).
 
-## Training database (2026-11-23)
+## Training database (2026-11-23, gone)
+- **Gone**: dropped before 2026-11-27 09:03 UTC; the user, 2026-11-28: no training any more, the
+  pilot only. `dbfilter = ^odoo4u$`, `list_db = False` back that day (the previous `odoo.conf` in
+  `backups/odoo.conf-before-20261128`, chmod 600); its last dump is
+  `backups/odoo4u_training-20261124-113455`. The steps below only if it is ever wanted again.
 - `odoo4u_training`: a copy of `odoo4u` (same users, passwords, look) + `scripts/training_data.py`
   (3 generators 100/250/500 kVA with Open/Canopy and AQT/Leroy-Somer variants, their parts,
   3 vendors, 3 customers, starting stock with serials, all "(Training)" / `TR-`). The navbar and
@@ -64,7 +68,8 @@ docker compose up -d
   (2026-11-24, Phase 1 after the UAT: average cost, cost of sales at the delivery, serials; the
   owner's OK "Yes, deploy"). Check every report:
   `docker compose run --rm -T -e X4U_COMPANY="ATA SAIF ZONE" -e X4U_DATE_TO=2026-09-30 web odoo shell -d odoo4u_training --no-http < scripts/accounting_reports_check.py`
-- After the pilot starts: drop it and put `dbfilter = ^odoo4u$`, `list_db = False` back.
+- After the pilot starts: drop it and put `dbfilter = ^odoo4u$`, `list_db = False` back (done
+  2026-11-28).
 
 ## Every day
 - 02:30 `deploy/backup-daily.sh` (root crontab): `scripts/backup.ps1` → `/opt/odoo4u/backups`,
